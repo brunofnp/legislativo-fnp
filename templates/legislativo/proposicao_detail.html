@@ -1,0 +1,131 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ proposicao.titulo }} | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <article class="detail detail-panel">
+    <div class="detail-header">
+      <div>
+        {% if proposicao.macrotema %}
+          <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+        {% endif %}
+        <h1>{{ proposicao.titulo }}</h1>
+        <div class="detail-meta-row">
+          <span>{{ proposicao.casa|title }}</span>
+          <span>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</span>
+          <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
+          {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
+          {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
+        </div>
+      </div>
+      <a class="button button-secondary" href="/">Voltar</a>
+    </div>
+
+    <div class="detail-grid">
+      <section class="detail-panel-main">
+        <div class="panel-block">
+          <h2>Resumo</h2>
+          <p>{{ proposicao.ementa_resumida|default:'Sem resumo cadastrado.' }}</p>
+        </div>
+
+        <div class="panel-block two-columns">
+          <div>
+            <h3>Casa</h3>
+            <p>{{ proposicao.casa|title }}</p>
+          </div>
+          <div>
+            <h3>Status / Local</h3>
+            <p>{{ proposicao.status_tramitacao|default:'Não informado' }}</p>
+          </div>
+          <div>
+            <h3>Pauta</h3>
+            <p>{% if proposicao.pauta %}Sim{% else %}Não{% endif %}</p>
+          </div>
+          <div>
+            <h3>Tema</h3>
+            <p>{{ proposicao.tema.nome if proposicao.tema else 'Indefinido' }}</p>
+          </div>
+        </div>
+
+        <div class="panel-block">
+          <h2>Próximos eventos / ações esperadas</h2>
+          <p>{{ proposicao.proximos_eventos|default:'Ainda sem eventos definidos.' }}</p>
+        </div>
+
+        <div class="panel-block">
+          <h2>Interlocutores estratégicos</h2>
+          <p>{{ proposicao.interlocutores|default:'Informação não disponível.' }}</p>
+        </div>
+
+        <div class="panel-block">
+          <h2>Última movimentação</h2>
+          <p>{{ proposicao.ultima_movimentacao|default:'Sem movimentação registrada.' }}</p>
+        </div>
+
+        <div class="panel-block merit-panel">
+          <h2>Mérito e subsídios da FNP</h2>
+          <div class="merit-columns">
+            <div>
+              <h3>Posicionamento FNP</h3>
+              <p>{{ proposicao.posicionamento_fnp|default:'—' }}</p>
+            </div>
+            <div>
+              <h3>Ações de incidência</h3>
+              <p>{{ proposicao.acoes_incidencia|default:'—' }}</p>
+            </div>
+            <div>
+              <h3>Riscos e oportunidades</h3>
+              <p>{{ proposicao.riscos_oportunidades|default:'—' }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="detail-sidebar">
+        <div class="panel-block">
+          <h2>Comentários</h2>
+          {% if success_message %}
+            <div class="toast success">{{ success_message }}</div>
+          {% endif %}
+          {% if comentarios %}
+            <ul class="comments">
+              {% for comentario in comentarios %}
+                <li>
+                  <div class="comment-author"><strong>{{ comentario.autor or 'Anônimo' }}</strong> <span>{{ comentario.criado_em|date:'d/m/Y H:i' }}</span></div>
+                  <p>{{ comentario.texto }}</p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>Sem comentários aprovados ainda.</p>
+          {% endif %}
+        </div>
+
+        <div class="panel-block">
+          <h2>Enviar participação</h2>
+          <form method="post" class="participation-form">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="sugestao" />
+            {{ participacao_form.tipo }}
+            {{ participacao_form.proposicao }}
+            <label class="field-label">Município</label>
+            {{ participacao_form.municipio }}
+            <label class="field-label">UF</label>
+            {{ participacao_form.uf }}
+            <label class="field-label">Responsável</label>
+            {{ participacao_form.responsavel }}
+            <label class="field-label">Cargo</label>
+            {{ participacao_form.cargo }}
+            <label class="field-label">E-mail</label>
+            {{ participacao_form.email }}
+            <label class="field-label">WhatsApp</label>
+            {{ participacao_form.whatsapp }}
+            <label class="field-label">Mensagem</label>
+            {{ participacao_form.mensagem }}
+            <button class="fbtn" type="submit">Enviar participação</button>
+          </form>
+        </div>
+      </aside>
+    </div>
+  </article>
+{% endblock %}

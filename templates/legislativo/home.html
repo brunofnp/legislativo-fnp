@@ -1,0 +1,114 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Proposições | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Painel Legislativo</span>
+      <h1>Proposições em acompanhamento</h1>
+      <p>O que o Congresso Nacional está discutindo e o impacto nos municípios.</p>
+    </div>
+
+    <div class="stats-grid">
+      <article class="stat-card">
+        <span class="stat-label">Total</span>
+        <span class="stat-num" id="stats-total">{{ stats.total }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Na pauta</span>
+        <span class="stat-num" id="stats-pauta">{{ stats.pauta }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Urgentes</span>
+        <span class="stat-num" id="stats-urgentes">{{ stats.urgentes }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Alta prioridade</span>
+        <span class="stat-num" id="stats-alta">{{ stats.alta_prioridade }}</span>
+      </article>
+    </div>
+  </section>
+
+  <section class="search-panel">
+    <form method="get" class="search-form">
+      <input type="search" name="q" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." />
+      <button type="submit" class="fbtn">Buscar</button>
+    </form>
+    <div class="filters-row">
+      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="theme-btn {% if not active_macrotema %}active{% endif %}">Todos</a>
+      {% for macrotema in macrotemas %}
+        <a href="?macrotema={{ macrotema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="theme-btn {% if active_macrotema == macrotema.slug %}active{% endif %}">{{ macrotema.nome }}</a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="cards-grid">
+    {% if proposicoes %}
+      {% for proposicao in proposicoes %}
+        <article class="card card-brief {% if proposicao.urgente %}urgente{% endif %}" data-proposicao-id="{{ proposicao.pk }}">
+          <div class="card-head">
+            <div>
+              {% if proposicao.macrotema %}
+                <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+              {% endif %}
+            </div>
+            <div class="tag-row">
+              <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
+              {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
+              {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
+            </div>
+          </div>
+
+          <div class="card-brief-line">
+            <span class="impact-pill">{% if proposicao.pauta %}Pauta ativa{% else %}Monitoramento{% endif %}</span>
+            <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
+          </div>
+
+          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}" data-open-modal="true">{{ proposicao.titulo }}</a></h2>
+          <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
+
+          <div class="card-brief-grid">
+            <div>
+              <span class="brief-label">Casa</span>
+              <strong>{{ proposicao.casa|title }}</strong>
+            </div>
+            <div>
+              <span class="brief-label">Status</span>
+              <strong>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</strong>
+            </div>
+            <div>
+              <span class="brief-label">Municipios</span>
+              <strong>{% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}</strong>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
+            <span>{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatechars:40 }}</span>
+          </div>
+        </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p>Nenhuma proposição encontrada com esses filtros.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <div id="detail-modal" class="detail-modal hidden" aria-hidden="true" role="dialog" aria-labelledby="modal-title">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel">
+      <button type="button" class="modal-close" data-modal-close="true" aria-label="Fechar janela de detalhes">×</button>
+      <div class="modal-body">
+        <div class="modal-header">
+          <span id="modal-macrotema" class="tag-normal hidden"></span>
+          <h2 id="modal-title">Carregando proposição...</h2>
+          <div id="modal-meta" class="detail-meta-row"></div>
+        </div>
+        <div id="modal-content" class="modal-content"></div>
+      </div>
+    </div>
+  </div>
+  <div id="realtime-toast" class="realtime-toast hidden" aria-live="polite"></div>
+{% endblock %}

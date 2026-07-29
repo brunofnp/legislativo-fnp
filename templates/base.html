@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+{% load static %}
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Painel Legislativo FNP{% endblock %}</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml" />
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">FNP</span>
+        <span class="brand-text">Painel Legislativo</span>
+      </a>
+      <nav class="main-nav">
+        <a href="/">Proposições</a>
+        <a href="/participacoes/">Participações</a>
+        <a href="/admin/">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-shell">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <p class="footer-copy">Frente Nacional de Prefeitas e Prefeitos — Painel Legislativo</p>
+        <p class="footer-note">O que o Congresso Nacional discute e o impacto nos municípios. Dados: Câmara dos Deputados e Senado Federal.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="{% static 'js/main.js' %}" defer></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[
+  {
+    "Proposição": "PL 1234/2025",
+    "Casa": "Câmara",
+    "Status da Tramitação": "Em tramitação",
+    "Local": "Comissão de Constituição e Justiça",
+    "Pauta": "Não",
+    "Prioridade FNP": "Alta",
+    "Tema": "Transporte",
+    "Macrotema": "Infraestrutura",
+    "Ementa Resumida": "Projeto de lei que trata do financiamento do transporte público.",
+    "Próximos Eventos/Ações Esperadas": "Votação em comissão",
+    "Interlocutores Estratégicos (Relatores, Lideranças, Técnicos)": "Relator: Deputado X",
+    "Última Movimentação": "15/07/2026",
+    "Link": "https://example.com/pl-1234",
+    "Posicionamento da FNP": "Apoio.",
+    "Ações de Incidência da FNP (realizadas e planejadas)": "Reunião com relator.",
+    "Riscos e Oportunidades": "Risco de veto.",
+    "_noticias": [
+      {
+        "titulo": "Câmara discute PL 1234",
+        "resumo": "O projeto avançou na CCJ.",
+        "link": "https://example.com/noticia1",
+        "data": "15/07/2026"
+      }
+    ]
+  }
+]

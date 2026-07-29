@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Participações | Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Participações</h1>
+    <p>Últimas participações enviadas pela sociedade.</p>
+  </section>
+
+  <section class="cards-grid">
+    {% for item in participacoes %}
+      <article class="card">
+        <p class="text-sm text-gray-500">{{ item.get_tipo_display }} • {{ item.criado_em|date:'d/m/Y H:i' }}</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ item.municipio }} — {{ item.proposicao }}</h2>
+        <p class="text-sm text-gray-700 mt-2">{{ item.mensagem|default:'Sem mensagem adicional.' }}</p>
+      </article>
+    {% empty %}
+      <p>Sem participações registradas.</p>
+    {% endfor %}
+  </section>
+{% endblock %}
