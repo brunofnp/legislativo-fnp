@@ -35,8 +35,9 @@
   </section>
 
   <section class="search-panel">
-    <form method="get" class="search-form">
-      <input type="search" name="q" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." />
+    <form method="get" class="search-form" role="search" aria-label="Buscar proposições">
+      <label for="search-input" class="sr-only">Buscar por proposição, ementa, status, tema ou prioridade</label>
+      <input type="search" name="q" id="search-input" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." />
       <button type="submit" class="fbtn">Buscar</button>
     </form>
 

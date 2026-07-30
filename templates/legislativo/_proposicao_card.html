@@ -9,7 +9,7 @@
         aria-label="{% if proposicao.pk in favoritos_ids %}Remover dos favoritos{% else %}Adicionar aos favoritos{% endif %}"
         title="Favoritar"
       >
-        <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
       </button>
     </form>
 
@@ -38,17 +38,17 @@
 
   <div class="card-meta-inline">
     <span class="meta-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
       {{ proposicao.casa|title }}
     </span>
-    <span class="meta-sep">·</span>
+    <span class="meta-sep" aria-hidden="true">·</span>
     <span class="meta-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       {{ proposicao.status_tramitacao|default:'Status indisponível'|truncatechars:30 }}
     </span>
-    <span class="meta-sep">·</span>
+    <span class="meta-sep" aria-hidden="true">·</span>
     <span class="meta-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
       {% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}
     </span>
   </div>

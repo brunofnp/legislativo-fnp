@@ -21,6 +21,12 @@
   </script>
 </head>
 <body>
+  <div class="skip-links">
+    <a href="#conteudo-principal" class="skip-link" accesskey="1">Pular para o conteúdo principal</a>
+    <a href="#menu-principal" class="skip-link" accesskey="2">Pular para o menu</a>
+    <a href="#rodape" class="skip-link">Pular para o rodapé</a>
+  </div>
+
   <div class="{% if user.is_authenticated and mostrar_sidebar %}app-shell{% endif %}" id="app-shell">
     {% if user.is_authenticated and mostrar_sidebar %}
       {% include '_sidebar.html' %}
@@ -40,14 +46,14 @@
                 <span class="brand-text">Painel Legislativo da FNP</span>
               </a>
             </div>
-            <nav class="main-nav">
+            <nav class="main-nav" id="menu-principal" aria-label="Menu principal">
               <a href="{% url 'account_login' %}">Entrar</a>
             </nav>
           </div>
         </header>
       {% endif %}
 
-      <main class="{% if mostrar_sidebar %}app-content{% else %}container page-shell{% endif %}">
+      <main class="{% if mostrar_sidebar %}app-content{% else %}container page-shell{% endif %}" id="conteudo-principal" tabindex="-1">
         {% block content %}{% endblock %}
       </main>
 

@@ -128,6 +128,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
     function closeModal() {
       modal.classList.add('hidden');
+      if (trigger) trigger.focus();
     }
 
     if (trigger) trigger.addEventListener('click', openModal);

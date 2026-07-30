@@ -1,48 +1,49 @@
 {% load static %}
-<aside class="app-sidebar" id="app-sidebar">
+<aside class="app-sidebar" id="app-sidebar" aria-label="Barra lateral">
   <a href="{% url 'legislativo:home' %}" class="app-sidebar-brand">
     <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="app-sidebar-logo" />
   </a>
 
-  <nav class="app-sidebar-nav">
-    <a href="{% url 'legislativo:home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-label="Início">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+  <nav class="app-sidebar-nav" id="menu-principal" aria-label="Menu principal">
+    <a href="{% url 'legislativo:home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-label="Início" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
       <span>Início</span>
     </a>
 
     <p class="sidebar-section-label">Conta</p>
-    <a href="{% url 'legislativo:perfil' %}" class="sidebar-link {% if request.resolver_match.url_name == 'perfil' %}active{% endif %}" data-label="Meu perfil">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <a href="{% url 'legislativo:perfil' %}" class="sidebar-link {% if request.resolver_match.url_name == 'perfil' %}active{% endif %}" data-label="Meu perfil" {% if request.resolver_match.url_name == 'perfil' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       <span>Meu perfil</span>
     </a>
 
     <p class="sidebar-section-label">Acompanhamento</p>
-    <a href="{% url 'legislativo:favoritos_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'favoritos_list' %}active{% endif %}" data-label="Favoritos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+    <a href="{% url 'legislativo:favoritos_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'favoritos_list' %}active{% endif %}" data-label="Favoritos" {% if request.resolver_match.url_name == 'favoritos_list' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
       <span>Favoritos</span>
     </a>
-    <a href="{% url 'legislativo:participacao_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'participacao_list' %}active{% endif %}" data-label="Participações">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <a href="{% url 'legislativo:participacao_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'participacao_list' %}active{% endif %}" data-label="Participações" {% if request.resolver_match.url_name == 'participacao_list' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span>Participações</span>
     </a>
 
     <p class="sidebar-section-label">Ajuda</p>
     <a href="https://fnp.org.br/" target="_blank" rel="noopener" class="sidebar-link" data-label="Institucional">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
       <span>Institucional</span>
+      <span class="sr-only">(abre em nova aba)</span>
     </a>
 
     {% if user.is_staff %}
       <p class="sidebar-section-label">Administração</p>
       <a href="/admin/" class="sidebar-link" data-label="Painel Admin">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 6v6c0 5 3.8 9 9 10 5.2-1 9-5 9-10V6z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9 9 10 5.2-1 9-5 9-10V6z"/></svg>
         <span>Painel Admin</span>
       </a>
     {% endif %}
   </nav>
 
-  <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6v12M4 6h16M4 18h16M4 12h16"/></svg>
+  <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" aria-expanded="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6v12M4 6h16M4 18h16M4 12h16"/></svg>
     <span>Recolher</span>
   </button>
 </aside>
