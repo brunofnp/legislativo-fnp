@@ -1,5 +1,32 @@
 # Runbook
 
+## Ambiente local (Windows) — usar Python 3.12, não 3.14
+
+Django 4.2 só suporta oficialmente até Python 3.12. No Python 3.14 (verificado
+nesta máquina), um bug interno do próprio Django (`copy.copy()` sobre
+`RequestContext` em `django/template/context.py`) quebra **toda tela de
+listagem do Admin e a maioria das telas de adicionar/editar**, com
+`AttributeError: 'super' object has no attribute 'dicts'`. Não é um bug deste
+projeto — não afeta o CI (roda em Python 3.11) nem produção.
+
+Solução: rodar o servidor local sempre pelo virtualenv `.venv` (Python 3.12),
+já criado neste repositório (ignorado pelo git):
+
+```powershell
+.venv\Scripts\python.exe manage.py runserver
+.venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py test
+```
+
+Se o `.venv` precisar ser recriado (ex.: outra máquina), sempre criar o
+virtualenv **já com o nome final** (não criar com outro nome e renomear —
+isso quebra os caminhos internos do venv no Windows):
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
 ## Deploy
 
 ```powershell

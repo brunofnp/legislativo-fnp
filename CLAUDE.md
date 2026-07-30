@@ -18,7 +18,7 @@ Branch de desenvolvimento ativo: `next`
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | Django 4.2.x · Python 3.14 local / 3.11 no CI |
+| Backend | Django 4.2.x · Python 3.12 local (via `.venv/`) / 3.11 no CI |
 | Auth | django-allauth (login por e-mail + Google OAuth, cadastro manual ou Google) |
 | Banco (dev) | SQLite |
 | Banco (prod) | PostgreSQL (planejado, via `DATABASE_URL`) |
@@ -28,7 +28,7 @@ Branch de desenvolvimento ativo: `next`
 | UI | HTML semântico, CSS customizado (dark mode via `[data-theme]`), JavaScript vanilla |
 | Testes | Django TestCase (via `RequestFactory`, não `self.client` — ver Observações) + pytest |
 
-**Observação sobre testes:** `self.client.get(...)` quebra localmente no Python 3.14 (bug de `copy.copy()` no signal `template_rendered` do Django 4.2, que só suporta oficialmente até 3.11). Os testes usam `RequestFactory` + `SessionMiddleware` manual. O CI roda em 3.11 e não é afetado.
+**Observação sobre Python 3.14:** Django 4.2 só suporta oficialmente até Python 3.12 — no 3.14 há um bug real do próprio Django (`copy.copy()` sobre `RequestContext`, `django/template/context.py`) que quebra `self.client.get(...)` nos testes E **todas as telas de listagem/adicionar do Django Admin** em runtime normal (não só em teste). Não é bug deste projeto, não afeta CI (3.11) nem produção. Fix local: sempre rodar via `.venv/` (Python 3.12, já criado e no `.gitignore`) — ver `docs/runbook.md`. Os testes usam `RequestFactory` + `SessionMiddleware` manual (funciona em qualquer versão, mantido por robustez).
 
 ---
 
@@ -318,13 +318,17 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 - Fórum redesenhado: métricas (comentários/participantes/visualizações), avatar, nome de exibição e resposta encadeada funcional
 - `Usuario` (auth) separado de `Perfil` (município/telefone/cargo), 1-para-1 via signal — migração `0005_usuario_perfil_split` com backfill
 - Models divididos por domínio: `apps.usuarios`/`apps.proposicoes`/`apps.comentarios` (era tudo em `apps.legislativo`); tabelas e dados preservados via `SeparateDatabaseAndState` (zero DDL real, só realocação de estado)
+- Navegabilidade: topbar autenticada ganhou botão "Início" e "Voltar" (history-back com fallback), páginas de Favoritos/Participações ganharam link de voltar
+- Rodapé sempre no rodapé: `.app-main`/`.page-shell` agora estabelecem `min-height`/`flex` corretos — antes ficava "flutuando" em páginas com pouco conteúdo (ex.: Favoritos vazio)
+- Django Admin reskinado com a identidade visual FNP (`templates/admin/base_site.html` + `static/css/admin-custom.css`, via custom properties do próprio tema do Django 4.2 — sem reescrever templates internos)
+- Ambiente local migrado para Python 3.12 (`.venv/`) — Python 3.14 tem um bug real do Django 4.2 (`copy.copy()` em `RequestContext`) que quebra todas as telas de listagem/adicionar do Admin em runtime normal, não só em teste; ver `docs/runbook.md`
 
 ### Itens validados (nesta última rodada)
 
 - `python manage.py check` → sem issues
-- `pytest` → 10/10 OK
-- Migração do split de apps testada localmente (dados reais preservados, contagem de linhas conferida) e via CI (`migrate` do zero numa base vazia)
-- Screenshot headless Chrome confirmando fórum e dados intactos pós-split
+- `pytest` → 10/10 OK (rodado também via `.venv/` Python 3.12)
+- Reproduzido e confirmado: todas as telas de listagem/adicionar do Admin quebravam no Python 3.14; confirmado que Python 3.12 resolve 100% (testado add/change/changelist de Group, Usuario, Proposicao)
+- Screenshot headless Chrome do Admin reskinado (index + changelist de Usuários, todos os 3 usuários reais aparecendo) e do rodapé fixo em Favoritos
 - CI verde em `dadosfnp/legislativo-fnp` (run `30574383860`)
 
 ### Pendências e próximos passos
