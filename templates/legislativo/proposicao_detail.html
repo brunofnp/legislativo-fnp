@@ -112,42 +112,66 @@
       </section>
 
       <aside class="detail-sidebar">
-        <div class="panel-block">
-          <h2>Fórum de discussão</h2>
+        <div class="panel-block forum-block">
+          <div class="forum-header">
+            <h2>Fórum de discussão</h2>
+            <div class="forum-metrics">
+              <span class="forum-metric"><strong>{{ comentarios_count }}</strong> comentário{{ comentarios_count|pluralize }}</span>
+              <span class="forum-metric"><strong>{{ participantes_count }}</strong> participante{{ participantes_count|pluralize }}</span>
+              <span class="forum-metric"><strong>{{ proposicao.visualizacoes }}</strong> visualizaç{{ proposicao.visualizacoes|pluralize:"ão,ões" }}</span>
+            </div>
+          </div>
           {% if success_message %}
             <div class="toast success">{{ success_message }}</div>
           {% endif %}
           {% if comentarios %}
-            <ul class="comments">
+            <ul class="comments" id="lista-comentarios">
               {% for comentario in comentarios %}
-                <li>
-                  <div class="comment-author"><strong>{{ comentario.autor|default:'Anônimo' }}</strong> <span>{{ comentario.criado_em|date:'d/m/Y H:i' }}</span></div>
-                  <p>{{ comentario.texto }}</p>
-                  {% with respostas=comentario.respostas.all %}
-                    {% if respostas %}
-                      <ul class="comments comments-nested">
-                        {% for resposta in respostas %}
-                          {% if resposta.status_moderacao == 'aprovado' %}
-                            <li>
-                              <div class="comment-author"><strong>{{ resposta.autor|default:'Anônimo' }}</strong> <span>{{ resposta.criado_em|date:'d/m/Y H:i' }}</span></div>
-                              <p>{{ resposta.texto }}</p>
-                            </li>
-                          {% endif %}
-                        {% endfor %}
-                      </ul>
-                    {% endif %}
-                  {% endwith %}
+                <li class="comment-card">
+                  <span class="comment-avatar" aria-hidden="true">{{ comentario.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                  <div class="comment-body">
+                    <div class="comment-author">
+                      <strong>{{ comentario.autor.get_display_name|default:'Anônimo' }}</strong>
+                      <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
+                    </div>
+                    <p>{{ comentario.texto }}</p>
+                    <button type="button" class="comment-reply-btn" data-parent-id="{{ comentario.pk }}" data-parent-nome="{{ comentario.autor.get_display_name|default:'Anônimo' }}">Responder</button>
+                    {% with respostas=comentario.respostas.all %}
+                      {% if respostas %}
+                        <ul class="comments comments-nested">
+                          {% for resposta in respostas %}
+                            {% if resposta.status_moderacao == 'aprovado' %}
+                              <li class="comment-card">
+                                <span class="comment-avatar" aria-hidden="true">{{ resposta.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                                <div class="comment-body">
+                                  <div class="comment-author">
+                                    <strong>{{ resposta.autor.get_display_name|default:'Anônimo' }}</strong>
+                                    <span class="comment-time">{{ resposta.criado_em|timesince }} atrás</span>
+                                  </div>
+                                  <p>{{ resposta.texto }}</p>
+                                </div>
+                              </li>
+                            {% endif %}
+                          {% endfor %}
+                        </ul>
+                      {% endif %}
+                    {% endwith %}
+                  </div>
                 </li>
               {% endfor %}
             </ul>
           {% else %}
             <p>Ainda não há comentários. Seja o primeiro a comentar nesta proposição.</p>
           {% endif %}
-          <form method="post" class="participation-form">
+          <form method="post" class="participation-form" id="form-comentario">
             {% csrf_token %}
             <input type="hidden" name="form_type" value="comentario" />
             {{ comentario_form.parent }}
-            <label class="field-label">Comentário</label>
+            <div class="comment-reply-indicator hidden" id="comment-reply-indicator">
+              Respondendo a <strong id="comment-reply-nome"></strong>
+              <button type="button" id="comment-reply-cancel" aria-label="Cancelar resposta">×</button>
+            </div>
+            <label class="field-label" for="{{ comentario_form.texto.id_for_label }}">Comentário</label>
             {{ comentario_form.texto }}
             <button class="fbtn" type="submit">Publicar comentário</button>
           </form>

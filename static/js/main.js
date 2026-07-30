@@ -147,6 +147,35 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initSearchModal();
 
+  function initForumReply() {
+    const parentInput = document.getElementById('id_parent');
+    const textoInput = document.getElementById('id_texto');
+    const indicator = document.getElementById('comment-reply-indicator');
+    const nomeEl = document.getElementById('comment-reply-nome');
+    const cancelBtn = document.getElementById('comment-reply-cancel');
+    const replyBtns = document.querySelectorAll('.comment-reply-btn');
+    if (!parentInput || !textoInput || !replyBtns.length) return;
+
+    replyBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        parentInput.value = btn.dataset.parentId;
+        if (nomeEl) nomeEl.textContent = btn.dataset.parentNome;
+        if (indicator) indicator.classList.remove('hidden');
+        textoInput.focus();
+        textoInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        parentInput.value = '';
+        if (indicator) indicator.classList.add('hidden');
+      });
+    }
+  }
+
+  initForumReply();
+
   function setToast(message) {
     if (!toast) return;
     toast.textContent = message;

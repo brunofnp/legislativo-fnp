@@ -266,10 +266,18 @@ def marcar_notificacoes_lidas(request):
 class ProposicaoDetailView(View):
     template_name = 'legislativo/proposicao_detail.html'
 
+    def _forum_context(self, proposicao):
+        aprovados = proposicao.comentarios.filter(status_moderacao='aprovado')
+        comentarios = aprovados.filter(parent__isnull=True).select_related('autor').prefetch_related('respostas__autor')
+        return {
+            'comentarios': comentarios,
+            'comentarios_count': aprovados.count(),
+            'participantes_count': aprovados.exclude(autor__isnull=True).values('autor_id').distinct().count(),
+        }
+
     def get(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
         registrar_visualizacao(request, proposicao)
-        comentarios = proposicao.comentarios.filter(parent__isnull=True, status_moderacao='aprovado').select_related('autor')
         comentario_form = ComentarioForm(initial={'parent': None})
         participacao_form = ParticipacaoForm(initial={'proposicao': proposicao.titulo, 'tipo': 'sugestao'})
         return render(
@@ -278,10 +286,10 @@ class ProposicaoDetailView(View):
             {
                 'proposicao': proposicao,
                 'page_title': proposicao.titulo,
-                'comentarios': comentarios,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
+                **self._forum_context(proposicao),
             },
         )
 
@@ -309,18 +317,17 @@ class ProposicaoDetailView(View):
                 participacao_form.save()
                 success_message = 'Sua contribuição foi registrada com sucesso.'
 
-        comentarios = proposicao.comentarios.filter(parent__isnull=True, status_moderacao='aprovado').select_related('autor')
         return render(
             request,
             self.template_name,
             {
                 'proposicao': proposicao,
                 'page_title': proposicao.titulo,
-                'comentarios': comentarios,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
                 'success_message': success_message,
+                **self._forum_context(proposicao),
             },
         )
 
