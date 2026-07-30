@@ -14,7 +14,9 @@
 html {
   margin: 0;
   padding: 0;
+  background: #fff;
   scroll-behavior: smooth;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -22,10 +24,12 @@ body {
   padding: 0;
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
+  overscroll-behavior-y: none;
 }
 
 .site-header {
   margin: 0;
+  top: 0;
 }
 
 .container {
