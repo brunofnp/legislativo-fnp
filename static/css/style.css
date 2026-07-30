@@ -617,6 +617,8 @@ body {
 }
 
 .footer-inner {
+  width: 100%;
+  padding: 0 clamp(1.25rem, 4vw, 3rem);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
