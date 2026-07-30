@@ -1,4 +1,4 @@
-﻿# Painel Legislativo FNP
+# Painel Legislativo FNP
 
 Este repositório contém o backend Django e o frontend server-renderizado para o Painel Legislativo da Frente Nacional de Prefeitas e Prefeitos.
 

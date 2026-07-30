@@ -1,4 +1,4 @@
-﻿# Claude project configuration
+# Claude project configuration
 
 Este projeto deve seguir a arquitetura do Radar Brasil:
 - apps Django por domínio

@@ -1,4 +1,4 @@
-﻿# Painel Legislativo FNP
+# Painel Legislativo FNP
 
 ## Escopo inicial
 

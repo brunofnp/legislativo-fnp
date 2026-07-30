@@ -1,4 +1,4 @@
-﻿# Contributing
+# Contributing
 
 1. Siga a convenção de apps Django por domínio.
 2. Preserve a estrutura de pastas e padrões do Radar Brasil.

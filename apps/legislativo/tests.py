@@ -1,4 +1,4 @@
-﻿from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from .models import Macrotema, Proposicao, Tema

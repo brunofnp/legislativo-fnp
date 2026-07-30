@@ -1,4 +1,4 @@
-﻿# ADR 0001 — Arquitetura inicial
+# ADR 0001 — Arquitetura inicial
 
 - Django como framework principal.
 - PostgreSQL em produção, SQLite em desenvolvimento.
