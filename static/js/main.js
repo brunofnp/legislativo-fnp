@@ -1,4 +1,4 @@
-﻿window.addEventListener('DOMContentLoaded', function () {
+window.addEventListener('DOMContentLoaded', function () {
   const modal = document.getElementById('detail-modal');
   const modalCloseButtons = modal ? modal.querySelectorAll('[data-modal-close]') : [];
   const modalTitle = document.getElementById('modal-title');
