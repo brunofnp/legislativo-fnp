@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-07-30 (adicionadas diretrizes fixas de engenharia)
+> Última atualização: 2026-07-30 (painel de hierarquia, histórico de mérito conectado, fórum redesenhado, Usuario/Perfil separados)
 
 ---
 
@@ -127,9 +127,9 @@ Campos principais: `titulo`, `casa`, `status_tramitacao`, `local`, `pauta`, `urg
 
 **`temas`** é `ManyToManyField` para `Tema` (migrado de FK única — ver migração `0002_replace_tema_with_m2m.py`, que separa nomes compostos "A, B/C" via `split_temas()`).
 
-### Usuario
+### Usuario / Perfil
 
-`AUTH_USER_MODEL`, estende `AbstractUser` com `municipio`, `telefone`, `cargo`. Nome de exibição é sempre `get_full_name()` ou derivado do e-mail (`context_processors.notificacoes`) — nunca o e-mail cru na UI.
+`Usuario` é `AUTH_USER_MODEL`, estende `AbstractUser` (só dados de autenticação). `Perfil` guarda `municipio`, `telefone`, `cargo` em 1-para-1 com `Usuario`, criado automaticamente por signal (`signals.py`) a todo cadastro novo — inline no Admin de Usuario. Nome de exibição é `Usuario.get_display_name()` (nome completo ou derivado do e-mail) — nunca o e-mail cru na UI. Hierarquia de acesso via grupos nativos do Django: **Root** (superusuário), **Administrador FNP**, **Usuário** (padrão); ver `python manage.py setup_roles`.
 
 ### Macrotema / Tema
 
@@ -261,12 +261,11 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 **Estrutura:** modelo Radar Brasil — `apps/` (um app por domínio), `base_templates/` (layout compartilhado), `templates/` por app, `static/`, `setup/` (settings/urls raiz), `locale/`, `docs/`. Um app = uma responsabilidade; nada de app genérico "core" virando depósito. `requirements.txt` (prod) e `requirements-dev.txt` (dev/lint/teste) separados; `.env.example` versionado, `.env` nunca.
 ⚠️ **Gap atual:** todo o domínio (proposições, comentários, usuários, notificações) está hoje num único app `apps/legislativo`. Não vou dividir sem pedido explícito — é uma migração de schema/imports não-trivial.
 
-**Models/banco:** status/urgência/categoria é sempre coluna real calculada na ingestão, nunca string-matching em template/JS (`urgente`, `aprovada`, `parada`, `prioridade_fnp` já são assim). Edição de campo de mérito nunca sobrescreve — grava linha de histórico (autor, campo, valor anterior, novo, data); `EdicaoMeritoHistorico` já existe no schema (migração inicial) mas **nada no código ainda grava nele** — nenhuma view/admin/signal cria essa linha quando um campo de mérito muda. FK de thread sempre com `related_name` explícito (`Comentario.parent` → `related_name='respostas'`, já correto). Migrations sempre revisadas antes de aplicar, nunca schema editado direto em produção. Ingestão idempotente via `update_or_create` (já é o padrão em `ingest_legislativo.py`).
+**Models/banco:** status/urgência/categoria é sempre coluna real calculada na ingestão, nunca string-matching em template/JS (`urgente`, `aprovada`, `parada`, `prioridade_fnp` já são assim). Edição de campo de mérito nunca sobrescreve — grava linha de histórico (autor, campo, valor anterior, novo, data); `EdicaoMeritoHistorico` é gravado automaticamente pelo `ProposicaoAdmin.save_model` e por `ingest_legislativo` sempre que `posicionamento_fnp`/`acoes_incidencia`/`riscos_oportunidades` mudam (campos listados em `Proposicao.CAMPOS_MERITO`). FK de thread sempre com `related_name` explícito (`Comentario.parent` → `related_name='respostas'`, já correto). Migrations sempre revisadas antes de aplicar, nunca schema editado direto em produção. Ingestão idempotente via `update_or_create` (já é o padrão em `ingest_legislativo.py`).
 
-**Views/templates:** server-side rendering por padrão; JS só para interatividade puramente client-side sobre dado já carregado (filtro/busca). Nunca SPA client-side recalculando dado que já deveria vir pronto do servidor. Django Admin para telas administrativas (edição de mérito, gestão de macrotema, moderação de comentários) em vez de CRUD customizado, a menos que a necessidade seja genuinamente pública-facing.
+**Views/templates:** server-side rendering por padrão; JS só para interatividade puramente client-side sobre dado já carregado (filtro/busca). Nunca SPA client-side recalculando dado que já deveria vir pronto do servidor. Django Admin para telas administrativas (edição de mérito, gestão de macrotema, moderação de comentários, hierarquia de usuários via grupos/permissões nativas) em vez de CRUD customizado, a menos que a necessidade seja genuinamente pública-facing.
 
-**Autenticação:** auth nativo do Django, nunca senha única/`if pass == X`. Permissão via `django.contrib.auth` (permissions/groups), não checagem solta nas views.
-⚠️ **Nota de estrutura:** hoje `Usuario` estende `AbstractUser` diretamente (dados de município/cargo no próprio model), em vez de `User` + `Profile` 1-para-1. Funcionalmente cobre o requisito de auth nativo; sinalizando a diferença de forma para você decidir se quer migrar para o padrão User+Profile.
+**Autenticação:** auth nativo do Django, nunca senha única/`if pass == X`. Permissão via `django.contrib.auth` (permissions/groups) — grupos **Root** (superusuário, bypassa checagem de permissão), **Administrador FNP** (moderação/edição de conteúdo) e **Usuário** (padrão, atribuído automaticamente por signal a todo cadastro novo); ver `python manage.py setup_roles`. `Usuario` (auth) e `Perfil` (município/telefone/cargo, 1-para-1 via signal) já são separados como o padrão User+Profile pede.
 
 **Tempo real:** SSE é a solução fechada para notificação (já implementado). Não introduzir WebSocket/Channels/Redis sem decisão revista explicitamente.
 
@@ -302,22 +301,27 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 - Painel autenticado: topbar + sidebar (restrita à página de perfil), dark mode, tamanho de fonte, busca Ctrl+K, notificações de menção/resposta
 - Favoritos, "em alta", "áreas de interesse", "últimos acessados" — funcionam com ou sem login (sessão)
 - Cards redesenhados (compactos, hierarquia visual limpa) e filtro de tema em dropdown pesquisável
-- Acessibilidade: skip links, foco visível, `prefers-reduced-motion`, aria labels (commit `8efad51`)
+- Acessibilidade: skip links, foco visível, `prefers-reduced-motion`, aria labels
 - BOM UTF-8 removido de todo o repositório (causava gap visual no header e quebrava o CI via `pyproject.toml`)
+- Hierarquia de acesso: grupos Root/Administrador FNP/Usuário via `setup_roles`, `bruno.marra@fnp.org.br` promovido a Root
+- Histórico de mérito conectado: `EdicaoMeritoHistorico` agora é gravado de fato (Admin e reingestão), não só um model dormente no schema
+- Fórum redesenhado: métricas (comentários/participantes/visualizações), avatar, nome de exibição e resposta encadeada funcional
+- `Usuario` (auth) separado de `Perfil` (município/telefone/cargo), 1-para-1 via signal — migração `0005_usuario_perfil_split` com backfill
 
 ### Itens validados (nesta última rodada)
 
 - `python manage.py check` → sem issues
-- `pytest` → 2/2 OK
-- Screenshot headless Chrome confirmando skip links (oculto por padrão, visível no foco) e ausência de regressão visual
-- CI verde em `dadosfnp/legislativo-fnp` (run `30570781492`)
+- `pytest` → 10/10 OK
+- Migração `0005` testada localmente (backfill de Perfil confirmado) e via CI (roda do zero)
+- Screenshot headless Chrome do fórum redesenhado
+- CI verde em `dadosfnp/legislativo-fnp` (run `30573017778`)
 
 ### Pendências e próximos passos
 
+- Dividir `apps/legislativo` em apps por domínio (proposições/comentários/usuários) — sinalizado como gap estrutural, não executado ainda por ser migração de app_label de alto risco; aguardando decisão de escopo
 - Obter credenciais reais do Google OAuth (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — bloqueado no usuário, documentado em `docs/runbook.md`
 - Rodar `sync_legado_firestore`/`sync_camara` contra o banco de produção (só rodado localmente até agora)
 - Migrar produção de SQLite para PostgreSQL
-- Evoluir fórum de participação (hoje: comentários + notificação, sem moderação/threading avançado)
 - Integração com o Senado (hoje só Câmara via `sync_camara`)
 
 ---
