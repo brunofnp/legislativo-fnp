@@ -10,13 +10,15 @@
 </head>
 <body>
   <header class="site-header">
-    <div class="container header-inner">
-      <a class="brand" href="/">
-        <img class="brand-logo" src="{% static 'img/logo-FNP.png' %}" alt="FNP" />
-        <span class="brand-copy">
+    <div class="header-inner">
+      <div class="brand">
+        <a href="https://fnp.org.br/" target="_blank" rel="noopener" aria-label="Site institucional da FNP">
+          <img class="brand-logo" src="{% static 'img/logo-FNP.png' %}" alt="FNP" />
+        </a>
+        <a href="/" class="brand-copy">
           <span class="brand-text">Painel Legislativo da FNP</span>
-        </span>
-      </a>
+        </a>
+      </div>
       <nav class="main-nav">
         <a href="/">Proposições</a>
         <a href="/participacoes/">Participações</a>
@@ -66,9 +68,6 @@
             <a href="https://www.youtube.com/tvfnp" target="_blank" rel="noopener" class="footer-social-icon" aria-label="YouTube">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186 31.27 31.27 0 0 0 0 12a31.27 31.27 0 0 0 .502 5.814 3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136A31.27 31.27 0 0 0 24 12a31.27 31.27 0 0 0-.502-5.814zM9.545 15.568V8.432L15.818 12z"/></svg>
             </a>
-          </div>
-          <div class="footer-partners">
-            <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="footer-partner-logo" />
           </div>
         </div>
       </div>

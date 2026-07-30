@@ -49,11 +49,12 @@ body {
 }
 
 .header-inner {
+  width: 100%;
+  padding: 0.85rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.85rem 0;
   flex-wrap: wrap;
 }
 
@@ -61,6 +62,11 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.85rem;
+}
+
+.brand a {
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
   color: #0f172a;
 }
@@ -618,7 +624,7 @@ body {
 
 .footer-inner {
   width: 100%;
-  padding: 0 clamp(1.25rem, 4vw, 3rem);
+  padding: 0 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -713,17 +719,6 @@ body {
 .footer-social-icon svg {
   width: 0.9rem;
   height: 0.9rem;
-}
-
-.footer-partners {
-  margin-top: 0.4rem;
-}
-
-.footer-partner-logo {
-  height: 1.75rem;
-  width: auto;
-  filter: brightness(0) invert(1);
-  opacity: 0.9;
 }
 
 .footer-divider {
