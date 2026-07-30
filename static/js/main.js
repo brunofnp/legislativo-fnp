@@ -58,6 +58,21 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initAppShell();
 
+  function initBackLinks() {
+    const links = document.querySelectorAll('[data-back]');
+    if (!links.length) return;
+    const cameFromSameSite = document.referrer && document.referrer.startsWith(location.origin);
+    if (!(window.history.length > 1 && cameFromSameSite)) return;
+    links.forEach(link => {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        window.history.back();
+      });
+    });
+  }
+
+  initBackLinks();
+
   function initThemeToggle() {
     const btn = document.getElementById('theme-toggle-btn');
     if (!btn) return;
