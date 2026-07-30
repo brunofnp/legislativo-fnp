@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Comentario, Participacao, Usuario
+from .models import Comentario, Participacao, Perfil, Usuario
 
 
 class CustomSignupForm(forms.Form):
@@ -23,18 +23,30 @@ class CustomSignupForm(forms.Form):
 
 
 class PerfilForm(forms.ModelForm):
+    """Dados nativos de autenticação (Usuario). Ver PerfilDadosForm para os campos de Perfil."""
+
     class Meta:
         model = Usuario
-        fields = ['first_name', 'last_name', 'telefone', 'cargo']
+        fields = ['first_name', 'last_name']
         labels = {
             'first_name': 'Nome',
             'last_name': 'Sobrenome',
-            'telefone': 'Telefone',
-            'cargo': 'Cargo',
         }
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'input-wide'}),
             'last_name': forms.TextInput(attrs={'class': 'input-wide'}),
+        }
+
+
+class PerfilDadosForm(forms.ModelForm):
+    class Meta:
+        model = Perfil
+        fields = ['telefone', 'cargo']
+        labels = {
+            'telefone': 'Telefone',
+            'cargo': 'Cargo',
+        }
+        widgets = {
             'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
         }

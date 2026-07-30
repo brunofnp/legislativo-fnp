@@ -20,16 +20,6 @@ class Municipio(models.Model):
 
 
 class Usuario(AbstractUser):
-    municipio = models.OneToOneField(
-        Municipio,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='usuario',
-    )
-    telefone = models.CharField(max_length=32, blank=True)
-    cargo = models.CharField(max_length=255, blank=True)
-
     class Meta:
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
@@ -42,6 +32,32 @@ class Usuario(AbstractUser):
         local = (self.email or self.username).split('@')[0]
         partes = [parte.capitalize() for parte in re.split(r'[._-]+', local) if parte]
         return ' '.join(partes) or self.email or self.username
+
+
+class Perfil(models.Model):
+    """Dados complementares de Usuario (1-para-1), separados do model de autenticação nativo."""
+
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name='perfil',
+    )
+    municipio = models.OneToOneField(
+        Municipio,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='perfil',
+    )
+    telefone = models.CharField(max_length=32, blank=True)
+    cargo = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = 'Perfil'
+        verbose_name_plural = 'Perfis'
+
+    def __str__(self):
+        return f'Perfil de {self.usuario}'
 
 
 class Macrotema(models.Model):

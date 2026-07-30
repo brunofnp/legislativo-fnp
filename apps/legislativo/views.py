@@ -10,7 +10,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
-from .forms import ComentarioForm, ParticipacaoForm, PerfilForm
+from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
 from .models import Notificacao, Participacao, Proposicao, Tema
 
 FAVORITOS_SESSION_KEY = 'favoritos'
@@ -349,22 +349,26 @@ class PerfilView(View):
 
     def get(self, request):
         form = PerfilForm(instance=request.user)
-        return self._render(request, form)
+        dados_form = PerfilDadosForm(instance=request.user.perfil)
+        return self._render(request, form, dados_form)
 
     def post(self, request):
         form = PerfilForm(request.POST, instance=request.user)
+        dados_form = PerfilDadosForm(request.POST, instance=request.user.perfil)
         success_message = None
-        if form.is_valid():
+        if form.is_valid() and dados_form.is_valid():
             form.save()
+            dados_form.save()
             success_message = 'Perfil atualizado com sucesso.'
-        return self._render(request, form, success_message)
+        return self._render(request, form, dados_form, success_message)
 
-    def _render(self, request, form, success_message=None):
+    def _render(self, request, form, dados_form, success_message=None):
         return render(
             request,
             self.template_name,
             {
                 'form': form,
+                'dados_form': dados_form,
                 'success_message': success_message,
                 'page_title': 'Meu perfil',
                 'mostrar_sidebar': True,

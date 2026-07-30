@@ -8,7 +8,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from .models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema, Usuario
-from .views import HomeView
+from .views import HomeView, PerfilView
 
 
 def _request_with_session(path):
@@ -78,6 +78,31 @@ class UsuarioDisplayNameTest(TestCase):
     def test_deriva_do_email_quando_sem_nome_cadastrado(self):
         usuario = Usuario.objects.create(username='joana.silva', email='joana.silva@fnp.org.br')
         self.assertEqual(usuario.get_display_name(), 'Joana Silva')
+
+
+class PerfilSignalTest(TestCase):
+    def test_novo_usuario_ganha_perfil_automaticamente(self):
+        usuario = Usuario.objects.create(username='ana', email='ana@fnp.org.br')
+        self.assertIsNotNone(usuario.perfil)
+
+
+class PerfilViewTest(TestCase):
+    def test_perfil_view_renderiza_dados_de_usuario_e_de_perfil(self):
+        usuario = Usuario.objects.create(
+            username='bruno', email='bruno.marra@fnp.org.br', first_name='Bruno', last_name='Marra',
+        )
+        usuario.perfil.telefone = '(61) 99999-0000'
+        usuario.perfil.cargo = 'Coordenador'
+        usuario.perfil.save()
+
+        request = _request_with_session(reverse('legislativo:perfil'))
+        request.user = usuario
+        response = PerfilView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('(61) 99999-0000', content)
+        self.assertIn('Coordenador', content)
 
 
 class UsuarioGroupSignalTest(TestCase):

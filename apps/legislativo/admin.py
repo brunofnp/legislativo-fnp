@@ -9,10 +9,17 @@ from .models import (
     Noticia,
     Notificacao,
     Participacao,
+    Perfil,
     Proposicao,
     Tema,
     Usuario,
 )
+
+
+class PerfilInline(admin.StackedInline):
+    model = Perfil
+    can_delete = False
+    extra = 0
 
 
 @admin.register(Usuario)
@@ -22,9 +29,7 @@ class UsuarioAdmin(UserAdmin):
 
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_superuser', 'is_active')
     list_filter = UserAdmin.list_filter + ('groups',)
-    fieldsets = UserAdmin.fieldsets + (
-        ('Dados FNP', {'fields': ('municipio', 'telefone', 'cargo')}),
-    )
+    inlines = [PerfilInline]
 
 
 @admin.register(Municipio)
