@@ -86,11 +86,9 @@ class Proposicao(models.Model):
     aprovada = models.BooleanField(default=False)
     parada = models.BooleanField(default=False)
     prioridade_fnp = models.CharField(max_length=16, choices=PRIORIDADE_CHOICES, default='normal')
-    tema = models.ForeignKey(
+    temas = models.ManyToManyField(
         Tema,
-        null=True,
         blank=True,
-        on_delete=models.SET_NULL,
         related_name='proposicoes',
     )
     macrotema = models.ForeignKey(

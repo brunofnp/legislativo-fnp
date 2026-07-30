@@ -8,8 +8,10 @@
       <div>
         {% if proposicao.macrotema %}
           <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
-        {% elif proposicao.tema %}
-          <span class="tag-normal">{{ proposicao.tema.nome }}</span>
+        {% else %}
+          {% for tema in proposicao.temas.all %}
+            <span class="tag-normal">{{ tema.nome }}</span>
+          {% endfor %}
         {% endif %}
         <h1>{{ proposicao.titulo }}</h1>
         <div class="detail-meta-row">
@@ -45,7 +47,13 @@
           </div>
           <div>
             <h3>Tema</h3>
-            <p>{{ proposicao.tema.nome|default:'Indefinido' }}</p>
+            <p>
+              {% if proposicao.temas.all %}
+                {% for tema in proposicao.temas.all %}{{ tema.nome }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              {% else %}
+                Indefinido
+              {% endif %}
+            </p>
           </div>
         </div>
 

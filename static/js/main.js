@@ -14,11 +14,15 @@ window.addEventListener('DOMContentLoaded', function () {
     const pauta = document.getElementById('stats-pauta');
     const urgentes = document.getElementById('stats-urgentes');
     const alta = document.getElementById('stats-alta');
+    const relator = document.getElementById('stats-relator');
     if (!total || !pauta || !urgentes || !alta) return;
     total.textContent = data.counts.total;
     pauta.textContent = data.counts.pauta;
     urgentes.textContent = data.counts.urgentes;
     alta.textContent = data.counts.alta_prioridade;
+    if (relator) {
+      relator.textContent = data.counts.com_relator;
+    }
   }
 
   function fetchStats() {

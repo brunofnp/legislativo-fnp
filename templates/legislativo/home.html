@@ -27,6 +27,10 @@
         <span class="stat-label">Alta prioridade</span>
         <span class="stat-num" id="stats-alta">{{ stats.alta_prioridade }}</span>
       </article>
+      <article class="stat-card">
+        <span class="stat-label">Com relator</span>
+        <span class="stat-num" id="stats-relator">{{ stats.com_relator }}</span>
+      </article>
     </div>
   </section>
 
@@ -51,8 +55,10 @@
             <div>
               {% if proposicao.macrotema %}
                 <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
-              {% elif proposicao.tema %}
-                <span class="tag-normal">{{ proposicao.tema.nome }}</span>
+              {% else %}
+                {% for tema in proposicao.temas.all %}
+                  <span class="tag-normal">{{ tema.nome }}</span>
+                {% endfor %}
               {% endif %}
             </div>
             <div class="tag-row">

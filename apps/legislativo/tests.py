@@ -20,7 +20,7 @@ class HomeViewRegressionTest(TestCase):
     def setUp(self):
         macrotema = Macrotema.objects.create(nome='Infraestrutura', slug='infraestrutura', cor='#1A4B8F')
         tema = Tema.objects.create(nome='Transporte', slug='transporte', macrotema=macrotema)
-        Proposicao.objects.create(
+        proposicao1 = Proposicao.objects.create(
             titulo='PL 1234/2025 - Financiamento do Transporte Público',
             casa='camara',
             status_tramitacao='Em tramitação',
@@ -28,10 +28,10 @@ class HomeViewRegressionTest(TestCase):
             urgente=True,
             prioridade_fnp='alta',
             macrotema=macrotema,
-            tema=tema,
             ementa_resumida='Projeto de lei que trata do financiamento do transporte público.',
         )
-        Proposicao.objects.create(
+        proposicao1.temas.set([tema])
+        proposicao2 = Proposicao.objects.create(
             titulo='PL 5678/2025 - Fortalecimento do Sistema Municipal',
             casa='senado',
             status_tramitacao='Aguardando parecer',
@@ -39,9 +39,9 @@ class HomeViewRegressionTest(TestCase):
             urgente=False,
             prioridade_fnp='media',
             macrotema=macrotema,
-            tema=tema,
             ementa_resumida='Projeto que visa ampliar a atuação dos municípios.',
         )
+        proposicao2.temas.set([tema])
 
     def test_home_view_renders_briefing_cards_with_count_stats(self):
         request = RequestFactory().get(reverse('legislativo:home'))

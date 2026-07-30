@@ -14,6 +14,7 @@ from ...data_utils import (
     normalize_text,
     priority_from_text,
     slug_for_name,
+    split_temas,
 )
 from ...models import Macrotema, Noticia, Proposicao, Tema
 
@@ -43,13 +44,7 @@ class Command(BaseCommand):
             if casa == 'câmara':
                 casa = 'camara'
 
-            tema_nome = normalize_text(raw_record.get('Tema'))
-            tema = None
-            if tema_nome:
-                tema, _ = Tema.objects.get_or_create(
-                    nome=tema_nome,
-                    defaults={'slug': slug_for_name(tema_nome)},
-                )
+            tema_nomes = split_temas(raw_record.get('Tema'))
             macrotema = None
             macrotema_nome = normalize_text(raw_record.get('Macrotema') or raw_record.get('Tema Principal') or '')
             if macrotema_nome:
@@ -67,7 +62,6 @@ class Command(BaseCommand):
                 'aprovada': is_aprovada(raw_record),
                 'parada': is_parada(raw_record),
                 'prioridade_fnp': priority_from_text(raw_record.get('Prioridade FNP')),
-                'tema': tema,
                 'macrotema': macrotema,
                 'ementa_resumida': normalize_text(raw_record.get('Ementa Resumida')),
                 'proximos_eventos': normalize_text(raw_record.get('Próximos Eventos/Ações Esperadas')),
@@ -91,6 +85,15 @@ class Command(BaseCommand):
                 self.stdout.write(f'Criada proposição: {titulo}')
             else:
                 self.stdout.write(f'Atualizada proposição: {titulo}')
+
+            temas_objs = []
+            for nome in tema_nomes:
+                tema_obj, _ = Tema.objects.get_or_create(
+                    nome=nome,
+                    defaults={'slug': slug_for_name(nome)},
+                )
+                temas_objs.append(tema_obj)
+            proposicao.temas.set(temas_objs)
 
             noticias = raw_record.get('_noticias') or raw_record.get('noticias') or []
             if isinstance(noticias, str):

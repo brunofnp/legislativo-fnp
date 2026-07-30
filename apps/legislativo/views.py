@@ -12,18 +12,20 @@ from .models import Participacao, Proposicao, Tema
 
 
 def get_filtered_proposicoes(query, tema_slug):
-    proposicoes = Proposicao.objects.select_related('macrotema', 'tema').all()
+    proposicoes = Proposicao.objects.select_related('macrotema').prefetch_related('temas').all()
     if tema_slug:
-        proposicoes = proposicoes.filter(tema__slug=tema_slug)
+        proposicoes = proposicoes.filter(temas__slug=tema_slug)
     if query:
         proposicoes = proposicoes.filter(
             Q(titulo__icontains=query)
             | Q(ementa_resumida__icontains=query)
             | Q(status_tramitacao__icontains=query)
             | Q(local__icontains=query)
-            | Q(tema__nome__icontains=query)
+            | Q(temas__nome__icontains=query)
             | Q(macrotema__nome__icontains=query)
         )
+    if tema_slug or query:
+        proposicoes = proposicoes.distinct()
     return proposicoes
 
 
@@ -36,12 +38,7 @@ class HomeView(View):
         temas = Tema.objects.order_by('nome')
 
         filtered = get_filtered_proposicoes(query, tema_slug)
-        stats = {
-            'total': filtered.count(),
-            'pauta': filtered.filter(pauta=True).count(),
-            'urgentes': filtered.filter(urgente=True).count(),
-            'alta_prioridade': filtered.filter(prioridade_fnp='alta').count(),
-        }
+        stats = compute_counts(filtered)
 
         proposicoes = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')[:100]
 
@@ -64,6 +61,7 @@ def compute_counts(proposicoes):
         'pauta': proposicoes.filter(pauta=True).count(),
         'urgentes': proposicoes.filter(urgente=True).count(),
         'alta_prioridade': proposicoes.filter(prioridade_fnp='alta').count(),
+        'com_relator': proposicoes.filter(interlocutores__icontains='relator').count(),
     }
 
 
@@ -91,7 +89,7 @@ def api_proposicao_detail(request, pk):
         'urgente': proposicao.urgente,
         'aprovada': proposicao.aprovada,
         'pauta': proposicao.pauta,
-        'tema': proposicao.tema.nome if proposicao.tema else None,
+        'temas': [tema.nome for tema in proposicao.temas.all()],
         'ementa_resumida': proposicao.ementa_resumida,
         'proximos_eventos': proposicao.proximos_eventos,
         'interlocutores': proposicao.interlocutores,

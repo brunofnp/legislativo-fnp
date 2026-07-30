@@ -102,6 +102,14 @@ def slug_for_name(name: str) -> str:
     return slugify(normalize_text(name))
 
 
+def split_temas(value: Any) -> list[str]:
+    raw = normalize_text(value)
+    if not raw:
+        return []
+    parts = re.split(r'[,/]', raw)
+    return [p.strip() for p in parts if p.strip()]
+
+
 def load_json_file(path: str) -> list[dict[str, Any]]:
     content = Path(path).read_text(encoding='utf-8')
     parsed = json.loads(content)
