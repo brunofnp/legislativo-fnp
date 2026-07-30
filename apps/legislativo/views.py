@@ -1,6 +1,7 @@
 import json
 import time
 
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,7 +10,7 @@ from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ComentarioForm, ParticipacaoForm
-from .models import Participacao, Proposicao, Tema
+from .models import Notificacao, Participacao, Proposicao, Tema
 
 FAVORITOS_SESSION_KEY = 'favoritos'
 RECENTES_SESSION_KEY = 'recentes'
@@ -22,6 +23,25 @@ def get_favoritos_ids(request):
 
 def get_recentes_ids(request):
     return request.session.get(RECENTES_SESSION_KEY, [])
+
+
+def notificar_participantes_da_discussao(proposicao, comentario):
+    participantes_ids = (
+        proposicao.comentarios
+        .exclude(autor__isnull=True)
+        .exclude(autor=comentario.autor)
+        .values_list('autor_id', flat=True)
+        .distinct()
+    )
+    Notificacao.objects.bulk_create(
+        Notificacao(
+            destinatario_id=destinatario_id,
+            proposicao=proposicao,
+            comentario=comentario,
+            mensagem=f'Novo comentário de {comentario.autor} em "{proposicao.titulo}"',
+        )
+        for destinatario_id in participantes_ids
+    )
 
 
 def registrar_visualizacao(request, proposicao):
@@ -219,8 +239,27 @@ class FavoritosListView(View):
             {
                 'proposicoes': proposicoes,
                 'favoritos_ids': favoritos_ids,
+                'page_title': 'Favoritos',
             },
         )
+
+
+@login_required
+def ler_notificacao(request, pk):
+    notificacao = get_object_or_404(Notificacao, pk=pk, destinatario=request.user)
+    notificacao.lida = True
+    notificacao.save(update_fields=['lida'])
+    return redirect('legislativo:proposicao_detail', pk=notificacao.proposicao_id)
+
+
+@login_required
+@require_POST
+def marcar_notificacoes_lidas(request):
+    request.user.notificacoes.filter(lida=False).update(lida=True)
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:home')
 
 
 class ProposicaoDetailView(View):
@@ -237,6 +276,7 @@ class ProposicaoDetailView(View):
             self.template_name,
             {
                 'proposicao': proposicao,
+                'page_title': proposicao.titulo,
                 'comentarios': comentarios,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
@@ -256,7 +296,11 @@ class ProposicaoDetailView(View):
             if comentario_form.is_valid():
                 comentario = comentario_form.save(commit=False)
                 comentario.proposicao = proposicao
+                if request.user.is_authenticated:
+                    comentario.autor = request.user
                 comentario.save()
+                if comentario.autor_id:
+                    notificar_participantes_da_discussao(proposicao, comentario)
                 return redirect('legislativo:proposicao_detail', pk=pk)
         else:
             participacao_form = ParticipacaoForm(request.POST)
@@ -270,6 +314,7 @@ class ProposicaoDetailView(View):
             self.template_name,
             {
                 'proposicao': proposicao,
+                'page_title': proposicao.titulo,
                 'comentarios': comentarios,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
@@ -284,4 +329,4 @@ class ParticipacaoListView(View):
 
     def get(self, request):
         participacoes = Participacao.objects.all()[:100]
-        return render(request, self.template_name, {'participacoes': participacoes})
+        return render(request, self.template_name, {'participacoes': participacoes, 'page_title': 'Participações'})

@@ -45,6 +45,26 @@ A variável `DATABASE_URL` já é lida pelo `settings.py` via `dj-database-url`.
 Defina-a no `.env` de produção com a connection string real do Postgres
 (DigitalOcean ou outro provedor) — sem essa variável, o app usa SQLite.
 
+## Login (conta própria + Google)
+
+A autenticação usa `django-allauth`. Cadastro/login/logout já funcionam com
+e-mail e senha (`/contas/login/`, `/contas/signup/`, `/contas/logout/`).
+
+Para o botão "Continuar com Google" funcionar de verdade, é preciso criar um
+OAuth Client no Google Cloud Console:
+
+1. <https://console.cloud.google.com/apis/credentials> → "Criar credenciais" →
+   "ID do cliente OAuth" → tipo "Aplicativo da Web".
+2. Em "Origens JavaScript autorizadas", adicionar o domínio do app (ex.:
+   `https://painel.fnp.org.br`).
+3. Em "URIs de redirecionamento autorizados", adicionar
+   `https://<seu-dominio>/contas/google/login/callback/`.
+4. Copiar o Client ID e o Client Secret gerados para `GOOGLE_CLIENT_ID` e
+   `GOOGLE_CLIENT_SECRET` no `.env` de cada ambiente.
+
+Sem essas variáveis preenchidas, o botão do Google aparece mas o login via
+Google não completa (erro do próprio Google, não do nosso app).
+
 ## Validações locais recomendadas antes de publicar
 
 ```powershell

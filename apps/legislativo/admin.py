@@ -6,6 +6,7 @@ from .models import (
     Macrotema,
     Municipio,
     Noticia,
+    Notificacao,
     Participacao,
     Proposicao,
     Tema,
@@ -70,3 +71,10 @@ class ParticipacaoAdmin(admin.ModelAdmin):
     list_display = ('tipo', 'municipio', 'proposicao', 'responsavel', 'email', 'criado_em')
     list_filter = ('tipo', 'uf')
     search_fields = ('municipio', 'proposicao', 'responsavel', 'email')
+
+
+@admin.register(Notificacao)
+class NotificacaoAdmin(admin.ModelAdmin):
+    list_display = ('destinatario', 'proposicao', 'mensagem', 'lida', 'criado_em')
+    list_filter = ('lida',)
+    search_fields = ('mensagem',)

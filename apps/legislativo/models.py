@@ -234,3 +234,34 @@ class Participacao(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} — {self.municipio} ({self.responsavel})'
+
+
+class Notificacao(models.Model):
+    destinatario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name='notificacoes',
+    )
+    proposicao = models.ForeignKey(
+        Proposicao,
+        on_delete=models.CASCADE,
+        related_name='notificacoes',
+    )
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        related_name='notificacoes',
+        null=True,
+        blank=True,
+    )
+    mensagem = models.CharField(max_length=255)
+    lida = models.BooleanField(default=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Notificação'
+        verbose_name_plural = 'Notificações'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f'Notificação para {self.destinatario} — {self.mensagem}'
