@@ -1,7 +1,8 @@
 import json
+import time
 
-from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.db.models import Max, Q
+from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.decorators.http import require_GET
@@ -57,20 +58,21 @@ class HomeView(View):
         )
 
 
-@require_GET
-def api_proposicoes(request):
-    query = request.GET.get('q', '').strip()
-    macrotema_slug = request.GET.get('macrotema', '').strip()
-    proposicoes = get_filtered_proposicoes(query, macrotema_slug)
-
-    counts = {
+def compute_counts(proposicoes):
+    return {
         'total': proposicoes.count(),
         'pauta': proposicoes.filter(pauta=True).count(),
         'urgentes': proposicoes.filter(urgente=True).count(),
         'alta_prioridade': proposicoes.filter(prioridade_fnp='alta').count(),
     }
 
-    return JsonResponse({'counts': counts})
+
+@require_GET
+def api_proposicoes(request):
+    query = request.GET.get('q', '').strip()
+    macrotema_slug = request.GET.get('macrotema', '').strip()
+    proposicoes = get_filtered_proposicoes(query, macrotema_slug)
+    return JsonResponse({'counts': compute_counts(proposicoes)})
 
 
 @require_GET
@@ -101,23 +103,39 @@ def api_proposicao_detail(request, pk):
     return JsonResponse(data)
 
 
+SSE_POLL_INTERVAL_SECONDS = 5
+SSE_MAX_ITERATIONS = 120  # ~10 min por conexão; o EventSource do navegador reconecta sozinho
+
+
+def _sse_stream(query, macrotema_slug):
+    last_snapshot = None
+    for _ in range(SSE_MAX_ITERATIONS):
+        proposicoes = get_filtered_proposicoes(query, macrotema_slug)
+        latest = proposicoes.aggregate(Max('atualizado_em'))['atualizado_em__max']
+        counts = compute_counts(proposicoes)
+        snapshot = (latest, tuple(sorted(counts.items())))
+
+        if snapshot != last_snapshot:
+            payload = {'counts': counts, 'updated': last_snapshot is not None}
+            yield f'data: {json.dumps(payload, default=str)}\n\n'
+            last_snapshot = snapshot
+        else:
+            yield ': heartbeat\n\n'
+
+        time.sleep(SSE_POLL_INTERVAL_SECONDS)
+
+
 @require_GET
 def api_proposicao_sse(request):
-    response = HttpResponse(content_type='text/event-stream')
-    response['Cache-Control'] = 'no-cache'
-    response['X-Accel-Buffering'] = 'no'
-
     query = request.GET.get('q', '').strip()
     macrotema_slug = request.GET.get('macrotema', '').strip()
-    proposicoes = get_filtered_proposicoes(query, macrotema_slug)
 
-    counts = {
-        'total': proposicoes.count(),
-        'pauta': proposicoes.filter(pauta=True).count(),
-        'urgentes': proposicoes.filter(urgente=True).count(),
-        'alta_prioridade': proposicoes.filter(prioridade_fnp='alta').count(),
-    }
-    response.write(f'data: {json.dumps({"counts": counts})}\n\n')
+    response = StreamingHttpResponse(
+        _sse_stream(query, macrotema_slug),
+        content_type='text/event-stream',
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
     return response
 
 

@@ -65,7 +65,7 @@
             <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
           </div>
 
-          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}" data-open-modal="true">{{ proposicao.titulo }}</a></h2>
+          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
           <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
 
           <div class="card-brief-grid">
@@ -96,19 +96,5 @@
     {% endif %}
   </section>
 
-  <div id="detail-modal" class="detail-modal hidden" aria-hidden="true" role="dialog" aria-labelledby="modal-title">
-    <div class="modal-backdrop" data-modal-close></div>
-    <div class="modal-panel">
-      <button type="button" class="modal-close" data-modal-close="true" aria-label="Fechar janela de detalhes">×</button>
-      <div class="modal-body">
-        <div class="modal-header">
-          <span id="modal-macrotema" class="tag-normal hidden"></span>
-          <h2 id="modal-title">Carregando proposição...</h2>
-          <div id="modal-meta" class="detail-meta-row"></div>
-        </div>
-        <div id="modal-content" class="modal-content"></div>
-      </div>
-    </div>
-  </div>
   <div id="realtime-toast" class="realtime-toast hidden" aria-live="polite"></div>
 {% endblock %}

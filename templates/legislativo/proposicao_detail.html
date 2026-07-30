@@ -43,7 +43,7 @@
           </div>
           <div>
             <h3>Tema</h3>
-            <p>{{ proposicao.tema.nome if proposicao.tema else 'Indefinido' }}</p>
+            <p>{{ proposicao.tema.nome|default:'Indefinido' }}</p>
           </div>
         </div>
 
@@ -83,7 +83,7 @@
 
       <aside class="detail-sidebar">
         <div class="panel-block">
-          <h2>Comentários</h2>
+          <h2>Fórum de discussão</h2>
           {% if success_message %}
             <div class="toast success">{{ success_message }}</div>
           {% endif %}
@@ -91,14 +91,36 @@
             <ul class="comments">
               {% for comentario in comentarios %}
                 <li>
-                  <div class="comment-author"><strong>{{ comentario.autor or 'Anônimo' }}</strong> <span>{{ comentario.criado_em|date:'d/m/Y H:i' }}</span></div>
+                  <div class="comment-author"><strong>{{ comentario.autor|default:'Anônimo' }}</strong> <span>{{ comentario.criado_em|date:'d/m/Y H:i' }}</span></div>
                   <p>{{ comentario.texto }}</p>
+                  {% with respostas=comentario.respostas.all %}
+                    {% if respostas %}
+                      <ul class="comments comments-nested">
+                        {% for resposta in respostas %}
+                          {% if resposta.status_moderacao == 'aprovado' %}
+                            <li>
+                              <div class="comment-author"><strong>{{ resposta.autor|default:'Anônimo' }}</strong> <span>{{ resposta.criado_em|date:'d/m/Y H:i' }}</span></div>
+                              <p>{{ resposta.texto }}</p>
+                            </li>
+                          {% endif %}
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  {% endwith %}
                 </li>
               {% endfor %}
             </ul>
           {% else %}
-            <p>Sem comentários aprovados ainda.</p>
+            <p>Ainda não há comentários. Seja o primeiro a comentar nesta proposição.</p>
           {% endif %}
+          <form method="post" class="participation-form">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="comentario" />
+            {{ comentario_form.parent }}
+            <label class="field-label">Comentário</label>
+            {{ comentario_form.texto }}
+            <button class="fbtn" type="submit">Publicar comentário</button>
+          </form>
         </div>
 
         <div class="panel-block">
