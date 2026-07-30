@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-07-30
+> Última atualização: 2026-07-30 (adicionadas diretrizes fixas de engenharia)
 
 ---
 
@@ -251,6 +251,32 @@ git push production main
 - manter o projeto funcional em Django e com templates renderizando corretamente
 - preservar responsividade e estabilidade visual
 - testar mudanças de UI e fluxo antes de publicar
+
+---
+
+## Diretrizes de Engenharia (padrão fixo — não revisitar sem pedido explícito)
+
+Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão minha reabrir alguma delas (banco, SSE, Admin, auth, etc.), eu devo sinalizar isso explicitamente antes de agir, não decidir sozinho.
+
+**Estrutura:** modelo Radar Brasil — `apps/` (um app por domínio), `base_templates/` (layout compartilhado), `templates/` por app, `static/`, `setup/` (settings/urls raiz), `locale/`, `docs/`. Um app = uma responsabilidade; nada de app genérico "core" virando depósito. `requirements.txt` (prod) e `requirements-dev.txt` (dev/lint/teste) separados; `.env.example` versionado, `.env` nunca.
+⚠️ **Gap atual:** todo o domínio (proposições, comentários, usuários, notificações) está hoje num único app `apps/legislativo`. Não vou dividir sem pedido explícito — é uma migração de schema/imports não-trivial.
+
+**Models/banco:** status/urgência/categoria é sempre coluna real calculada na ingestão, nunca string-matching em template/JS (`urgente`, `aprovada`, `parada`, `prioridade_fnp` já são assim). Edição de campo de mérito nunca sobrescreve — grava linha de histórico (autor, campo, valor anterior, novo, data); `EdicaoMeritoHistorico` já existe no schema (migração inicial) mas **nada no código ainda grava nele** — nenhuma view/admin/signal cria essa linha quando um campo de mérito muda. FK de thread sempre com `related_name` explícito (`Comentario.parent` → `related_name='respostas'`, já correto). Migrations sempre revisadas antes de aplicar, nunca schema editado direto em produção. Ingestão idempotente via `update_or_create` (já é o padrão em `ingest_legislativo.py`).
+
+**Views/templates:** server-side rendering por padrão; JS só para interatividade puramente client-side sobre dado já carregado (filtro/busca). Nunca SPA client-side recalculando dado que já deveria vir pronto do servidor. Django Admin para telas administrativas (edição de mérito, gestão de macrotema, moderação de comentários) em vez de CRUD customizado, a menos que a necessidade seja genuinamente pública-facing.
+
+**Autenticação:** auth nativo do Django, nunca senha única/`if pass == X`. Permissão via `django.contrib.auth` (permissions/groups), não checagem solta nas views.
+⚠️ **Nota de estrutura:** hoje `Usuario` estende `AbstractUser` diretamente (dados de município/cargo no próprio model), em vez de `User` + `Profile` 1-para-1. Funcionalmente cobre o requisito de auth nativo; sinalizando a diferença de forma para você decidir se quer migrar para o padrão User+Profile.
+
+**Tempo real:** SSE é a solução fechada para notificação (já implementado). Não introduzir WebSocket/Channels/Redis sem decisão revista explicitamente.
+
+**Ingestão:** management command via cron. Não sugerir Celery/fila sem pedido, dado 1 dev só operando.
+
+**Testes/lint:** seguir `pytest.ini`/`.flake8`/`pyproject.toml` já existentes (padrão Radar Brasil), sem ferramenta concorrente. Testar regra de negócio (cálculo de urgência, idempotência de carga, thread de comentário), não perseguir cobertura em código trivial.
+
+**Infraestrutura:** Docker + Nginx no Droplet `fnp-web`, 1 database + 1 role dedicados no Postgres Managed, segredos em `.env` do servidor + Bitwarden, nunca no git. Mudança em Nginx compartilhado (ex.: SSE/upgrade de conexão) é mudança de infra compartilhada — sinalizar como tal e testar por túnel SSH antes de publicar.
+
+**Processo:** entregas sequenciais e demonstráveis (1 dev só) — cada etapa roda sozinha antes da próxima começar, sem empilhar trabalho não testável.
 
 ---
 
