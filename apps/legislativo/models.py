@@ -106,6 +106,7 @@ class Proposicao(models.Model):
     posicionamento_fnp = models.TextField(blank=True)
     acoes_incidencia = models.TextField(blank=True)
     riscos_oportunidades = models.TextField(blank=True)
+    visualizacoes = models.PositiveIntegerField(default=0)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

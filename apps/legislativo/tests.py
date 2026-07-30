@@ -1,8 +1,16 @@
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from .models import Macrotema, Proposicao, Tema
 from .views import HomeView
+
+
+def _request_with_session(path):
+    request = RequestFactory().get(path)
+    SessionMiddleware(lambda req: None).process_request(request)
+    request.session.save()
+    return request
 
 
 class ProposicaoModelTest(TestCase):
@@ -44,7 +52,7 @@ class HomeViewRegressionTest(TestCase):
         proposicao2.temas.set([tema])
 
     def test_home_view_renders_briefing_cards_with_count_stats(self):
-        request = RequestFactory().get(reverse('legislativo:home'))
+        request = _request_with_session(reverse('legislativo:home'))
         response = HomeView.as_view()(request)
 
         self.assertEqual(response.status_code, 200)

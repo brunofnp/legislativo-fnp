@@ -62,63 +62,63 @@
     </details>
   </section>
 
-  <section class="cards-grid">
-    {% if proposicoes %}
-      {% for proposicao in proposicoes %}
-        <article class="card card-brief {% if proposicao.urgente %}urgente{% endif %}" data-proposicao-id="{{ proposicao.pk }}">
-          <div class="card-badges">
-            <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
-            {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
-            {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
-          </div>
-
-          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
-
-          {% if proposicao.macrotema or proposicao.temas.all %}
-            <div class="card-tags-row">
-              {% if proposicao.macrotema %}
-                <span class="chip chip-tema" style="color: {{ proposicao.macrotema.cor }}; border-color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
-              {% else %}
-                {% for tema in proposicao.temas.all|slice:":3" %}
-                  <span class="chip chip-tema">{{ tema.nome }}</span>
-                {% endfor %}
-              {% endif %}
-            </div>
-          {% endif %}
-
-          <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
-
-          <div class="card-brief-line">
-            <span class="impact-pill">{% if proposicao.pauta %}Pauta ativa{% else %}Monitoramento{% endif %}</span>
-            <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
-          </div>
-
-          <div class="card-brief-grid">
-            <div>
-              <span class="brief-label">Casa</span>
-              <strong>{{ proposicao.casa|title }}</strong>
-            </div>
-            <div>
-              <span class="brief-label">Status</span>
-              <strong>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</strong>
-            </div>
-            <div>
-              <span class="brief-label">Municipios</span>
-              <strong>{% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}</strong>
-            </div>
-          </div>
-
-          <div class="card-footer">
-            <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
-            <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:12 }}</span>
-          </div>
-        </article>
-      {% endfor %}
-    {% else %}
-      <div class="empty-state">
-        <p>Nenhuma proposição encontrada com esses filtros.</p>
+  {% if urgentes %}
+    <section class="home-section">
+      <h2 class="section-heading">Urgentes</h2>
+      <div class="cards-grid">
+        {% for proposicao in urgentes %}
+          {% include 'legislativo/_proposicao_card.html' %}
+        {% endfor %}
       </div>
-    {% endif %}
+    </section>
+  {% endif %}
+
+  {% if areas_interesse %}
+    <section class="home-section">
+      <h2 class="section-heading">Áreas de interesse</h2>
+      <div class="interest-tiles">
+        {% for tema in areas_interesse %}
+          <a href="?tema={{ tema.slug }}" class="interest-tile">{{ tema.nome }}</a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if em_alta %}
+    <section class="home-section">
+      <h2 class="section-heading">🔥 Em alta</h2>
+      <div class="cards-grid">
+        {% for proposicao in em_alta %}
+          {% include 'legislativo/_proposicao_card.html' %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if recentes %}
+    <section class="home-section">
+      <h2 class="section-heading">Últimos acessados</h2>
+      <div class="cards-grid">
+        {% for proposicao in recentes %}
+          {% include 'legislativo/_proposicao_card.html' %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="home-section">
+    <h2 class="section-heading">Todas as proposições</h2>
+    <section class="cards-grid">
+      {% if proposicoes %}
+        {% for proposicao in proposicoes %}
+          {% include 'legislativo/_proposicao_card.html' %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <p>Nenhuma proposição encontrada com esses filtros.</p>
+        </div>
+      {% endif %}
+    </section>
   </section>
 
   <div id="realtime-toast" class="realtime-toast hidden" aria-live="polite"></div>

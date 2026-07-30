@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Favoritos | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Painel Legislativo</span>
+      <h1>Suas proposições favoritas</h1>
+      <p>Discussões que você marcou para acompanhar de perto.</p>
+    </div>
+  </section>
+
+  <section class="cards-grid">
+    {% if proposicoes %}
+      {% for proposicao in proposicoes %}
+        {% include 'legislativo/_proposicao_card.html' %}
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p>Você ainda não favoritou nenhuma proposição. Clique na estrela de um card para adicioná-lo aqui.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

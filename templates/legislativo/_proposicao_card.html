@@ -1,0 +1,72 @@
+<article class="card card-brief {% if proposicao.urgente %}urgente{% endif %}" data-proposicao-id="{{ proposicao.pk }}">
+  <div class="card-top-row">
+    <form method="post" action="{% url 'legislativo:toggle_favorito' proposicao.pk %}" class="favorito-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+      <button
+        type="submit"
+        class="favorito-btn {% if proposicao.pk in favoritos_ids %}active{% endif %}"
+        aria-label="{% if proposicao.pk in favoritos_ids %}Remover dos favoritos{% else %}Adicionar aos favoritos{% endif %}"
+        title="Favoritar"
+      >
+        <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+      </button>
+    </form>
+
+    <div class="card-badges">
+      <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
+      {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
+      {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
+    </div>
+  </div>
+
+  <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
+
+  {% if proposicao.macrotema or proposicao.temas.all %}
+    <div class="card-tags-row">
+      {% if proposicao.macrotema %}
+        <span class="chip chip-tema" style="color: {{ proposicao.macrotema.cor }}; border-color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+      {% else %}
+        {% for tema in proposicao.temas.all|slice:":3" %}
+          <span class="chip chip-tema">{{ tema.nome }}</span>
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
+
+  <div class="card-brief-line">
+    <span class="impact-pill">{% if proposicao.pauta %}Pauta ativa{% else %}Monitoramento{% endif %}</span>
+    <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
+  </div>
+
+  <div class="card-brief-grid">
+    <div>
+      <span class="brief-label">
+        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
+        Casa
+      </span>
+      <strong>{{ proposicao.casa|title }}</strong>
+    </div>
+    <div>
+      <span class="brief-label">
+        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Status
+      </span>
+      <strong>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</strong>
+    </div>
+    <div>
+      <span class="brief-label">
+        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Municipios
+      </span>
+      <strong>{% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}</strong>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
+    <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:12 }}</span>
+  </div>
+</article>

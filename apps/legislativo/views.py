@@ -1,14 +1,34 @@
 import json
 import time
 
-from django.db.models import Max, Q
+from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ComentarioForm, ParticipacaoForm
 from .models import Participacao, Proposicao, Tema
+
+FAVORITOS_SESSION_KEY = 'favoritos'
+RECENTES_SESSION_KEY = 'recentes'
+RECENTES_MAX = 8
+
+
+def get_favoritos_ids(request):
+    return set(request.session.get(FAVORITOS_SESSION_KEY, []))
+
+
+def get_recentes_ids(request):
+    return request.session.get(RECENTES_SESSION_KEY, [])
+
+
+def registrar_visualizacao(request, proposicao):
+    Proposicao.objects.filter(pk=proposicao.pk).update(visualizacoes=F('visualizacoes') + 1)
+    recentes = [pk for pk in get_recentes_ids(request) if pk != proposicao.pk]
+    recentes.insert(0, proposicao.pk)
+    request.session[RECENTES_SESSION_KEY] = recentes[:RECENTES_MAX]
 
 
 def get_filtered_proposicoes(query, tema_slug):
@@ -43,16 +63,44 @@ class HomeView(View):
 
         proposicoes = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')[:100]
 
+        base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
+
+        urgentes = base.filter(urgente=True).order_by('-criado_em')[:6]
+
+        em_alta = (
+            base.annotate(
+                comentarios_count=Count(
+                    'comentarios', distinct=True, filter=Q(comentarios__status_moderacao='aprovado')
+                )
+            )
+            .annotate(relevancia=F('visualizacoes') + F('comentarios_count') * 5)
+            .filter(Q(visualizacoes__gt=0) | Q(comentarios_count__gt=0))
+            .order_by('-relevancia')[:4]
+        )
+
+        recentes_ids = get_recentes_ids(request)
+        recentes_map = {p.pk: p for p in base.filter(pk__in=recentes_ids)}
+        recentes = [recentes_map[pk] for pk in recentes_ids if pk in recentes_map]
+
+        areas_interesse = Tema.objects.filter(proposicoes__pk__in=recentes_ids).distinct()[:8] if recentes_ids else []
+        if not areas_interesse:
+            areas_interesse = Tema.objects.annotate(num=Count('proposicoes')).filter(num__gt=0).order_by('-num')[:8]
+
         return render(
             request,
             self.template_name,
             {
                 'proposicoes': proposicoes,
+                'urgentes': urgentes,
+                'em_alta': em_alta,
+                'recentes': recentes,
+                'areas_interesse': areas_interesse,
                 'temas': temas,
                 'active_tema': tema_slug,
                 'active_tema_obj': active_tema_obj,
                 'query': query,
                 'stats': stats,
+                'favoritos_ids': get_favoritos_ids(request),
             },
         )
 
@@ -139,11 +187,48 @@ def api_proposicao_sse(request):
     return response
 
 
+@require_POST
+def toggle_favorito(request, pk):
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+    favoritos = request.session.get(FAVORITOS_SESSION_KEY, [])
+    if proposicao.pk in favoritos:
+        favoritos.remove(proposicao.pk)
+    else:
+        favoritos.append(proposicao.pk)
+    request.session[FAVORITOS_SESSION_KEY] = favoritos
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:home')
+
+
+class FavoritosListView(View):
+    template_name = 'legislativo/favoritos_list.html'
+
+    def get(self, request):
+        favoritos_ids = get_favoritos_ids(request)
+        favoritos_map = {
+            p.pk: p
+            for p in Proposicao.objects.select_related('macrotema').prefetch_related('temas').filter(pk__in=favoritos_ids)
+        }
+        proposicoes = [favoritos_map[pk] for pk in favoritos_ids if pk in favoritos_map]
+        return render(
+            request,
+            self.template_name,
+            {
+                'proposicoes': proposicoes,
+                'favoritos_ids': favoritos_ids,
+            },
+        )
+
+
 class ProposicaoDetailView(View):
     template_name = 'legislativo/proposicao_detail.html'
 
     def get(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
+        registrar_visualizacao(request, proposicao)
         comentarios = proposicao.comentarios.filter(parent__isnull=True, status_moderacao='aprovado').select_related('autor')
         comentario_form = ComentarioForm(initial={'parent': None})
         participacao_form = ParticipacaoForm(initial={'proposicao': proposicao.titulo, 'tipo': 'sugestao'})
@@ -154,6 +239,7 @@ class ProposicaoDetailView(View):
                 'proposicao': proposicao,
                 'comentarios': comentarios,
                 'comentario_form': comentario_form,
+                'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
             },
         )
@@ -186,6 +272,7 @@ class ProposicaoDetailView(View):
                 'proposicao': proposicao,
                 'comentarios': comentarios,
                 'comentario_form': comentario_form,
+                'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
                 'success_message': success_message,
             },
