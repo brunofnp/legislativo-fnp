@@ -529,29 +529,25 @@ body {
   flex-shrink: 0;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 50%;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: none;
+  background: transparent;
   color: #cbd5e1;
   cursor: pointer;
-  transition: color .15s ease, border-color .15s ease, transform .15s ease, background .15s ease;
+  transition: color .15s ease, transform .15s ease;
 }
 
 .favorito-btn svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .favorito-btn:hover {
   transform: translateY(-1px);
   color: #f59e0b;
-  border-color: #f59e0b;
 }
 
 .favorito-btn.active {
   color: #f59e0b;
-  border-color: #fbbf24;
-  background: #fffbeb;
 }
 
 .detail-header-actions {
