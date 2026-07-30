@@ -7,7 +7,7 @@ import requests
 from django.core.management.base import BaseCommand
 
 from ...data_utils import slug_for_name
-from ...models import Macrotema, Proposicao
+from apps.proposicoes.models import Macrotema, Proposicao
 
 CAMARA_API = 'https://dadosabertos.camara.leg.br/api/v2'
 

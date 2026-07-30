@@ -10,8 +10,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.comentarios.models import Notificacao, Participacao
+from apps.proposicoes.models import Proposicao, Tema
+
 from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
-from .models import Notificacao, Participacao, Proposicao, Tema
 
 FAVORITOS_SESSION_KEY = 'favoritos'
 RECENTES_SESSION_KEY = 'recentes'

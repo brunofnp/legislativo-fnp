@@ -3,16 +3,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.legislativo.models import (
-    Comentario,
-    EdicaoMeritoHistorico,
-    Macrotema,
-    Noticia,
-    Participacao,
-    Proposicao,
-    Tema,
-    Usuario,
-)
+from apps.comentarios.models import Comentario, Participacao
+from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
+from apps.usuarios.models import Usuario
 
 ROOT_EMAIL_PADRAO = 'bruno.marra@fnp.org.br'
 

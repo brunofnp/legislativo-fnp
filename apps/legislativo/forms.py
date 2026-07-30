@@ -1,6 +1,7 @@
 from django import forms
 
-from .models import Comentario, Participacao, Perfil, Usuario
+from apps.comentarios.models import Comentario, Participacao
+from apps.usuarios.models import Perfil, Usuario
 
 
 class CustomSignupForm(forms.Form):

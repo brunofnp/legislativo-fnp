@@ -7,7 +7,9 @@ from django.core.management import call_command
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from .models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema, Usuario
+from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema
+from apps.usuarios.models import Usuario
+
 from .views import HomeView, PerfilView
 
 

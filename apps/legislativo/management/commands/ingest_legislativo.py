@@ -16,7 +16,7 @@ from ...data_utils import (
     slug_for_name,
     split_temas,
 )
-from ...models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
+from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 
 
 class Command(BaseCommand):
