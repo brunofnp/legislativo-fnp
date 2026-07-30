@@ -27,7 +27,7 @@
       {% if proposicao.macrotema %}
         <span class="chip chip-tema" style="color: {{ proposicao.macrotema.cor }}; border-color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
       {% else %}
-        {% for tema in proposicao.temas.all|slice:":3" %}
+        {% for tema in proposicao.temas.all|slice:":2" %}
           <span class="chip chip-tema">{{ tema.nome }}</span>
         {% endfor %}
       {% endif %}
@@ -36,37 +36,25 @@
 
   <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
 
-  <div class="card-brief-line">
-    <span class="impact-pill">{% if proposicao.pauta %}Pauta ativa{% else %}Monitoramento{% endif %}</span>
-    <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
-  </div>
-
-  <div class="card-brief-grid">
-    <div>
-      <span class="brief-label">
-        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
-        Casa
-      </span>
-      <strong>{{ proposicao.casa|title }}</strong>
-    </div>
-    <div>
-      <span class="brief-label">
-        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        Status
-      </span>
-      <strong>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</strong>
-    </div>
-    <div>
-      <span class="brief-label">
-        <svg class="brief-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-        Municipios
-      </span>
-      <strong>{% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}</strong>
-    </div>
+  <div class="card-meta-inline">
+    <span class="meta-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
+      {{ proposicao.casa|title }}
+    </span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      {{ proposicao.status_tramitacao|default:'Status indisponível'|truncatechars:30 }}
+    </span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      {% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}
+    </span>
   </div>
 
   <div class="card-footer">
     <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
-    <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:12 }}</span>
+    <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:8 }}</span>
   </div>
 </article>
