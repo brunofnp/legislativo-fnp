@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-07-30 (painel de hierarquia, histórico de mérito conectado, fórum redesenhado, Usuario/Perfil separados)
+> Última atualização: 2026-07-30 (painel de hierarquia, histórico de mérito conectado, fórum redesenhado, Usuario/Perfil separados, models divididos em apps por domínio)
 
 ---
 
@@ -36,12 +36,22 @@ Branch de desenvolvimento ativo: `next`
 
 ```
 apps/
-  legislativo/
+  usuarios/                 # Usuario (auth nativo), Perfil (1-para-1), Municipio
+    models.py
+    admin.py                # UsuarioAdmin (UserAdmin nativo) + PerfilInline
+    signals.py               # cria Perfil e atribui grupo "Usuário" a todo Usuario novo
+  proposicoes/               # Proposicao, Macrotema, Tema, Noticia, EdicaoMeritoHistorico
+    models.py
+    admin.py                 # ProposicaoAdmin.save_model grava EdicaoMeritoHistorico
+  comentarios/                # Comentario, Participacao, Notificacao
+    models.py
     admin.py
-    models.py              # Usuario, Proposicao, Macrotema, Tema, Comentario, Participacao, Notificacao
+  legislativo/                # camada de views/urls/forms que orquestra os 3 apps acima
+    admin.py                  # vazio (registros vivem nos apps de domínio)
+    models.py                 # vazio (models vivem nos apps de domínio)
     views.py
     urls.py
-    forms.py                # CustomSignupForm (allauth), PerfilForm, ComentarioForm, ParticipacaoForm
+    forms.py                # CustomSignupForm (allauth), PerfilForm, PerfilDadosForm, ComentarioForm, ParticipacaoForm
     context_processors.py   # notificacoes + usuario_display_name (nome "Bonito", nunca o e-mail cru)
     data_utils.py            # split_temas() — separa temas compostos "A, B/C"
     tests.py
@@ -50,6 +60,7 @@ apps/
         ingest_legislativo.py
         sync_legado_firestore.py  # importa as 104 proposições reais do Firestore legado (legislativo-fnp.web.app)
         sync_camara.py             # sync ao vivo via API Dados Abertos da Câmara, com --watch
+        setup_roles.py              # cria grupos Root/Administrador FNP/Usuário, promove um e-mail a Root
 static/
   css/
     style.css               # ~1880 linhas: app-shell, dark mode, acessibilidade, cards, auth
@@ -91,7 +102,7 @@ docs/
 
 ### Domínio principal
 
-O núcleo do projeto é o app `legislativo`, responsável por:
+Os models são divididos por domínio em `apps.usuarios`, `apps.proposicoes` e `apps.comentarios` (ver Estrutura de Arquivos). O app `legislativo` continua sendo a camada de views/urls/forms/templates que orquestra os três — todo `{% url 'legislativo:...' %}` nos templates continua válido, só os models/admins mudaram de app. Responsabilidades:
 - modelar proposições (104 reais, migradas do Firestore legado), macrotemas, temas (M2M), comentários, participação, notificações e usuários
 - renderizar a homepage com cards de briefing compactos (Urgentes, Áreas de interesse, Em alta, Últimos acessados, Todas)
 - exibir detalhes de proposições e suportar fórum de comentários com notificação aos participantes
@@ -258,8 +269,7 @@ git push production main
 
 Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão minha reabrir alguma delas (banco, SSE, Admin, auth, etc.), eu devo sinalizar isso explicitamente antes de agir, não decidir sozinho.
 
-**Estrutura:** modelo Radar Brasil — `apps/` (um app por domínio), `base_templates/` (layout compartilhado), `templates/` por app, `static/`, `setup/` (settings/urls raiz), `locale/`, `docs/`. Um app = uma responsabilidade; nada de app genérico "core" virando depósito. `requirements.txt` (prod) e `requirements-dev.txt` (dev/lint/teste) separados; `.env.example` versionado, `.env` nunca.
-⚠️ **Gap atual:** todo o domínio (proposições, comentários, usuários, notificações) está hoje num único app `apps/legislativo`. Não vou dividir sem pedido explícito — é uma migração de schema/imports não-trivial.
+**Estrutura:** modelo Radar Brasil — `apps/` (um app por domínio), `base_templates/` (layout compartilhado), `templates/` por app, `static/`, `setup/` (settings/urls raiz), `locale/`, `docs/`. Um app = uma responsabilidade; nada de app genérico "core" virando depósito. `requirements.txt` (prod) e `requirements-dev.txt` (dev/lint/teste) separados; `.env.example` versionado, `.env` nunca. Models já divididos: `apps.usuarios`/`apps.proposicoes`/`apps.comentarios`; `apps.legislativo` é a camada de views/urls/forms que orquestra os três (não um app "core" de despejo — só não tem models próprios).
 
 **Models/banco:** status/urgência/categoria é sempre coluna real calculada na ingestão, nunca string-matching em template/JS (`urgente`, `aprovada`, `parada`, `prioridade_fnp` já são assim). Edição de campo de mérito nunca sobrescreve — grava linha de histórico (autor, campo, valor anterior, novo, data); `EdicaoMeritoHistorico` é gravado automaticamente pelo `ProposicaoAdmin.save_model` e por `ingest_legislativo` sempre que `posicionamento_fnp`/`acoes_incidencia`/`riscos_oportunidades` mudam (campos listados em `Proposicao.CAMPOS_MERITO`). FK de thread sempre com `related_name` explícito (`Comentario.parent` → `related_name='respostas'`, já correto). Migrations sempre revisadas antes de aplicar, nunca schema editado direto em produção. Ingestão idempotente via `update_or_create` (já é o padrão em `ingest_legislativo.py`).
 
@@ -307,18 +317,18 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 - Histórico de mérito conectado: `EdicaoMeritoHistorico` agora é gravado de fato (Admin e reingestão), não só um model dormente no schema
 - Fórum redesenhado: métricas (comentários/participantes/visualizações), avatar, nome de exibição e resposta encadeada funcional
 - `Usuario` (auth) separado de `Perfil` (município/telefone/cargo), 1-para-1 via signal — migração `0005_usuario_perfil_split` com backfill
+- Models divididos por domínio: `apps.usuarios`/`apps.proposicoes`/`apps.comentarios` (era tudo em `apps.legislativo`); tabelas e dados preservados via `SeparateDatabaseAndState` (zero DDL real, só realocação de estado)
 
 ### Itens validados (nesta última rodada)
 
 - `python manage.py check` → sem issues
 - `pytest` → 10/10 OK
-- Migração `0005` testada localmente (backfill de Perfil confirmado) e via CI (roda do zero)
-- Screenshot headless Chrome do fórum redesenhado
-- CI verde em `dadosfnp/legislativo-fnp` (run `30573017778`)
+- Migração do split de apps testada localmente (dados reais preservados, contagem de linhas conferida) e via CI (`migrate` do zero numa base vazia)
+- Screenshot headless Chrome confirmando fórum e dados intactos pós-split
+- CI verde em `dadosfnp/legislativo-fnp` (run `30574383860`)
 
 ### Pendências e próximos passos
 
-- Dividir `apps/legislativo` em apps por domínio (proposições/comentários/usuários) — sinalizado como gap estrutural, não executado ainda por ser migração de app_label de alto risco; aguardando decisão de escopo
 - Obter credenciais reais do Google OAuth (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — bloqueado no usuário, documentado em `docs/runbook.md`
 - Rodar `sync_legado_firestore`/`sync_camara` contra o banco de produção (só rodado localmente até agora)
 - Migrar produção de SQLite para PostgreSQL
