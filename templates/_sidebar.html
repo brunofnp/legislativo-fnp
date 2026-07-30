@@ -10,6 +10,12 @@
       <span>Início</span>
     </a>
 
+    <p class="sidebar-section-label">Conta</p>
+    <a href="{% url 'legislativo:perfil' %}" class="sidebar-link {% if request.resolver_match.url_name == 'perfil' %}active{% endif %}" data-label="Meu perfil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span>Meu perfil</span>
+    </a>
+
     <p class="sidebar-section-label">Acompanhamento</p>
     <a href="{% url 'legislativo:favoritos_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'favoritos_list' %}active{% endif %}" data-label="Favoritos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>

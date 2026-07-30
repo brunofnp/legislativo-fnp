@@ -1,8 +1,10 @@
 {% load static %}
 <header class="app-topbar">
-  <button type="button" class="icon-btn sidebar-hamburger" id="sidebar-hamburger" aria-label="Alternar menu lateral">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-  </button>
+  {% if mostrar_sidebar %}
+    <button type="button" class="icon-btn sidebar-hamburger" id="sidebar-hamburger" aria-label="Alternar menu lateral">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  {% endif %}
 
   <h1 class="app-topbar-title">{{ page_title|default:"Painel Geral" }}</h1>
 
@@ -51,14 +53,11 @@
       </div>
     </div>
 
-    <div class="user-menu-wrapper">
-      <button type="button" class="user-menu-trigger" id="user-menu-trigger">
-        <span class="user-avatar">{{ user.first_name|default:user.email|first|upper }}</span>
-        <span class="user-name">{{ user.get_full_name|default:user.email }}</span>
-      </button>
-      <div class="user-menu-dropdown" id="user-menu-dropdown">
-        <a href="{% url 'account_logout' %}" class="user-menu-item">Sair</a>
-      </div>
-    </div>
+    <a href="{% url 'legislativo:perfil' %}" class="user-menu-trigger" title="Meu perfil">
+      <span class="user-avatar">{{ usuario_display_name|first|upper }}</span>
+      <span class="user-name">{{ usuario_display_name }}</span>
+    </a>
+
+    <a href="{% url 'account_logout' %}" class="topbar-logout" title="Sair">Sair</a>
   </div>
 </header>

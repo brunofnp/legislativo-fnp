@@ -5,11 +5,12 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
-from .forms import ComentarioForm, ParticipacaoForm
+from .forms import ComentarioForm, ParticipacaoForm, PerfilForm
 from .models import Notificacao, Participacao, Proposicao, Tema
 
 FAVORITOS_SESSION_KEY = 'favoritos'
@@ -330,3 +331,35 @@ class ParticipacaoListView(View):
     def get(self, request):
         participacoes = Participacao.objects.all()[:100]
         return render(request, self.template_name, {'participacoes': participacoes, 'page_title': 'Participações'})
+
+
+class PerfilView(View):
+    template_name = 'legislativo/perfil.html'
+
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        form = PerfilForm(instance=request.user)
+        return self._render(request, form)
+
+    def post(self, request):
+        form = PerfilForm(request.POST, instance=request.user)
+        success_message = None
+        if form.is_valid():
+            form.save()
+            success_message = 'Perfil atualizado com sucesso.'
+        return self._render(request, form, success_message)
+
+    def _render(self, request, form, success_message=None):
+        return render(
+            request,
+            self.template_name,
+            {
+                'form': form,
+                'success_message': success_message,
+                'page_title': 'Meu perfil',
+                'mostrar_sidebar': True,
+            },
+        )

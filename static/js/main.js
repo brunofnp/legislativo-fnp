@@ -113,7 +113,6 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initDropdown('notif-btn', 'notif-dropdown');
-  initDropdown('user-menu-trigger', 'user-menu-dropdown');
 
   function initSearchModal() {
     const modal = document.getElementById('search-modal');

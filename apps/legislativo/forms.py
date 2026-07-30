@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Comentario, Participacao
+from .models import Comentario, Participacao, Usuario
 
 
 class CustomSignupForm(forms.Form):
@@ -20,6 +20,24 @@ class CustomSignupForm(forms.Form):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data.get('last_name', '')
         user.save()
+
+
+class PerfilForm(forms.ModelForm):
+    class Meta:
+        model = Usuario
+        fields = ['first_name', 'last_name', 'telefone', 'cargo']
+        labels = {
+            'first_name': 'Nome',
+            'last_name': 'Sobrenome',
+            'telefone': 'Telefone',
+            'cargo': 'Cargo',
+        }
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'input-wide'}),
+            'last_name': forms.TextInput(attrs={'class': 'input-wide'}),
+            'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
+            'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
+        }
 
 
 class ComentarioForm(forms.ModelForm):
