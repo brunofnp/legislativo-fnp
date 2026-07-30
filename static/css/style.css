@@ -783,6 +783,88 @@ body {
   text-decoration: underline;
 }
 
+/* Paginas geradas pelo allauth (logout, confirmacao social, reset de senha etc.)
+   usam elementos HTML puros (h1/form/input/button/p), sem classes. */
+.auth-card h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+  color: var(--text-primary, #111827);
+}
+
+.auth-card p {
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 1.25rem;
+}
+
+.auth-card form p {
+  margin: 0 0 0.9rem;
+}
+
+.auth-card form label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.auth-card form input:not([type="hidden"]),
+.auth-card form textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.85rem;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.auth-card form input:focus,
+.auth-card form textarea:focus {
+  border-color: #1a4b8f;
+  box-shadow: 0 0 0 3px rgba(26, 75, 143, 0.08);
+}
+
+.auth-card form button[type="submit"],
+.auth-card form a[href] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem 1.4rem;
+  border: none;
+  border-radius: 999px;
+  background: #1a4b8f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+.auth-card form button[type="submit"]:hover,
+.auth-card form a[href]:hover {
+  opacity: 0.95;
+}
+
+.auth-messages {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.auth-messages li {
+  background: #eff6ff;
+  color: #1a4b8f;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
