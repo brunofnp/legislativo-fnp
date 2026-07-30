@@ -36,9 +36,9 @@
       <button type="submit" class="fbtn">Buscar</button>
     </form>
     <div class="filters-row">
-      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="theme-btn {% if not active_macrotema %}active{% endif %}">Todos</a>
-      {% for macrotema in macrotemas %}
-        <a href="?macrotema={{ macrotema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="theme-btn {% if active_macrotema == macrotema.slug %}active{% endif %}">{{ macrotema.nome }}</a>
+      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="theme-btn {% if not active_tema %}active{% endif %}">Todos</a>
+      {% for tema in temas %}
+        <a href="?tema={{ tema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="theme-btn {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
       {% endfor %}
     </div>
   </section>
@@ -51,6 +51,8 @@
             <div>
               {% if proposicao.macrotema %}
                 <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+              {% elif proposicao.tema %}
+                <span class="tag-normal">{{ proposicao.tema.nome }}</span>
               {% endif %}
             </div>
             <div class="tag-row">

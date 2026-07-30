@@ -8,6 +8,8 @@
       <div>
         {% if proposicao.macrotema %}
           <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+        {% elif proposicao.tema %}
+          <span class="tag-normal">{{ proposicao.tema.nome }}</span>
         {% endif %}
         <h1>{{ proposicao.titulo }}</h1>
         <div class="detail-meta-row">

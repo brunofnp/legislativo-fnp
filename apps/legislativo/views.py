@@ -8,13 +8,13 @@ from django.views import View
 from django.views.decorators.http import require_GET
 
 from .forms import ComentarioForm, ParticipacaoForm
-from .models import Macrotema, Participacao, Proposicao
+from .models import Participacao, Proposicao, Tema
 
 
-def get_filtered_proposicoes(query, macrotema_slug):
+def get_filtered_proposicoes(query, tema_slug):
     proposicoes = Proposicao.objects.select_related('macrotema', 'tema').all()
-    if macrotema_slug:
-        proposicoes = proposicoes.filter(macrotema__slug=macrotema_slug)
+    if tema_slug:
+        proposicoes = proposicoes.filter(tema__slug=tema_slug)
     if query:
         proposicoes = proposicoes.filter(
             Q(titulo__icontains=query)
@@ -32,10 +32,10 @@ class HomeView(View):
 
     def get(self, request):
         query = request.GET.get('q', '').strip()
-        macrotema_slug = request.GET.get('macrotema', '').strip()
-        macrotemas = Macrotema.objects.order_by('nome')
+        tema_slug = request.GET.get('tema', '').strip()
+        temas = Tema.objects.order_by('nome')
 
-        filtered = get_filtered_proposicoes(query, macrotema_slug)
+        filtered = get_filtered_proposicoes(query, tema_slug)
         stats = {
             'total': filtered.count(),
             'pauta': filtered.filter(pauta=True).count(),
@@ -50,8 +50,8 @@ class HomeView(View):
             self.template_name,
             {
                 'proposicoes': proposicoes,
-                'macrotemas': macrotemas,
-                'active_macrotema': macrotema_slug,
+                'temas': temas,
+                'active_tema': tema_slug,
                 'query': query,
                 'stats': stats,
             },
@@ -70,8 +70,8 @@ def compute_counts(proposicoes):
 @require_GET
 def api_proposicoes(request):
     query = request.GET.get('q', '').strip()
-    macrotema_slug = request.GET.get('macrotema', '').strip()
-    proposicoes = get_filtered_proposicoes(query, macrotema_slug)
+    tema_slug = request.GET.get('tema', '').strip()
+    proposicoes = get_filtered_proposicoes(query, tema_slug)
     return JsonResponse({'counts': compute_counts(proposicoes)})
 
 
@@ -107,10 +107,10 @@ SSE_POLL_INTERVAL_SECONDS = 5
 SSE_MAX_ITERATIONS = 120  # ~10 min por conexão; o EventSource do navegador reconecta sozinho
 
 
-def _sse_stream(query, macrotema_slug):
+def _sse_stream(query, tema_slug):
     last_snapshot = None
     for _ in range(SSE_MAX_ITERATIONS):
-        proposicoes = get_filtered_proposicoes(query, macrotema_slug)
+        proposicoes = get_filtered_proposicoes(query, tema_slug)
         latest = proposicoes.aggregate(Max('atualizado_em'))['atualizado_em__max']
         counts = compute_counts(proposicoes)
         snapshot = (latest, tuple(sorted(counts.items())))
@@ -128,10 +128,10 @@ def _sse_stream(query, macrotema_slug):
 @require_GET
 def api_proposicao_sse(request):
     query = request.GET.get('q', '').strip()
-    macrotema_slug = request.GET.get('macrotema', '').strip()
+    tema_slug = request.GET.get('tema', '').strip()
 
     response = StreamingHttpResponse(
-        _sse_stream(query, macrotema_slug),
+        _sse_stream(query, tema_slug),
         content_type='text/event-stream',
     )
     response['Cache-Control'] = 'no-cache'
