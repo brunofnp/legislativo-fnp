@@ -611,7 +611,7 @@ body {
 }
 
 .site-footer {
-  padding: 1.75rem 0;
+  padding: 2.5rem 0 1.5rem;
   margin-top: 3rem;
   background: #193657;
 }
@@ -619,19 +619,122 @@ body {
 .footer-inner {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 1.5rem;
   color: rgba(255, 255, 255, 0.78);
+}
+
+.footer-top {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.footer-col {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 260px;
+}
+
+.footer-col-social {
+  align-content: start;
+  justify-items: start;
+}
+
+.footer-heading {
+  margin: 0 0 0.25rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.footer-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.footer-text a {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.footer-phone-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.footer-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
+.footer-icon-inline {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+}
+
+.footer-icon-inline svg {
+  width: 100%;
+  height: 100%;
+}
+
+.footer-sep {
+  opacity: 0.5;
+}
+
+.footer-social {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.footer-social-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transition: background .15s ease;
+}
+
+.footer-social-icon:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.footer-social-icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.footer-partners {
+  margin-top: 0.75rem;
+}
+
+.footer-partner-logo {
+  height: 2.25rem;
+  width: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+
+.footer-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  margin: 0;
 }
 
 .footer-copy {
   margin: 0;
-  color: #fff;
-  font-weight: 700;
-}
-
-.footer-note {
-  margin: 0;
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  text-align: center;
 }
 
 .hidden {
