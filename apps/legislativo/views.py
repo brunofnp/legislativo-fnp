@@ -36,6 +36,7 @@ class HomeView(View):
         query = request.GET.get('q', '').strip()
         tema_slug = request.GET.get('tema', '').strip()
         temas = Tema.objects.order_by('nome')
+        active_tema_obj = temas.filter(slug=tema_slug).first() if tema_slug else None
 
         filtered = get_filtered_proposicoes(query, tema_slug)
         stats = compute_counts(filtered)
@@ -49,6 +50,7 @@ class HomeView(View):
                 'proposicoes': proposicoes,
                 'temas': temas,
                 'active_tema': tema_slug,
+                'active_tema_obj': active_tema_obj,
                 'query': query,
                 'stats': stats,
             },

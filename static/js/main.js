@@ -1,6 +1,38 @@
 window.addEventListener('DOMContentLoaded', function () {
   const toast = document.getElementById('realtime-toast');
 
+  function initTemaDropdown() {
+    const dropdown = document.getElementById('tema-dropdown');
+    const search = document.getElementById('tema-dropdown-search');
+    if (!dropdown || !search) return;
+
+    const options = dropdown.querySelectorAll('.tema-option');
+
+    search.addEventListener('input', () => {
+      const term = search.value.trim().toLowerCase();
+      options.forEach(option => {
+        const matches = option.textContent.toLowerCase().includes(term);
+        option.classList.toggle('hidden', !matches);
+      });
+    });
+
+    dropdown.addEventListener('toggle', () => {
+      if (dropdown.open) {
+        search.value = '';
+        options.forEach(option => option.classList.remove('hidden'));
+        setTimeout(() => search.focus(), 0);
+      }
+    });
+
+    document.addEventListener('click', event => {
+      if (dropdown.open && !dropdown.contains(event.target)) {
+        dropdown.open = false;
+      }
+    });
+  }
+
+  initTemaDropdown();
+
   function setToast(message) {
     if (!toast) return;
     toast.textContent = message;

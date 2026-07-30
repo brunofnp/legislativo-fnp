@@ -39,42 +39,59 @@
       <input type="search" name="q" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." />
       <button type="submit" class="fbtn">Buscar</button>
     </form>
-    <div class="filters-row">
-      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="theme-btn {% if not active_tema %}active{% endif %}">Todos</a>
-      {% for tema in temas %}
-        <a href="?tema={{ tema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="theme-btn {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
-      {% endfor %}
-    </div>
+
+    <details class="tema-dropdown" id="tema-dropdown">
+      <summary class="tema-dropdown-trigger">
+        <span class="tema-dropdown-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M7 12h10M10 19h4"/></svg>
+        </span>
+        <span class="tema-dropdown-label">Tema: <strong>{% if active_tema_obj %}{{ active_tema_obj.nome }}{% else %}Todos{% endif %}</strong></span>
+        <span class="tema-dropdown-chevron" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </span>
+      </summary>
+      <div class="tema-dropdown-panel">
+        <input type="text" class="tema-dropdown-search" id="tema-dropdown-search" placeholder="Buscar tema..." autocomplete="off" />
+        <div class="tema-dropdown-list">
+          <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="tema-option {% if not active_tema %}active{% endif %}">Todos os temas</a>
+          {% for tema in temas %}
+            <a href="?tema={{ tema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="tema-option {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </details>
   </section>
 
   <section class="cards-grid">
     {% if proposicoes %}
       {% for proposicao in proposicoes %}
         <article class="card card-brief {% if proposicao.urgente %}urgente{% endif %}" data-proposicao-id="{{ proposicao.pk }}">
-          <div class="card-head">
-            <div>
+          <div class="card-badges">
+            <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
+            {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
+            {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
+          </div>
+
+          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
+
+          {% if proposicao.macrotema or proposicao.temas.all %}
+            <div class="card-tags-row">
               {% if proposicao.macrotema %}
-                <span class="tag-normal" style="border-color: {{ proposicao.macrotema.cor }}; color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+                <span class="chip chip-tema" style="color: {{ proposicao.macrotema.cor }}; border-color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
               {% else %}
-                {% for tema in proposicao.temas.all %}
-                  <span class="tag-normal">{{ tema.nome }}</span>
+                {% for tema in proposicao.temas.all|slice:":3" %}
+                  <span class="chip chip-tema">{{ tema.nome }}</span>
                 {% endfor %}
               {% endif %}
             </div>
-            <div class="tag-row">
-              <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
-              {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
-              {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
-            </div>
-          </div>
+          {% endif %}
+
+          <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
 
           <div class="card-brief-line">
             <span class="impact-pill">{% if proposicao.pauta %}Pauta ativa{% else %}Monitoramento{% endif %}</span>
             <span class="impact-pill">{% if proposicao.urgente %}Impacto imediato{% else %}Impacto gradual{% endif %}</span>
           </div>
-
-          <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
-          <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
 
           <div class="card-brief-grid">
             <div>
@@ -93,7 +110,7 @@
 
           <div class="card-footer">
             <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
-            <span>{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatechars:40 }}</span>
+            <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:12 }}</span>
           </div>
         </article>
       {% endfor %}
