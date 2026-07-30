@@ -16,7 +16,7 @@ from ...data_utils import (
     slug_for_name,
     split_temas,
 )
-from ...models import Macrotema, Noticia, Proposicao, Tema
+from ...models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 
 
 class Command(BaseCommand):
@@ -77,6 +77,8 @@ class Command(BaseCommand):
                 self.stdout.write(f'[{titulo[:80]}] {props}')
                 continue
 
+            valores_anteriores = Proposicao.objects.filter(titulo=titulo).values(*Proposicao.CAMPOS_MERITO).first()
+
             proposicao, created = Proposicao.objects.update_or_create(
                 titulo=titulo,
                 defaults=props,
@@ -85,6 +87,18 @@ class Command(BaseCommand):
                 self.stdout.write(f'Criada proposição: {titulo}')
             else:
                 self.stdout.write(f'Atualizada proposição: {titulo}')
+                if valores_anteriores:
+                    EdicaoMeritoHistorico.objects.bulk_create([
+                        EdicaoMeritoHistorico(
+                            proposicao=proposicao,
+                            autor=None,
+                            campo=campo,
+                            valor_anterior=valores_anteriores.get(campo, ''),
+                            valor_novo=getattr(proposicao, campo),
+                        )
+                        for campo in Proposicao.CAMPOS_MERITO
+                        if valores_anteriores.get(campo, '') != getattr(proposicao, campo)
+                    ])
 
             temas_objs = []
             for nome in tema_nomes:

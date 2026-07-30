@@ -1,8 +1,13 @@
+import json
+import tempfile
+
+from django.contrib.auth.models import Group
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.management import call_command
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from .models import Macrotema, Proposicao, Tema
+from .models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema, Usuario
 from .views import HomeView
 
 
@@ -61,3 +66,62 @@ class HomeViewRegressionTest(TestCase):
         self.assertIn('PL 1234/2025 - Financiamento do Transporte Público', content)
         self.assertIn('stats-total', content)
         self.assertIn('stats-pauta', content)
+
+
+class UsuarioDisplayNameTest(TestCase):
+    def test_usa_nome_completo_quando_disponivel(self):
+        usuario = Usuario.objects.create(
+            username='bruno', email='bruno.marra@fnp.org.br', first_name='Bruno', last_name='Marra',
+        )
+        self.assertEqual(usuario.get_display_name(), 'Bruno Marra')
+
+    def test_deriva_do_email_quando_sem_nome_cadastrado(self):
+        usuario = Usuario.objects.create(username='joana.silva', email='joana.silva@fnp.org.br')
+        self.assertEqual(usuario.get_display_name(), 'Joana Silva')
+
+
+class UsuarioGroupSignalTest(TestCase):
+    def test_novo_usuario_entra_no_grupo_usuario(self):
+        usuario = Usuario.objects.create(username='novo', email='novo@fnp.org.br')
+        self.assertTrue(usuario.groups.filter(name='Usuário').exists())
+
+    def test_superusuario_nao_entra_no_grupo_usuario(self):
+        usuario = Usuario.objects.create(username='root2', email='root2@fnp.org.br', is_superuser=True)
+        self.assertFalse(usuario.groups.filter(name='Usuário').exists())
+
+
+class SetupRolesCommandTest(TestCase):
+    def test_comando_e_idempotente_e_promove_root(self):
+        Usuario.objects.create(username='bruno', email='bruno.marra@fnp.org.br')
+
+        call_command('setup_roles')
+        call_command('setup_roles')  # rodar duas vezes não deve duplicar grupo nem quebrar
+
+        self.assertEqual(Group.objects.filter(name='Root').count(), 1)
+        usuario = Usuario.objects.get(email='bruno.marra@fnp.org.br')
+        self.assertTrue(usuario.is_superuser)
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.groups.filter(name='Root').exists())
+
+
+class EdicaoMeritoHistoricoIngestTest(TestCase):
+    def test_reingestao_com_campo_de_merito_alterado_grava_historico(self):
+        registro = [{'Proposição': 'PL 999/2025', 'Casa': 'Camara', 'Posicionamento da FNP': 'Posição inicial'}]
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False, encoding='utf-8') as arquivo:
+            json.dump(registro, arquivo)
+            caminho = arquivo.name
+
+        call_command('ingest_legislativo', caminho)
+        self.assertEqual(EdicaoMeritoHistorico.objects.count(), 0)  # criação inicial não gera histórico
+
+        registro[0]['Posicionamento da FNP'] = 'Posição revisada'
+        with open(caminho, 'w', encoding='utf-8') as arquivo:
+            json.dump(registro, arquivo)
+
+        call_command('ingest_legislativo', caminho)
+
+        historico = EdicaoMeritoHistorico.objects.get()
+        self.assertEqual(historico.campo, 'posicionamento_fnp')
+        self.assertEqual(historico.valor_anterior, 'Posição inicial')
+        self.assertEqual(historico.valor_novo, 'Posição revisada')
+        self.assertIsNone(historico.autor)

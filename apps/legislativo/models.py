@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -31,6 +33,15 @@ class Usuario(AbstractUser):
     class Meta:
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
+
+    def get_display_name(self):
+        """Nome amigável para exibição na UI — nunca o e-mail cru."""
+        nome_completo = self.get_full_name().strip()
+        if nome_completo:
+            return nome_completo
+        local = (self.email or self.username).split('@')[0]
+        partes = [parte.capitalize() for parte in re.split(r'[._-]+', local) if parte]
+        return ' '.join(partes) or self.email or self.username
 
 
 class Macrotema(models.Model):
@@ -76,6 +87,8 @@ class Proposicao(models.Model):
         ('baixa', 'Baixa'),
         ('normal', 'Normal'),
     ]
+    # Campos de mérito: toda edição gera uma linha em EdicaoMeritoHistorico, nunca sobrescreve silenciosamente.
+    CAMPOS_MERITO = ('posicionamento_fnp', 'acoes_incidencia', 'riscos_oportunidades')
 
     titulo = models.CharField(max_length=1024)
     casa = models.CharField(max_length=32, choices=CASA_CHOICES)
