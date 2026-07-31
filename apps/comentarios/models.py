@@ -59,10 +59,10 @@ class Participacao(models.Model):
     municipio = models.CharField(max_length=255)
     uf = models.CharField(max_length=2, blank=True)
     proposicao = models.CharField(max_length=512, blank=True)
-    responsavel = models.CharField(max_length=255)
+    setor_responsavel = models.CharField(max_length=255)
     cargo = models.CharField(max_length=255, blank=True)
     email = models.EmailField()
-    whatsapp = models.CharField(max_length=64, blank=True)
+    telefone = models.CharField(max_length=64, blank=True)
     mensagem = models.TextField(blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -73,7 +73,7 @@ class Participacao(models.Model):
         db_table = 'legislativo_participacao'
 
     def __str__(self):
-        return f'{self.get_tipo_display()} — {self.municipio} ({self.responsavel})'
+        return f'{self.get_tipo_display()} — {self.municipio} ({self.setor_responsavel})'
 
 
 class Notificacao(models.Model):

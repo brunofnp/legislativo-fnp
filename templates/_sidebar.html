@@ -26,14 +26,7 @@
       <span>Participações</span>
     </a>
 
-    <p class="sidebar-section-label">Ajuda</p>
-    <a href="https://fnp.org.br/" target="_blank" rel="noopener" class="sidebar-link" data-label="Institucional">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
-      <span>Institucional</span>
-      <span class="sr-only">(abre em nova aba)</span>
-    </a>
-
-    {% if user.is_staff %}
+    {% if user.is_superuser %}
       <p class="sidebar-section-label">Administração</p>
       <a href="/admin/" class="sidebar-link" data-label="Painel Admin">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9 9 10 5.2-1 9-5 9-10V6z"/></svg>

@@ -57,24 +57,51 @@ class Usuario(AbstractUser):
         partes = [parte.capitalize() for parte in re.split(r'[._-]+', local) if parte]
         return ' '.join(partes) or self.email or self.username
 
+    def get_avatar_url(self):
+        """Foto enviada manualmente tem prioridade; senão usa a foto importada do Google, se houver."""
+        perfil = getattr(self, 'perfil', None)
+        if not perfil:
+            return None
+        if perfil.foto:
+            return perfil.foto.url
+        return perfil.foto_google_url or None
+
 
 class Perfil(models.Model):
     """Dados complementares de Usuario (1-para-1), separados do model de autenticação nativo."""
+
+    PENDENTE = 'pendente'
+    APROVADO = 'aprovado'
+    REJEITADO = 'rejeitado'
+    STATUS_APROVACAO_CHOICES = [
+        (PENDENTE, 'Pendente'),
+        (APROVADO, 'Aprovado'),
+        (REJEITADO, 'Rejeitado'),
+    ]
 
     usuario = models.OneToOneField(
         Usuario,
         on_delete=models.CASCADE,
         related_name='perfil',
     )
-    municipio = models.OneToOneField(
+    municipio = models.ForeignKey(
         Municipio,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='perfil',
+        related_name='perfis',
     )
     telefone = models.CharField(max_length=32, blank=True)
     cargo = models.CharField(max_length=255, blank=True)
+    setor_responsavel = models.CharField(max_length=255, blank=True)
+    status_aprovacao = models.CharField(
+        max_length=16,
+        choices=STATUS_APROVACAO_CHOICES,
+        default=PENDENTE,
+    )
+    foto = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    foto_google_url = models.URLField(blank=True)
+    exclusao_solicitada_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = 'Perfil'

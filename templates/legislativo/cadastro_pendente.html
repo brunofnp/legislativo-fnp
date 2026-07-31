@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro em análise | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Minha conta</span>
+      {% if perfil.status_aprovacao == 'rejeitado' %}
+        <h1>Cadastro não aprovado</h1>
+        <p>Seu cadastro não foi aprovado pela equipe da FNP. Se acredita que isso é um engano, entre em contato com o administrador do painel.</p>
+      {% else %}
+        <h1>Cadastro em análise</h1>
+        <p>Recebemos seu cadastro e ele está aguardando aprovação da equipe da FNP. Você terá acesso completo ao painel assim que for validado.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="auth-card" style="margin: 0;">
+    <p class="auth-footer">E-mail de acesso: {{ request.user.email }}</p>
+    <a href="{% url 'account_logout' %}" class="fbtn">Sair</a>
+  </div>
+{% endblock %}

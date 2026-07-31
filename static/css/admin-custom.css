@@ -95,8 +95,148 @@ a.button {
   overflow: hidden;
 }
 
+.fnp-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.fnp-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 0.9rem;
+  background: var(--body-bg, #fff);
+  border: 1px solid var(--hairline-color, #e2e8f0);
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.fnp-dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+}
+
+.fnp-dashboard-num {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.fnp-dashboard-label {
+  font-size: 0.82rem;
+  color: var(--body-quiet-color, #475569);
+  font-weight: 500;
+}
+
 .selector,
 .calendar,
 .clockbox {
   border-radius: 0.5rem;
+}
+
+/* Nav sidebar (menu de apps/models à esquerda, nativo do Django 4.1+) reskinado
+   para seguir o mesmo padrão visual (barra lateral escura, itens e subitens) do
+   restante da plataforma — ver templates/_sidebar.html. */
+
+#nav-sidebar {
+  background-color: var(--secondary);
+  border-right: none;
+  padding-bottom: 1rem;
+}
+
+.admin-sidebar-brand {
+  display: flex;
+  justify-content: center;
+  padding: 1.1rem 0 0.6rem;
+}
+
+.admin-sidebar-logo {
+  height: 1.9rem;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+#nav-sidebar #nav-filter {
+  width: calc(100% - 32px);
+  margin: 0.5rem 16px 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+#nav-sidebar #nav-filter::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+#toggle-nav-sidebar {
+  background-color: var(--secondary);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+#toggle-nav-sidebar:hover,
+#toggle-nav-sidebar:focus {
+  background-color: var(--primary);
+}
+
+#nav-sidebar .module {
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 0.35rem;
+}
+
+#nav-sidebar .module caption,
+#nav-sidebar .module caption a.section {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.75rem 16px 0.35rem;
+}
+
+#nav-sidebar .current-app .section:link,
+#nav-sidebar .current-app .section:visited {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#nav-sidebar table,
+#nav-sidebar tbody,
+#nav-sidebar tr {
+  background: transparent;
+}
+
+#nav-sidebar .module th {
+  padding: 0;
+}
+
+#nav-sidebar .module th a {
+  display: block;
+  margin: 0.1rem 8px;
+  padding: 0.55rem 8px;
+  border-radius: 0.6rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+#nav-sidebar .module th a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+#nav-sidebar .current-model {
+  background: transparent;
+}
+
+#nav-sidebar .current-model th a {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
 }

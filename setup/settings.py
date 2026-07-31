@@ -14,7 +14,7 @@ DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'apps.legislativo.admin_site.FNPAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -39,6 +39,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'apps.usuarios.middleware.CadastroPendenteMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -93,6 +94,9 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
@@ -108,9 +112,12 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_LOGOUT_ON_GET = True
+LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_SIGNUP_FORM_CLASS = 'apps.legislativo.forms.CustomSignupForm'
+
+SOCIALACCOUNT_ADAPTER = 'apps.usuarios.adapters.GoogleAccountAdapter'
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {

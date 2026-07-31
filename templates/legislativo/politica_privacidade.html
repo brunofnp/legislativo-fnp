@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Política de Privacidade | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Privacidade</span>
+      <h1>Política de Privacidade</h1>
+      <p>Como o Painel Legislativo da FNP trata os dados pessoais de quem usa a plataforma.</p>
+    </div>
+  </section>
+
+  <div class="auth-card" style="margin: 0; width: 100%; max-width: 720px;">
+    <h2>Quais dados coletamos</h2>
+    <p>Nome, e-mail, telefone, cargo e município informados no cadastro, além de comentários e participações enviadas na plataforma. Se o cadastro for feito com Google, também importamos o nome e a foto de perfil da conta Google.</p>
+
+    <h2>Para que usamos</h2>
+    <p>Para identificar quem participa do fórum de proposições, notificar sobre respostas e novidades, e organizar o acompanhamento legislativo de cada município junto à FNP.</p>
+
+    <h2>Com quem compartilhamos</h2>
+    <p>Os dados não são vendidos ou repassados a terceiros. Comentários aprovados no fórum ficam visíveis publicamente na proposição correspondente, identificados pelo nome de exibição do autor.</p>
+
+    <h2>Seus direitos</h2>
+    <p>Você pode, a qualquer momento, exportar uma cópia dos seus dados ou solicitar a exclusão da sua conta pelo menu <a href="{% url 'legislativo:perfil' %}">Meu perfil</a>. Dúvidas sobre tratamento de dados podem ser enviadas ao nosso Encarregado de Proteção de Dados (DPO).</p>
+
+    <p class="auth-footer">DPO: <a href="mailto:suporte@fnp.org.br">suporte@fnp.org.br</a></p>
+  </div>
+{% endblock %}

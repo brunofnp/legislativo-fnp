@@ -1,0 +1,11 @@
+{% load i18n static %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  <a href="{% url 'admin:index' %}" class="admin-sidebar-brand">
+    <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="admin-sidebar-logo" />
+  </a>
+  <input type="search" id="nav-filter"
+         placeholder="{% translate 'Buscar…' %}"
+         aria-label="{% translate 'Filter navigation items' %}">
+  {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+</nav>

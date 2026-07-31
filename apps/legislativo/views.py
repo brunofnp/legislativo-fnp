@@ -5,12 +5,14 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.comentarios.models import Notificacao, Participacao
+from apps.comentarios.models import Comentario, Notificacao, Participacao
 from apps.proposicoes.models import Proposicao, Tema
 
 from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
@@ -277,6 +279,12 @@ class ProposicaoDetailView(View):
             'participantes_count': aprovados.exclude(autor__isnull=True).values('autor_id').distinct().count(),
         }
 
+    def _breadcrumb(self):
+        return {
+            'breadcrumb_parent_label': 'Proposições',
+            'breadcrumb_parent_url': reverse('legislativo:home'),
+        }
+
     def get(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
         registrar_visualizacao(request, proposicao)
@@ -291,6 +299,7 @@ class ProposicaoDetailView(View):
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
+                **self._breadcrumb(),
                 **self._forum_context(proposicao),
             },
         )
@@ -329,6 +338,7 @@ class ProposicaoDetailView(View):
                 'favoritos_ids': get_favoritos_ids(request),
                 'participacao_form': participacao_form,
                 'success_message': success_message,
+                **self._breadcrumb(),
                 **self._forum_context(proposicao),
             },
         )
@@ -340,6 +350,82 @@ class ParticipacaoListView(View):
     def get(self, request):
         participacoes = Participacao.objects.all()[:100]
         return render(request, self.template_name, {'participacoes': participacoes, 'page_title': 'Participações'})
+
+
+@login_required
+def cadastro_pendente(request):
+    return render(
+        request,
+        'legislativo/cadastro_pendente.html',
+        {
+            'perfil': request.user.perfil,
+            'page_title': 'Cadastro em análise',
+        },
+    )
+
+
+def politica_privacidade(request):
+    return render(request, 'legislativo/politica_privacidade.html', {'page_title': 'Política de Privacidade'})
+
+
+@login_required
+def exportar_meus_dados(request):
+    usuario = request.user
+    perfil = usuario.perfil
+    dados = {
+        'usuario': {
+            'nome_completo': usuario.get_full_name(),
+            'email': usuario.email,
+            'data_cadastro': usuario.date_joined.isoformat(),
+        },
+        'perfil': {
+            'telefone': perfil.telefone,
+            'cargo': perfil.cargo,
+            'municipio': str(perfil.municipio) if perfil.municipio else None,
+            'status_aprovacao': perfil.get_status_aprovacao_display(),
+        },
+        'comentarios': [
+            {
+                'proposicao': comentario.proposicao.titulo,
+                'texto': comentario.texto,
+                'status_moderacao': comentario.get_status_moderacao_display(),
+                'criado_em': comentario.criado_em.isoformat(),
+            }
+            for comentario in Comentario.objects.filter(autor=usuario).select_related('proposicao')
+        ],
+        'participacoes_enviadas_com_este_email': [
+            {
+                'tipo': participacao.get_tipo_display(),
+                'proposicao': participacao.proposicao,
+                'municipio': participacao.municipio,
+                'mensagem': participacao.mensagem,
+                'criado_em': participacao.criado_em.isoformat(),
+            }
+            for participacao in Participacao.objects.filter(email__iexact=usuario.email)
+        ],
+    }
+
+    response = JsonResponse(dados, json_dumps_params={'ensure_ascii': False, 'indent': 2})
+    response['Content-Disposition'] = 'attachment; filename="meus-dados-legislativo-fnp.json"'
+    return response
+
+
+@login_required
+def solicitar_exclusao(request):
+    perfil = request.user.perfil
+    if request.method == 'POST':
+        perfil.exclusao_solicitada_em = timezone.now()
+        perfil.save(update_fields=['exclusao_solicitada_em'])
+        return render(
+            request,
+            'legislativo/solicitar_exclusao.html',
+            {'page_title': 'Solicitar exclusão da conta', 'enviado': True},
+        )
+    return render(
+        request,
+        'legislativo/solicitar_exclusao.html',
+        {'page_title': 'Solicitar exclusão da conta', 'perfil': perfil},
+    )
 
 
 class PerfilView(View):
@@ -356,7 +442,7 @@ class PerfilView(View):
 
     def post(self, request):
         form = PerfilForm(request.POST, instance=request.user)
-        dados_form = PerfilDadosForm(request.POST, instance=request.user.perfil)
+        dados_form = PerfilDadosForm(request.POST, request.FILES, instance=request.user.perfil)
         success_message = None
         if form.is_valid() and dados_form.is_valid():
             form.save()

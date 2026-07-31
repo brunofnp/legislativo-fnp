@@ -41,6 +41,19 @@
     </div>
 
     <hr class="footer-divider" />
-    <p class="footer-copy">Frente Nacional de Prefeitas e Prefeitos © {% now "Y" %} Todos os direitos reservados.</p>
+    <div class="footer-utility-row">
+      <p class="footer-copy">
+        © Frente Nacional de Prefeitos e Prefeitas
+        <span class="footer-sep">|</span>
+        <a href="{% url 'legislativo:politica_privacidade' %}">Política de Privacidade</a>
+        {% if user.is_authenticated %}
+          <span class="footer-sep">|</span>
+          <a href="{% url 'legislativo:exportar_meus_dados' %}">Exportar meus dados</a>
+          <span class="footer-sep">|</span>
+          <a href="{% url 'legislativo:solicitar_exclusao' %}">Solicitar exclusão</a>
+        {% endif %}
+      </p>
+      <p class="footer-copy footer-dpo">DPO: <a href="mailto:suporte@fnp.org.br">suporte@fnp.org.br</a></p>
+    </div>
   </div>
 </footer>

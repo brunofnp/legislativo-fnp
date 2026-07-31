@@ -9,8 +9,12 @@ from .views import (
     api_proposicao_detail,
     api_proposicao_sse,
     api_proposicoes,
+    cadastro_pendente,
+    exportar_meus_dados,
     ler_notificacao,
     marcar_notificacoes_lidas,
+    politica_privacidade,
+    solicitar_exclusao,
     toggle_favorito,
 )
 
@@ -23,6 +27,10 @@ urlpatterns = [
     path('favoritos/', FavoritosListView.as_view(), name='favoritos_list'),
     path('participacoes/', ParticipacaoListView.as_view(), name='participacao_list'),
     path('perfil/', PerfilView.as_view(), name='perfil'),
+    path('cadastro-pendente/', cadastro_pendente, name='cadastro_pendente'),
+    path('politica-de-privacidade/', politica_privacidade, name='politica_privacidade'),
+    path('conta/exportar-meus-dados/', exportar_meus_dados, name='exportar_meus_dados'),
+    path('conta/solicitar-exclusao/', solicitar_exclusao, name='solicitar_exclusao'),
     path('notificacoes/<int:pk>/ler/', ler_notificacao, name='ler_notificacao'),
     path('notificacoes/marcar-lidas/', marcar_notificacoes_lidas, name='marcar_notificacoes_lidas'),
     path('api/proposicoes/', api_proposicoes, name='api_proposicoes'),

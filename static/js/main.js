@@ -1,37 +1,42 @@
 window.addEventListener('DOMContentLoaded', function () {
   const toast = document.getElementById('realtime-toast');
 
-  function initTemaDropdown() {
-    const dropdown = document.getElementById('tema-dropdown');
-    const search = document.getElementById('tema-dropdown-search');
-    if (!dropdown || !search) return;
+  function initTemaDropdowns() {
+    const dropdowns = document.querySelectorAll('.tema-dropdown');
+    if (!dropdowns.length) return;
 
-    const options = dropdown.querySelectorAll('.tema-option');
+    dropdowns.forEach(dropdown => {
+      const search = dropdown.querySelector('.tema-dropdown-search');
+      const options = dropdown.querySelectorAll('.tema-option');
+      if (!search) return;
 
-    search.addEventListener('input', () => {
-      const term = search.value.trim().toLowerCase();
-      options.forEach(option => {
-        const matches = option.textContent.toLowerCase().includes(term);
-        option.classList.toggle('hidden', !matches);
+      search.addEventListener('input', () => {
+        const term = search.value.trim().toLowerCase();
+        options.forEach(option => {
+          const matches = option.textContent.toLowerCase().includes(term);
+          option.classList.toggle('hidden', !matches);
+        });
+      });
+
+      dropdown.addEventListener('toggle', () => {
+        if (dropdown.open) {
+          search.value = '';
+          options.forEach(option => option.classList.remove('hidden'));
+          setTimeout(() => search.focus(), 0);
+        }
       });
     });
 
-    dropdown.addEventListener('toggle', () => {
-      if (dropdown.open) {
-        search.value = '';
-        options.forEach(option => option.classList.remove('hidden'));
-        setTimeout(() => search.focus(), 0);
-      }
-    });
-
     document.addEventListener('click', event => {
-      if (dropdown.open && !dropdown.contains(event.target)) {
-        dropdown.open = false;
-      }
+      dropdowns.forEach(dropdown => {
+        if (dropdown.open && !dropdown.contains(event.target)) {
+          dropdown.open = false;
+        }
+      });
     });
   }
 
-  initTemaDropdown();
+  initTemaDropdowns();
 
   function initAppShell() {
     const shell = document.getElementById('app-shell');

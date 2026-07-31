@@ -6,15 +6,27 @@
     </button>
   {% endif %}
 
-  <a href="{% url 'legislativo:home' %}" class="icon-btn topbar-home-btn" title="Início" aria-label="Ir para o início">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
-  </a>
+  {% if not mostrar_sidebar %}
+    <a href="https://fnp.org.br/" target="_blank" rel="noopener" class="topbar-brand" aria-label="Site institucional da FNP (abre em nova aba)">
+      <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="topbar-brand-logo" />
+    </a>
+  {% endif %}
 
-  <a href="{% url 'legislativo:home' %}" class="icon-btn topbar-back-btn" data-back title="Voltar" aria-label="Voltar para a página anterior">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
-  </a>
+  {% if request.resolver_match.url_name != 'home' %}
+    <a href="{% url 'legislativo:home' %}" class="topbar-back-link" data-back aria-label="Voltar para a página anterior">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+      <span>Voltar</span>
+    </a>
+    <span class="topbar-divider" aria-hidden="true">|</span>
+  {% endif %}
 
-  <h1 class="app-topbar-title">{{ page_title|default:"Painel Geral" }}</h1>
+  <h1 class="app-topbar-title">
+    {% if breadcrumb_parent_label %}
+      <a href="{{ breadcrumb_parent_url }}" class="topbar-breadcrumb-parent">{{ breadcrumb_parent_label }}</a>
+      <span class="topbar-breadcrumb-sep" aria-hidden="true">›</span>
+    {% endif %}
+    {{ page_title|default:"Painel Geral" }}
+  </h1>
 
   <div class="app-topbar-actions"{% if not mostrar_sidebar %} id="menu-principal" aria-label="Menu principal" role="navigation"{% endif %}>
     <button type="button" class="topbar-search-trigger" id="search-trigger" aria-label="Abrir busca rápida (Ctrl K)">
@@ -62,7 +74,11 @@
     </div>
 
     <a href="{% url 'legislativo:perfil' %}" class="user-menu-trigger" title="Meu perfil">
-      <span class="user-avatar">{{ usuario_display_name|first|upper }}</span>
+      {% if usuario_avatar_url %}
+        <img src="{{ usuario_avatar_url }}" alt="" class="user-avatar user-avatar-img" />
+      {% else %}
+        <span class="user-avatar">{{ usuario_display_name|first|upper }}</span>
+      {% endif %}
       <span class="user-name">{{ usuario_display_name }}</span>
     </a>
 

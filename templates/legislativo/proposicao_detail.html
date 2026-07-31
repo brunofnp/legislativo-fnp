@@ -41,7 +41,6 @@
             <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
           </button>
         </form>
-        <a class="button button-secondary" href="{% url 'legislativo:home' %}" data-back>← Voltar</a>
       </div>
     </div>
 
@@ -128,7 +127,13 @@
             <ul class="comments" id="lista-comentarios">
               {% for comentario in comentarios %}
                 <li class="comment-card">
-                  <span class="comment-avatar" aria-hidden="true">{{ comentario.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                  {% with avatar_url=comentario.autor.get_avatar_url %}
+                    {% if avatar_url %}
+                      <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
+                    {% else %}
+                      <span class="comment-avatar" aria-hidden="true">{{ comentario.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                    {% endif %}
+                  {% endwith %}
                   <div class="comment-body">
                     <div class="comment-author">
                       <strong>{{ comentario.autor.get_display_name|default:'Anônimo' }}</strong>
@@ -142,7 +147,13 @@
                           {% for resposta in respostas %}
                             {% if resposta.status_moderacao == 'aprovado' %}
                               <li class="comment-card">
-                                <span class="comment-avatar" aria-hidden="true">{{ resposta.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                                {% with avatar_url=resposta.autor.get_avatar_url %}
+                                  {% if avatar_url %}
+                                    <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
+                                  {% else %}
+                                    <span class="comment-avatar" aria-hidden="true">{{ resposta.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+                                  {% endif %}
+                                {% endwith %}
                                 <div class="comment-body">
                                   <div class="comment-author">
                                     <strong>{{ resposta.autor.get_display_name|default:'Anônimo' }}</strong>
@@ -188,14 +199,14 @@
             {{ participacao_form.municipio }}
             <label class="field-label">UF</label>
             {{ participacao_form.uf }}
-            <label class="field-label">Responsável</label>
-            {{ participacao_form.responsavel }}
+            <label class="field-label">Setor responsável</label>
+            {{ participacao_form.setor_responsavel }}
             <label class="field-label">Cargo</label>
             {{ participacao_form.cargo }}
             <label class="field-label">E-mail</label>
             {{ participacao_form.email }}
-            <label class="field-label">WhatsApp</label>
-            {{ participacao_form.whatsapp }}
+            <label class="field-label">Telefone</label>
+            {{ participacao_form.telefone }}
             <label class="field-label">Mensagem</label>
             {{ participacao_form.mensagem }}
             <button class="fbtn" type="submit">Enviar participação</button>

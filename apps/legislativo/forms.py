@@ -1,7 +1,22 @@
 from django import forms
+from django.utils.text import slugify
 
 from apps.comentarios.models import Comentario, Participacao
-from apps.usuarios.models import Perfil, Usuario
+from apps.usuarios.models import Municipio, Perfil, Usuario
+
+
+def salvar_municipio_perfil(perfil, nome, uf):
+    """Cria/reaproveita o Município (por nome+UF) e associa ao Perfil.
+    Vários usuários podem apontar para o mesmo município (ver Perfil.municipio)."""
+    if not nome or not uf:
+        return
+    uf = uf.upper()
+    municipio, _ = Municipio.objects.get_or_create(
+        nome=nome,
+        uf=uf,
+        defaults={'slug': slugify(f'{nome}-{uf}')},
+    )
+    perfil.municipio = municipio
 
 
 class CustomSignupForm(forms.Form):
@@ -16,11 +31,43 @@ class CustomSignupForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Seu sobrenome'}),
     )
+    municipio = forms.CharField(
+        max_length=255,
+        label='Município',
+        widget=forms.TextInput(attrs={'placeholder': 'Seu município'}),
+    )
+    uf = forms.CharField(
+        max_length=2,
+        label='UF',
+        widget=forms.TextInput(attrs={'placeholder': 'UF', 'maxlength': 2, 'class': 'uppercase'}),
+    )
+    setor_responsavel = forms.CharField(
+        max_length=255,
+        label='Setor responsável',
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: Gabinete, Secretaria de Educação...'}),
+    )
+    cargo = forms.CharField(
+        max_length=255,
+        label='Cargo',
+        widget=forms.TextInput(attrs={'placeholder': 'Seu cargo'}),
+    )
+    telefone = forms.CharField(
+        max_length=32,
+        label='Telefone',
+        widget=forms.TextInput(attrs={'placeholder': 'Seu telefone'}),
+    )
 
     def signup(self, request, user):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data.get('last_name', '')
         user.save()
+
+        perfil = user.perfil
+        perfil.setor_responsavel = self.cleaned_data['setor_responsavel']
+        perfil.cargo = self.cleaned_data['cargo']
+        perfil.telefone = self.cleaned_data['telefone']
+        salvar_municipio_perfil(perfil, self.cleaned_data['municipio'], self.cleaned_data['uf'])
+        perfil.save()
 
 
 class PerfilForm(forms.ModelForm):
@@ -40,17 +87,46 @@ class PerfilForm(forms.ModelForm):
 
 
 class PerfilDadosForm(forms.ModelForm):
+    municipio_nome = forms.CharField(
+        max_length=255,
+        label='Município',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'input-wide'}),
+    )
+    municipio_uf = forms.CharField(
+        max_length=2,
+        label='UF',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'input-wide uppercase', 'maxlength': 2}),
+    )
+
     class Meta:
         model = Perfil
-        fields = ['telefone', 'cargo']
+        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel']
         labels = {
+            'foto': 'Foto de perfil',
             'telefone': 'Telefone',
             'cargo': 'Cargo',
+            'setor_responsavel': 'Setor responsável',
         }
         widgets = {
             'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
+            'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.municipio_id:
+            self.fields['municipio_nome'].initial = self.instance.municipio.nome
+            self.fields['municipio_uf'].initial = self.instance.municipio.uf
+
+    def save(self, commit=True):
+        perfil = super().save(commit=False)
+        salvar_municipio_perfil(perfil, self.cleaned_data.get('municipio_nome'), self.cleaned_data.get('municipio_uf'))
+        if commit:
+            perfil.save()
+        return perfil
 
 
 class ComentarioForm(forms.ModelForm):
@@ -74,10 +150,10 @@ class ParticipacaoForm(forms.ModelForm):
             'municipio',
             'uf',
             'proposicao',
-            'responsavel',
+            'setor_responsavel',
             'cargo',
             'email',
-            'whatsapp',
+            'telefone',
             'mensagem',
         ]
         widgets = {
@@ -86,15 +162,15 @@ class ParticipacaoForm(forms.ModelForm):
             'proposicao': forms.HiddenInput(),
             'municipio': forms.TextInput(attrs={'class': 'input-wide'}),
             'uf': forms.TextInput(attrs={'class': 'input-wide uppercase', 'maxlength': 2}),
-            'responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
+            'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
             'email': forms.EmailInput(attrs={'class': 'input-wide'}),
-            'whatsapp': forms.TextInput(attrs={'class': 'input-wide'}),
+            'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
         }
         labels = {
             'mensagem': 'Mensagem',
             'uf': 'UF',
-            'responsavel': 'Responsável',
+            'setor_responsavel': 'Setor responsável',
             'proposicao': 'Proposição',
         }
 
@@ -103,13 +179,13 @@ class ParticipacaoForm(forms.ModelForm):
         tipo = cleaned_data.get('tipo')
         municipio = cleaned_data.get('municipio')
         email = cleaned_data.get('email')
-        responsavel = cleaned_data.get('responsavel')
+        setor_responsavel = cleaned_data.get('setor_responsavel')
         mensagem = cleaned_data.get('mensagem')
 
         if not municipio:
             raise forms.ValidationError('Município é obrigatório.')
-        if not responsavel:
-            raise forms.ValidationError('Responsável é obrigatório.')
+        if not setor_responsavel:
+            raise forms.ValidationError('Setor responsável é obrigatório.')
         if not email:
             raise forms.ValidationError('E-mail é obrigatório.')
 

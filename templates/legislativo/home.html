@@ -77,11 +77,25 @@
   {% if areas_interesse %}
     <section class="home-section">
       <h2 class="section-heading">Áreas de interesse</h2>
-      <div class="interest-tiles">
-        {% for tema in areas_interesse %}
-          <a href="?tema={{ tema.slug }}" class="interest-tile">{{ tema.nome }}</a>
-        {% endfor %}
-      </div>
+      <details class="tema-dropdown interest-dropdown" id="interesse-dropdown">
+        <summary class="tema-dropdown-trigger">
+          <span class="tema-dropdown-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <span class="tema-dropdown-label">Buscar área de interesse</span>
+          <span class="tema-dropdown-chevron" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <div class="tema-dropdown-panel">
+          <input type="text" class="tema-dropdown-search" id="interesse-dropdown-search" placeholder="Buscar tema..." autocomplete="off" />
+          <div class="tema-dropdown-list">
+            {% for tema in areas_interesse %}
+              <a href="?tema={{ tema.slug }}" class="tema-option {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
+            {% endfor %}
+          </div>
+        </div>
+      </details>
     </section>
   {% endif %}
 

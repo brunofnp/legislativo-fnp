@@ -1,0 +1,32 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block nav-sidebar %}
+  {% include "admin/nav_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+  <div class="fnp-dashboard">
+    <a class="fnp-dashboard-card" href="{% url 'admin:comentarios_comentario_changelist' %}?status_moderacao__exact=pendente">
+      <span class="fnp-dashboard-num">{{ fnp_dashboard.comentarios_pendentes }}</span>
+      <span class="fnp-dashboard-label">Comentários pendentes de moderação</span>
+    </a>
+    <a class="fnp-dashboard-card" href="{% url 'admin:usuarios_usuario_changelist' %}?perfil__status_aprovacao__exact=pendente">
+      <span class="fnp-dashboard-num">{{ fnp_dashboard.cadastros_pendentes }}</span>
+      <span class="fnp-dashboard-label">Cadastros aguardando aprovação</span>
+    </a>
+    <a class="fnp-dashboard-card" href="{% url 'admin:usuarios_usuario_changelist' %}?perfil__exclusao_solicitada_em__isnull=False">
+      <span class="fnp-dashboard-num">{{ fnp_dashboard.exclusoes_pendentes }}</span>
+      <span class="fnp-dashboard-label">Solicitações de exclusão de conta</span>
+    </a>
+    <a class="fnp-dashboard-card" href="{% url 'admin:proposicoes_proposicao_changelist' %}?urgente__exact=1">
+      <span class="fnp-dashboard-num">{{ fnp_dashboard.proposicoes_urgentes }}</span>
+      <span class="fnp-dashboard-label">Proposições urgentes</span>
+    </a>
+    <a class="fnp-dashboard-card" href="{% url 'admin:proposicoes_proposicao_changelist' %}?pauta__exact=1">
+      <span class="fnp-dashboard-num">{{ fnp_dashboard.proposicoes_na_pauta }}</span>
+      <span class="fnp-dashboard-label">Proposições na pauta</span>
+    </a>
+  </div>
+  {{ block.super }}
+{% endblock %}
