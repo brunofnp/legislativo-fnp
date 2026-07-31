@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -13,6 +14,7 @@ from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.comentarios.models import Comentario, Notificacao, Participacao
+from apps.comentarios.moderacao import classificar_comentario
 from apps.proposicoes.models import Proposicao, Tema
 
 from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
@@ -74,6 +76,36 @@ def get_filtered_proposicoes(query, tema_slug):
     return proposicoes
 
 
+def get_home_sections(query, tema_slug):
+    """Querysets das 3 seções da home que são globais (não dependem da sessão
+    de quem acessa) — compartilhado entre HomeView e api_proposicoes_cards
+    para o live-update via SSE não duplicar a lógica de filtro/ranking."""
+    filtered = get_filtered_proposicoes(query, tema_slug)
+    proposicoes = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')[:100]
+
+    base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
+
+    urgentes = base.filter(urgente=True).order_by('-criado_em')[:6]
+
+    em_alta = (
+        base.annotate(
+            comentarios_count=Count(
+                'comentarios', distinct=True, filter=Q(comentarios__status_moderacao='aprovado')
+            )
+        )
+        .annotate(relevancia=F('visualizacoes') + F('comentarios_count') * 5)
+        .filter(Q(visualizacoes__gt=0) | Q(comentarios_count__gt=0))
+        .order_by('-relevancia')[:4]
+    )
+
+    return {
+        'filtered': filtered,
+        'proposicoes': proposicoes,
+        'urgentes': urgentes,
+        'em_alta': em_alta,
+    }
+
+
 class HomeView(View):
     template_name = 'legislativo/home.html'
 
@@ -83,25 +115,13 @@ class HomeView(View):
         temas = Tema.objects.order_by('nome')
         active_tema_obj = temas.filter(slug=tema_slug).first() if tema_slug else None
 
-        filtered = get_filtered_proposicoes(query, tema_slug)
-        stats = compute_counts(filtered)
-
-        proposicoes = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')[:100]
+        sections = get_home_sections(query, tema_slug)
+        stats = compute_counts(sections['filtered'])
+        proposicoes = sections['proposicoes']
+        urgentes = sections['urgentes']
+        em_alta = sections['em_alta']
 
         base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
-
-        urgentes = base.filter(urgente=True).order_by('-criado_em')[:6]
-
-        em_alta = (
-            base.annotate(
-                comentarios_count=Count(
-                    'comentarios', distinct=True, filter=Q(comentarios__status_moderacao='aprovado')
-                )
-            )
-            .annotate(relevancia=F('visualizacoes') + F('comentarios_count') * 5)
-            .filter(Q(visualizacoes__gt=0) | Q(comentarios_count__gt=0))
-            .order_by('-relevancia')[:4]
-        )
 
         recentes_ids = get_recentes_ids(request)
         recentes_map = {p.pk: p for p in base.filter(pk__in=recentes_ids)}
@@ -146,6 +166,33 @@ def api_proposicoes(request):
     tema_slug = request.GET.get('tema', '').strip()
     proposicoes = get_filtered_proposicoes(query, tema_slug)
     return JsonResponse({'counts': compute_counts(proposicoes)})
+
+
+@require_GET
+def api_proposicoes_cards(request):
+    """Renderiza os cards (HTML pronto, mesmos templates da home) para o
+    live-update via SSE — o JS só troca o innerHTML, nenhuma lógica de
+    montagem de card duplicada em JS."""
+    query = request.GET.get('q', '').strip()
+    tema_slug = request.GET.get('tema', '').strip()
+    sections = get_home_sections(query, tema_slug)
+    favoritos_ids = get_favoritos_ids(request)
+
+    def render_cards(proposicoes):
+        return render_to_string(
+            'legislativo/_cards_grid.html',
+            {'proposicoes': proposicoes, 'favoritos_ids': favoritos_ids},
+            request=request,
+        )
+
+    return JsonResponse({
+        'counts': compute_counts(sections['filtered']),
+        'sections': {
+            'urgentes': render_cards(sections['urgentes']),
+            'em_alta': render_cards(sections['em_alta']),
+            'todas': render_cards(sections['proposicoes']),
+        },
+    })
 
 
 @require_GET
@@ -318,10 +365,14 @@ class ProposicaoDetailView(View):
                 comentario.proposicao = proposicao
                 if request.user.is_authenticated:
                     comentario.autor = request.user
+                comentario.status_moderacao = classificar_comentario(comentario.texto)
                 comentario.save()
-                if comentario.autor_id:
-                    notificar_participantes_da_discussao(proposicao, comentario)
-                return redirect('legislativo:proposicao_detail', pk=pk)
+                if comentario.status_moderacao == 'aprovado':
+                    if comentario.autor_id:
+                        notificar_participantes_da_discussao(proposicao, comentario)
+                    return redirect('legislativo:proposicao_detail', pk=pk)
+                success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
+                comentario_form = ComentarioForm(initial={'parent': None})
         else:
             participacao_form = ParticipacaoForm(request.POST)
             if participacao_form.is_valid():

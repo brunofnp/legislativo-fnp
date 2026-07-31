@@ -1,0 +1,7 @@
+{% for proposicao in proposicoes %}
+  {% include 'legislativo/_proposicao_card.html' %}
+{% empty %}
+  <div class="empty-state">
+    <p>Nenhuma proposição encontrada com esses filtros.</p>
+  </div>
+{% endfor %}

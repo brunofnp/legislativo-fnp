@@ -24,7 +24,9 @@
   <div class="skip-links">
     <a href="#conteudo-principal" class="skip-link" accesskey="1">Pular para o conteúdo principal</a>
     <a href="#menu-principal" class="skip-link" accesskey="2">Pular para o menu</a>
-    <a href="#rodape" class="skip-link">Pular para o rodapé</a>
+    {% if request.resolver_match.url_name == 'home' %}
+      <a href="#rodape" class="skip-link">Pular para o rodapé</a>
+    {% endif %}
   </div>
 
   <div class="{% if user.is_authenticated and mostrar_sidebar %}app-shell{% endif %}" id="app-shell">
@@ -57,7 +59,9 @@
         {% block content %}{% endblock %}
       </main>
 
-      {% include '_footer.html' %}
+      {% if request.resolver_match.url_name == 'home' %}
+        {% include '_footer.html' %}
+      {% endif %}
     </div>
   </div>
 

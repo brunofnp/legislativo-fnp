@@ -220,11 +220,29 @@ window.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function fetchStats() {
+  function applyCards(sections) {
+    if (!sections) return;
+    const containerByKey = {
+      urgentes: 'cards-urgentes',
+      em_alta: 'cards-em-alta',
+      todas: 'cards-todas',
+    };
+    Object.keys(containerByKey).forEach(key => {
+      const container = document.getElementById(containerByKey[key]);
+      if (container && sections[key] !== undefined) {
+        container.innerHTML = sections[key];
+      }
+    });
+  }
+
+  function refreshCards() {
     const params = new URLSearchParams(window.location.search);
-    fetch(`/api/proposicoes/?${params.toString()}`)
+    fetch(`/api/proposicoes-cards/?${params.toString()}`)
       .then(response => response.json())
-      .then(applyCounts)
+      .then(data => {
+        applyCounts(data);
+        applyCards(data.sections);
+      })
       .catch(() => setToast('Erro ao atualizar os dados em tempo real.'));
   }
 
@@ -238,6 +256,7 @@ window.addEventListener('DOMContentLoaded', function () {
         applyCounts(data);
         if (data.updated) {
           setToast('Novas proposições foram atualizadas.');
+          refreshCards();
         }
       } catch (error) {
         console.error('SSE parse error', error);
@@ -247,7 +266,7 @@ window.addEventListener('DOMContentLoaded', function () {
     source.addEventListener('error', () => {
       source.close();
       setToast('Atualização em tempo real não disponível. Usando polling.');
-      setInterval(fetchStats, realtimeInterval);
+      setInterval(refreshCards, realtimeInterval);
     });
   }
 
@@ -256,7 +275,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if ('EventSource' in window) {
       initSse();
     } else {
-      setInterval(fetchStats, realtimeInterval);
+      setInterval(refreshCards, realtimeInterval);
     }
   }
 

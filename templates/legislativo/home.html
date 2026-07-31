@@ -66,10 +66,8 @@
   {% if urgentes %}
     <section class="home-section">
       <h2 class="section-heading">Urgentes</h2>
-      <div class="cards-grid">
-        {% for proposicao in urgentes %}
-          {% include 'legislativo/_proposicao_card.html' %}
-        {% endfor %}
+      <div class="cards-grid" id="cards-urgentes">
+        {% include 'legislativo/_cards_grid.html' with proposicoes=urgentes %}
       </div>
     </section>
   {% endif %}
@@ -102,10 +100,8 @@
   {% if em_alta %}
     <section class="home-section">
       <h2 class="section-heading">Em alta</h2>
-      <div class="cards-grid">
-        {% for proposicao in em_alta %}
-          {% include 'legislativo/_proposicao_card.html' %}
-        {% endfor %}
+      <div class="cards-grid" id="cards-em-alta">
+        {% include 'legislativo/_cards_grid.html' with proposicoes=em_alta %}
       </div>
     </section>
   {% endif %}
@@ -123,16 +119,8 @@
 
   <section class="home-section">
     <h2 class="section-heading">Todas as proposições</h2>
-    <section class="cards-grid">
-      {% if proposicoes %}
-        {% for proposicao in proposicoes %}
-          {% include 'legislativo/_proposicao_card.html' %}
-        {% endfor %}
-      {% else %}
-        <div class="empty-state">
-          <p>Nenhuma proposição encontrada com esses filtros.</p>
-        </div>
-      {% endif %}
+    <section class="cards-grid" id="cards-todas">
+      {% include 'legislativo/_cards_grid.html' %}
     </section>
   </section>
 

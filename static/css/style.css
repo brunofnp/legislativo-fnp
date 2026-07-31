@@ -184,6 +184,28 @@ body {
   color: #111827;
 }
 
+/* Cada resumo geral da home tem sua própria cor (mesma paleta usada nos
+   badges de prioridade/urgência/aprovação nos cards, para consistência). */
+#stats-total {
+  color: #193657;
+}
+
+#stats-pauta {
+  color: #1a4b8f;
+}
+
+#stats-urgentes {
+  color: #b91c1c;
+}
+
+#stats-alta {
+  color: #d97706;
+}
+
+#stats-relator {
+  color: #15803d;
+}
+
 .search-panel {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 1.5rem;
@@ -764,7 +786,7 @@ body {
 
 .perfil-avatar-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1.1rem;
 }
@@ -785,6 +807,55 @@ body {
   color: #fff;
   font-weight: 700;
   font-size: 1.2rem;
+}
+
+.perfil-avatar-widget {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.4rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 2;
+}
+
+/* O widget de upload do Django (ClearableFileInput) renderiza um <a href>
+   cru para o arquivo atual — precisa de mais especificidade que
+   `.auth-card form a[href]` (feita para os botões grandes do allauth) para
+   não virar um botão gigante aqui. */
+.auth-card .perfil-avatar-widget a[href] {
+  display: inline;
+  width: auto;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  color: #1a4b8f;
+  font-weight: 600;
+  font-size: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+  margin-top: 0;
+}
+
+.perfil-avatar-widget input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.perfil-avatar-widget label {
+  display: inline;
+  text-transform: none;
+  font-weight: 500;
+  font-size: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+.perfil-avatar-widget input[type="file"] {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
 }
 
 .perfil-conta-section {
@@ -850,7 +921,7 @@ body {
   color: #6b7280;
 }
 
-.auth-card form input:not([type="hidden"]),
+.auth-card form input:not([type="hidden"]):not([type="checkbox"]):not([type="file"]),
 .auth-card form textarea {
   width: 100%;
   padding: 0.85rem 1rem;

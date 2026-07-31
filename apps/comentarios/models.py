@@ -48,6 +48,24 @@ class Comentario(models.Model):
         return f'Comentário de {self.autor or "Anônimo"} em {self.proposicao}'
 
 
+class PalavraProibida(models.Model):
+    """Lista editável via Admin (Root/Administrador FNP) — nunca hardcoded no
+    código. Comentário que contiver alguma palavra ativa aqui é reprovado
+    automaticamente no envio, sem precisar de moderação manual prévia."""
+
+    palavra = models.CharField(max_length=100, unique=True)
+    ativa = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Palavra proibida'
+        verbose_name_plural = 'Palavras proibidas'
+        ordering = ['palavra']
+
+    def __str__(self):
+        return self.palavra
+
+
 class Participacao(models.Model):
     class Tipo(models.TextChoices):
         CADASTRO = 'cadastro', 'Cadastro'

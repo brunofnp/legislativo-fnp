@@ -1,0 +1,45 @@
+# Template de unit systemd para manter `sync_camara --watch` rodando
+# permanentemente no servidor (ver docs/runbook.md).
+#
+# AJUSTE antes de instalar:
+#   - WorkingDirectory / caminho do projeto no servidor
+#   - Usuário/grupo (não rodar como root)
+#   - Caminho do Python (se usar virtualenv, aponte para <venv>/bin/python)
+#   - EnvironmentFile com as variáveis reais (.env de produção)
+#
+# Instalação (no droplet, via SSH):
+#   sudo cp deploy/sync-camara.service /etc/systemd/system/sync-camara.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sync-camara
+#   journalctl -u sync-camara -f          # acompanhar o log em tempo real
+#
+# Se o app rodar em Docker (ver "Infraestrutura" no CLAUDE.md — Docker + Nginx
+# no droplet fnp-web), este processo deve rodar DENTRO do mesmo container/
+# imagem da aplicação (mesmo ambiente Python/dependências), não no host. Nesse
+# caso, prefira um serviço adicional no docker-compose.yml em vez desta unit:
+#
+#   sync-camara:
+#     image: <mesma imagem do serviço web>
+#     command: python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --watch 1800
+#     env_file: .env
+#     restart: unless-stopped
+#     depends_on:
+#       - db
+
+[Unit]
+Description=Legislativo FNP — sync_camara (watch contínuo da API da Câmara)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/legislativo-fnp
+EnvironmentFile=/opt/legislativo-fnp/.env
+ExecStart=/opt/legislativo-fnp/.venv/bin/python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --watch 1800
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

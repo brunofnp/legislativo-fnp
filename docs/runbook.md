@@ -66,6 +66,13 @@ segundos — pensado para rodar como serviço/processo persistente (ex.:
 supervisor/systemd no droplet), já que a Câmara e o Senado não oferecem
 webhook de atualização em tempo real.
 
+**Rodando como serviço permanente:** ver template em `deploy/sync-camara.service`
+(systemd) com as instruções de instalação no próprio arquivo. Se o app rodar
+em Docker no droplet (`fnp-web`), prefira um serviço adicional no
+`docker-compose.yml` usando a mesma imagem da aplicação — exemplo comentado
+também está no template. Nenhuma das duas opções está instalada em produção
+ainda; isso precisa ser feito por quem tem acesso SSH ao droplet.
+
 ## Banco de produção (PostgreSQL / DigitalOcean)
 
 A variável `DATABASE_URL` já é lida pelo `settings.py` via `dj-database-url`.

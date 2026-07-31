@@ -2,23 +2,29 @@
 
 /* Reskin do Django Admin com a identidade visual do Painel Legislativo FNP.
    Django 4.2 expõe o tema inteiro via custom properties — só sobrescrevemos
-   os valores, sem reescrever os templates/estrutura do admin. */
+   os valores, sem reescrever os templates/estrutura do admin.
+   O modo escuro nativo do Django (dark_mode.css + toggle) foi removido em
+   base_site.html — o Admin sempre renderiza no tema claro, para bater com
+   o padrão visual do restante da plataforma (topo e conteúdo claros, só a
+   barra lateral escura). Por isso não há bloco `html[data-theme="dark"]` aqui. */
 
-html[data-theme="light"],
 :root {
+  /* Azul-marinho é cor de destaque (botões, links, item ativo do menu e a
+     barra lateral) — nunca fundo de superfície. Cabeçalho, breadcrumb e
+     conteúdo ficam sempre claros, igual ao resto da plataforma. */
   --primary: #193657;
   --secondary: #142943;
   --accent: #2f6fb3;
   --primary-fg: #fff;
 
-  --header-color: #fff;
-  --header-branding-color: #fff;
-  --header-bg: var(--secondary);
-  --header-link-color: #fff;
+  --header-color: #0f172a;
+  --header-branding-color: #0f172a;
+  --header-bg: #fff;
+  --header-link-color: #193657;
 
-  --breadcrumbs-fg: #cbd5e1;
-  --breadcrumbs-link-fg: #fff;
-  --breadcrumbs-bg: var(--primary);
+  --breadcrumbs-fg: #64748b;
+  --breadcrumbs-link-fg: #193657;
+  --breadcrumbs-bg: #fff;
 
   --link-fg: #193657;
   --link-hover-color: #2f6fb3;
@@ -32,24 +38,9 @@ html[data-theme="light"],
   --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #2f6fb3;
-    --breadcrumbs-bg: var(--primary);
-    --link-fg: #7fa8e0;
-    --link-hover-color: #a9c6ec;
-  }
-}
-
-html[data-theme="dark"] {
-  --primary: #2f6fb3;
-  --breadcrumbs-bg: var(--primary);
-  --link-fg: #7fa8e0;
-  --link-hover-color: #a9c6ec;
-}
-
 #header {
   padding: 0.9rem 2rem;
+  border-bottom: 1px solid var(--hairline-color);
 }
 
 #branding h1,
@@ -59,21 +50,28 @@ html[data-theme="dark"] {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  /* Django usa --accent (azul médio) especificamente para o link do título,
+     mais específico que --header-branding-color — força a mesma cor escura
+     do resto do cabeçalho para não destoar. */
+  color: var(--header-branding-color);
 }
 
 .admin-brand-logo {
   height: 1.6rem;
   width: auto;
-  filter: brightness(0) invert(1);
 }
 
 div.breadcrumbs {
   font-weight: 500;
+  border-bottom: 1px solid var(--hairline-color);
 }
 
 .module h2,
 .module caption,
 .inline-group h2 {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-bottom: 2px solid var(--primary);
   border-radius: 0.5rem 0.5rem 0 0;
 }
 
@@ -88,6 +86,21 @@ input[type="button"],
 .submit-row input,
 a.button {
   border-radius: 0.6rem;
+}
+
+/* Botão "Adicionar X" (canto superior direito de listagens) usa por padrão
+   um cinza neutro do próprio Django (--object-tools-bg/--close-button-bg,
+   nunca sobrescritos) — força a cor de destaque da marca para não ficar
+   sem contraste/harmonia com o resto do tema. */
+.object-tools a:link,
+.object-tools a:visited {
+  background: var(--primary);
+  color: #fff;
+}
+
+.object-tools a:focus,
+.object-tools a:hover {
+  background: var(--button-hover-bg);
 }
 
 #changelist-filter {
@@ -139,38 +152,20 @@ a.button {
 }
 
 /* Nav sidebar (menu de apps/models à esquerda, nativo do Django 4.1+) reskinado
-   para seguir o mesmo padrão visual (barra lateral escura, itens e subitens) do
-   restante da plataforma — ver templates/_sidebar.html. */
+   para seguir o mesmo padrão visual e de camadas (barra lateral escura, ícone +
+   texto, grupos recolhíveis com subitens) do restante da plataforma — ver
+   templates/_sidebar.html e admin/nav_sidebar.html (markup próprio, sem a
+   tabela padrão do Django). */
 
 #nav-sidebar {
   background-color: var(--secondary);
   border-right: none;
+  padding-top: 0.75rem;
   padding-bottom: 1rem;
 }
 
-.admin-sidebar-brand {
-  display: flex;
-  justify-content: center;
-  padding: 1.1rem 0 0.6rem;
-}
-
-.admin-sidebar-logo {
-  height: 1.9rem;
-  width: auto;
-  filter: brightness(0) invert(1);
-}
-
-#nav-sidebar #nav-filter {
-  width: calc(100% - 32px);
-  margin: 0.5rem 16px 0.75rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-#nav-sidebar #nav-filter::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+.nav-filter-hidden {
+  display: none;
 }
 
 #toggle-nav-sidebar {
@@ -184,59 +179,146 @@ a.button {
   background-color: var(--primary);
 }
 
-#nav-sidebar .module {
-  border-radius: 0;
-  background: transparent;
-  margin-bottom: 0.35rem;
+.fnp-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0 0.6rem;
 }
 
-#nav-sidebar .module caption,
-#nav-sidebar .module caption a.section {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.75rem 16px 0.35rem;
+.fnp-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
-#nav-sidebar .current-app .section:link,
-#nav-sidebar .current-app .section:visited {
-  color: rgba(255, 255, 255, 0.8);
+.fnp-nav-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
-#nav-sidebar table,
-#nav-sidebar tbody,
-#nav-sidebar tr {
-  background: transparent;
-}
-
-#nav-sidebar .module th {
-  padding: 0;
-}
-
-#nav-sidebar .module th a {
-  display: block;
-  margin: 0.1rem 8px;
-  padding: 0.55rem 8px;
+.fnp-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.1rem 0;
+  padding: 0.55rem 0.75rem;
   border-radius: 0.6rem;
-  color: rgba(255, 255, 255, 0.85);
   font-weight: 500;
   font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-#nav-sidebar .module th a:hover {
+.fnp-nav-link span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Django define `a:link, a:visited { color: var(--link-fg) }` globalmente
+   (base.css) com especificidade maior que uma classe simples — sem repetir
+   os mesmos pseudo-seletores aqui, links já visitados (a maioria, depois de
+   navegar pelo Admin) voltavam a ficar azul-marinho sobre fundo azul-marinho,
+   ilegíveis. */
+#nav-sidebar .fnp-nav-link:link,
+#nav-sidebar .fnp-nav-link:visited {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+#nav-sidebar .fnp-nav-link:hover,
+#nav-sidebar .fnp-nav-link:focus {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
-#nav-sidebar .current-model {
-  background: transparent;
-}
-
-#nav-sidebar .current-model th a {
+#nav-sidebar .fnp-nav-link.active:link,
+#nav-sidebar .fnp-nav-link.active:visited {
   background: var(--primary);
   color: #fff;
   font-weight: 600;
+}
+
+.fnp-nav-link-disabled {
+  color: rgba(255, 255, 255, 0.35);
+  cursor: default;
+}
+
+.fnp-nav-link-disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Grupos recolhíveis (apps com mais de um model) — <details>/<summary>
+   nativos do navegador, sem depender de JS próprio. */
+.fnp-nav-group {
+  margin: 0.1rem 0;
+}
+
+.fnp-nav-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.6rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  list-style: none;
+}
+
+.fnp-nav-summary::-webkit-details-marker,
+.fnp-nav-summary::marker {
+  display: none;
+  content: '';
+}
+
+.fnp-nav-summary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.fnp-nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fnp-nav-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  transition: transform 0.15s ease;
+}
+
+.fnp-nav-chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+.fnp-nav-group[open] > .fnp-nav-summary {
+  color: #fff;
+  font-weight: 600;
+}
+
+.fnp-nav-group[open] .fnp-nav-chevron {
+  transform: rotate(180deg);
+}
+
+.fnp-nav-subitems {
+  display: flex;
+  flex-direction: column;
+  margin: 0.1rem 0 0.3rem;
+  padding-left: 1.35rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  margin-left: 1.25rem;
+}
+
+.fnp-nav-sublink {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
 }

@@ -2,12 +2,13 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.text import Truncator
 
-from .models import Comentario, Notificacao, Participacao
+from .models import Comentario, Notificacao, PalavraProibida, Participacao
 
 
 @admin.register(Comentario)
 class ComentarioAdmin(admin.ModelAdmin):
     list_display = ('trecho', 'autor', 'proposicao', 'status_moderacao', 'criado_em')
+    list_editable = ('status_moderacao',)
     list_filter = ('status_moderacao', ('proposicao', admin.RelatedOnlyFieldListFilter))
     search_fields = ('texto',)
     autocomplete_fields = ['proposicao', 'parent']
@@ -47,3 +48,10 @@ class NotificacaoAdmin(admin.ModelAdmin):
     list_display = ('destinatario', 'proposicao', 'mensagem', 'lida', 'criado_em')
     list_filter = ('lida',)
     search_fields = ('mensagem',)
+
+
+@admin.register(PalavraProibida)
+class PalavraProibidaAdmin(admin.ModelAdmin):
+    list_display = ('palavra', 'ativa', 'criado_em')
+    list_filter = ('ativa',)
+    search_fields = ('palavra',)

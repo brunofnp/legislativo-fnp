@@ -1,11 +1,62 @@
-{% load i18n static %}
+{% load i18n admin_icons %}
+{% comment %}
+  Substitui admin/app_list.html por um loop próprio: a versão do Django
+  sempre renderiza o link "Adicionar" de cada model (show_changelinks só
+  controla o link "Modificar"), o que poluía a barra lateral. Aqui só
+  navegação — mesmo padrão de camadas do _sidebar.html do site público:
+  apps com um único model viram link direto; apps com vários models viram
+  um grupo recolhível (<details>/<summary>, sem precisar de JS próprio),
+  cada função com um ícone que a representa.
+{% endcomment %}
 <button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
 <nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
-  <a href="{% url 'admin:index' %}" class="admin-sidebar-brand">
-    <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="admin-sidebar-logo" />
-  </a>
-  <input type="search" id="nav-filter"
+  <input type="search" id="nav-filter" class="nav-filter-hidden"
          placeholder="{% translate 'Buscar…' %}"
          aria-label="{% translate 'Filter navigation items' %}">
-  {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+  <div class="fnp-nav">
+    <a href="{% url 'admin:index' %}" class="fnp-nav-link{% if request.path == '/admin/' %} active{% endif %}">
+      <span class="fnp-nav-icon">{% icon 'dashboard' %}</span>
+      <span>Início</span>
+    </a>
+
+    {% for app in available_apps %}
+      {% with app_prefix="/admin/"|add:app.app_label %}
+        {% if app.models|length > 1 %}
+          <details class="fnp-nav-group" {% if app_prefix in request.path %}open{% endif %}>
+            <summary class="fnp-nav-summary">
+              <span class="fnp-nav-icon">{% app_icon app.app_label %}</span>
+              <span class="fnp-nav-label">{{ app.name }}</span>
+              <span class="fnp-nav-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="fnp-nav-subitems">
+              {% for model in app.models %}
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}" class="fnp-nav-link fnp-nav-sublink{% if model.admin_url in request.path %} active{% endif %}">
+                    <span class="fnp-nav-icon">{% model_icon app.app_label model.object_name %}</span>
+                    <span>{{ model.name }}</span>
+                  </a>
+                {% else %}
+                  <span class="fnp-nav-link fnp-nav-sublink fnp-nav-link-disabled">
+                    <span class="fnp-nav-icon">{% model_icon app.app_label model.object_name %}</span>
+                    <span>{{ model.name }}</span>
+                  </span>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </details>
+        {% else %}
+          {% with model=app.models.0 %}
+            {% if model.admin_url %}
+              <a href="{{ model.admin_url }}" class="fnp-nav-link{% if model.admin_url in request.path %} active{% endif %}">
+                <span class="fnp-nav-icon">{% app_icon app.app_label %}</span>
+                <span>{{ model.name }}</span>
+              </a>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      {% endwith %}
+    {% endfor %}
+  </div>
 </nav>

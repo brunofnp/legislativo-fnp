@@ -9,6 +9,7 @@ from .views import (
     api_proposicao_detail,
     api_proposicao_sse,
     api_proposicoes,
+    api_proposicoes_cards,
     cadastro_pendente,
     exportar_meus_dados,
     ler_notificacao,
@@ -34,6 +35,7 @@ urlpatterns = [
     path('notificacoes/<int:pk>/ler/', ler_notificacao, name='ler_notificacao'),
     path('notificacoes/marcar-lidas/', marcar_notificacoes_lidas, name='marcar_notificacoes_lidas'),
     path('api/proposicoes/', api_proposicoes, name='api_proposicoes'),
+    path('api/proposicoes-cards/', api_proposicoes_cards, name='api_proposicoes_cards'),
     path('api/proposicao/<int:pk>/', api_proposicao_detail, name='api_proposicao_detail'),
     path('api/proposicao-sse/', api_proposicao_sse, name='api_proposicao_sse'),
 ]

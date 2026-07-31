@@ -25,7 +25,7 @@
         {% else %}
           <span class="perfil-avatar-preview perfil-avatar-fallback">{{ usuario_display_name|first|upper }}</span>
         {% endif %}
-        {{ dados_form.foto }}
+        <div class="perfil-avatar-widget">{{ dados_form.foto }}</div>
       </div>
       <label class="field-label">Nome</label>
       {{ form.first_name }}

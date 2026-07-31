@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.utils.html import format_html
 
 from .models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 
@@ -39,9 +38,12 @@ class NoticiaInline(admin.TabularInline):
 @admin.register(Proposicao)
 class ProposicaoAdmin(admin.ModelAdmin):
     list_display = (
-        'titulo', 'casa', 'status_tramitacao', 'macrotema_badge',
+        'titulo', 'casa', 'status_tramitacao', 'macrotema',
         'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada',
     )
+    # Edição direta na listagem (sem abrir cada proposição) — "titulo" fica de
+    # fora por ser a coluna usada como link para a página de edição completa.
+    list_editable = ('macrotema', 'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada')
     list_filter = ('macrotema', 'prioridade_fnp', 'urgente', 'pauta', 'casa')
     search_fields = ('titulo', 'ementa_resumida')
     date_hierarchy = 'atualizado_em'
@@ -50,17 +52,6 @@ class ProposicaoAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('macrotema')
-
-    @admin.display(description='Macrotema', ordering='macrotema__nome')
-    def macrotema_badge(self, obj):
-        if not obj.macrotema:
-            return '—'
-        return format_html(
-            '<span style="background:{}; color:#fff; padding:2px 10px; '
-            'border-radius:999px; font-size:0.75rem; font-weight:600;">{}</span>',
-            obj.macrotema.cor,
-            obj.macrotema.nome,
-        )
 
     def save_model(self, request, obj, form, change):
         """Campo de mérito nunca é sobrescrito silenciosamente: toda mudança gera uma linha de histórico."""
