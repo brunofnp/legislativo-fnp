@@ -11,6 +11,10 @@ class Comentario(models.Model):
         ('rejeitado', 'Rejeitado'),
     ]
 
+    # Denúncias distintas de usuários para o comentário voltar sozinho a
+    # 'pendente' (some da listagem pública até revisão manual).
+    DENUNCIAS_PARA_OCULTAR = 3
+
     autor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -64,6 +68,37 @@ class PalavraProibida(models.Model):
 
     def __str__(self):
         return self.palavra
+
+
+class DenunciaComentario(models.Model):
+    """Complemento à lista de palavras proibidas: cobre assédio/sarcasmo sem
+    palavrão, que nenhuma lista de termos pega. Ao atingir
+    `Comentario.DENUNCIAS_PARA_OCULTAR` denúncias distintas, o comentário
+    volta sozinho para 'pendente' (some da listagem pública) até um Root/
+    Administrador FNP revisar — ver denunciar_comentario() em views.py."""
+
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        related_name='denuncias',
+    )
+    denunciante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='denuncias_feitas',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Denúncia de comentário'
+        verbose_name_plural = 'Denúncias de comentário'
+        ordering = ['-criado_em']
+        constraints = [
+            models.UniqueConstraint(fields=['comentario', 'denunciante'], name='denuncia_unica_por_usuario'),
+        ]
+
+    def __str__(self):
+        return f'Denúncia de {self.denunciante} — comentário #{self.comentario_id}'
 
 
 class Participacao(models.Model):

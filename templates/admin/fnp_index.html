@@ -28,5 +28,42 @@
       <span class="fnp-dashboard-label">Proposições na pauta</span>
     </a>
   </div>
-  {{ block.super }}
+
+  <div class="fnp-quick-links">
+    <a class="fnp-quick-link" href="{% url 'admin:proposicoes_proposicao_changelist' %}">Proposições</a>
+    <a class="fnp-quick-link" href="{% url 'admin:comentarios_comentario_changelist' %}">Comentários</a>
+    <a class="fnp-quick-link" href="{% url 'admin:comentarios_palavraproibida_changelist' %}">Palavras proibidas</a>
+    <a class="fnp-quick-link" href="{% url 'admin:comentarios_denunciacomentario_changelist' %}">Denúncias</a>
+    <a class="fnp-quick-link" href="{% url 'admin:usuarios_usuario_changelist' %}">Usuários</a>
+    <a class="fnp-quick-link" href="{% url 'admin:comentarios_participacao_changelist' %}">Participações</a>
+  </div>
+
+  <div class="fnp-panels">
+    <section class="fnp-panel">
+      <h2 class="fnp-panel-title">Top proposições por engajamento</h2>
+      {% if fnp_top_engajamento %}
+        <ol class="fnp-ranking">
+          {% for proposicao in fnp_top_engajamento %}
+            <li class="fnp-ranking-item">
+              <a href="{% url 'admin:proposicoes_proposicao_change' proposicao.pk %}">{{ proposicao.titulo|truncatechars:60 }}</a>
+              <span class="fnp-ranking-meta">{{ proposicao.visualizacoes }} visualizações · {{ proposicao.comentarios_count }} comentários</span>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="fnp-panel-empty">Ainda sem dados de engajamento suficientes.</p>
+      {% endif %}
+    </section>
+
+    <section class="fnp-panel">
+      <h2 class="fnp-panel-title">Usuários e comentários</h2>
+      <ul class="fnp-stat-list">
+        <li><span>Usuários cadastrados</span><strong>{{ fnp_usuarios.total }}</strong></li>
+        <li><span>Cadastros aprovados</span><strong>{{ fnp_usuarios.aprovados }}</strong></li>
+        <li><span>Comentários aprovados</span><strong>{{ fnp_comentarios.aprovados }}</strong></li>
+        <li><span>Comentários rejeitados automaticamente</span><strong>{{ fnp_comentarios.rejeitados }}</strong></li>
+        <li><span>Comentários com denúncia</span><strong>{{ fnp_comentarios.denunciados }}</strong></li>
+      </ul>
+    </section>
+  </div>
 {% endblock %}

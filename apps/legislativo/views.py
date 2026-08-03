@@ -2,6 +2,7 @@ import json
 import time
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Q
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,11 +14,12 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.comentarios.models import Comentario, Notificacao, Participacao
+from apps.comentarios.models import Comentario, DenunciaComentario, Notificacao, Participacao
 from apps.comentarios.moderacao import classificar_comentario
 from apps.proposicoes.models import Proposicao, Tema
 
 from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
+from .throttling import rate_limited
 
 FAVORITOS_SESSION_KEY = 'favoritos'
 RECENTES_SESSION_KEY = 'recentes'
@@ -76,12 +78,16 @@ def get_filtered_proposicoes(query, tema_slug):
     return proposicoes
 
 
-def get_home_sections(query, tema_slug):
+PROPOSICOES_POR_PAGINA = 24
+
+
+def get_home_sections(query, tema_slug, page_number=1):
     """Querysets das 3 seções da home que são globais (não dependem da sessão
     de quem acessa) — compartilhado entre HomeView e api_proposicoes_cards
     para o live-update via SSE não duplicar a lógica de filtro/ranking."""
     filtered = get_filtered_proposicoes(query, tema_slug)
-    proposicoes = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')[:100]
+    ordenadas = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')
+    page_obj = Paginator(ordenadas, PROPOSICOES_POR_PAGINA).get_page(page_number)
 
     base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
 
@@ -100,7 +106,8 @@ def get_home_sections(query, tema_slug):
 
     return {
         'filtered': filtered,
-        'proposicoes': proposicoes,
+        'page_obj': page_obj,
+        'proposicoes': page_obj.object_list,
         'urgentes': urgentes,
         'em_alta': em_alta,
     }
@@ -112,12 +119,13 @@ class HomeView(View):
     def get(self, request):
         query = request.GET.get('q', '').strip()
         tema_slug = request.GET.get('tema', '').strip()
+        page_number = request.GET.get('page', 1)
         temas = Tema.objects.order_by('nome')
         active_tema_obj = temas.filter(slug=tema_slug).first() if tema_slug else None
 
-        sections = get_home_sections(query, tema_slug)
+        sections = get_home_sections(query, tema_slug, page_number)
         stats = compute_counts(sections['filtered'])
-        proposicoes = sections['proposicoes']
+        page_obj = sections['page_obj']
         urgentes = sections['urgentes']
         em_alta = sections['em_alta']
 
@@ -135,7 +143,8 @@ class HomeView(View):
             request,
             self.template_name,
             {
-                'proposicoes': proposicoes,
+                'proposicoes': page_obj.object_list,
+                'page_obj': page_obj,
                 'urgentes': urgentes,
                 'em_alta': em_alta,
                 'recentes': recentes,
@@ -168,6 +177,26 @@ def api_proposicoes(request):
     return JsonResponse({'counts': compute_counts(proposicoes)})
 
 
+BUSCA_SUGESTOES_MIN_CHARS = 2
+BUSCA_SUGESTOES_LIMITE = 8
+
+
+@require_GET
+def api_busca_sugestoes(request):
+    """Sugestões da busca da home conforme o usuário digita — HTML pronto
+    (mesmo princípio de api_proposicoes_cards: servidor monta, JS só exibe)."""
+    query = request.GET.get('q', '').strip()
+    html = ''
+    if len(query) >= BUSCA_SUGESTOES_MIN_CHARS:
+        proposicoes = get_filtered_proposicoes(query, '').order_by('-urgente', '-criado_em')[:BUSCA_SUGESTOES_LIMITE]
+        html = render_to_string(
+            'legislativo/_busca_sugestoes.html',
+            {'proposicoes': proposicoes},
+            request=request,
+        )
+    return JsonResponse({'html': html})
+
+
 @require_GET
 def api_proposicoes_cards(request):
     """Renderiza os cards (HTML pronto, mesmos templates da home) para o
@@ -175,7 +204,8 @@ def api_proposicoes_cards(request):
     montagem de card duplicada em JS."""
     query = request.GET.get('q', '').strip()
     tema_slug = request.GET.get('tema', '').strip()
-    sections = get_home_sections(query, tema_slug)
+    page_number = request.GET.get('page', 1)
+    sections = get_home_sections(query, tema_slug, page_number)
     favoritos_ids = get_favoritos_ids(request)
 
     def render_cards(proposicoes):
@@ -275,6 +305,23 @@ def toggle_favorito(request, pk):
     return redirect('legislativo:home')
 
 
+@login_required
+@require_POST
+def denunciar_comentario(request, pk):
+    comentario = get_object_or_404(Comentario, pk=pk)
+    _, criada = DenunciaComentario.objects.get_or_create(comentario=comentario, denunciante=request.user)
+
+    if criada and comentario.status_moderacao == 'aprovado':
+        if comentario.denuncias.count() >= Comentario.DENUNCIAS_PARA_OCULTAR:
+            comentario.status_moderacao = 'pendente'
+            comentario.save(update_fields=['status_moderacao'])
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=comentario.proposicao_id)
+
+
 class FavoritosListView(View):
     template_name = 'legislativo/favoritos_list.html'
 
@@ -359,25 +406,31 @@ class ProposicaoDetailView(View):
         success_message = None
 
         if form_type == 'comentario':
-            comentario_form = ComentarioForm(request.POST)
-            if comentario_form.is_valid():
-                comentario = comentario_form.save(commit=False)
-                comentario.proposicao = proposicao
-                if request.user.is_authenticated:
-                    comentario.autor = request.user
-                comentario.status_moderacao = classificar_comentario(comentario.texto)
-                comentario.save()
-                if comentario.status_moderacao == 'aprovado':
-                    if comentario.autor_id:
-                        notificar_participantes_da_discussao(proposicao, comentario)
-                    return redirect('legislativo:proposicao_detail', pk=pk)
-                success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
-                comentario_form = ComentarioForm(initial={'parent': None})
+            if rate_limited('comentario', request, limit=5, window_seconds=300):
+                success_message = 'Você enviou comentários rápido demais. Aguarde alguns minutos e tente novamente.'
+            else:
+                comentario_form = ComentarioForm(request.POST)
+                if comentario_form.is_valid():
+                    comentario = comentario_form.save(commit=False)
+                    comentario.proposicao = proposicao
+                    if request.user.is_authenticated:
+                        comentario.autor = request.user
+                    comentario.status_moderacao = classificar_comentario(comentario.texto)
+                    comentario.save()
+                    if comentario.status_moderacao == 'aprovado':
+                        if comentario.autor_id:
+                            notificar_participantes_da_discussao(proposicao, comentario)
+                        return redirect('legislativo:proposicao_detail', pk=pk)
+                    success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
+                    comentario_form = ComentarioForm(initial={'parent': None})
         else:
-            participacao_form = ParticipacaoForm(request.POST)
-            if participacao_form.is_valid():
-                participacao_form.save()
-                success_message = 'Sua contribuição foi registrada com sucesso.'
+            if rate_limited('participacao', request, limit=3, window_seconds=600):
+                success_message = 'Você enviou participações rápido demais. Aguarde alguns minutos e tente novamente.'
+            else:
+                participacao_form = ParticipacaoForm(request.POST)
+                if participacao_form.is_valid():
+                    participacao_form.save()
+                    success_message = 'Sua contribuição foi registrada com sucesso.'
 
         return render(
             request,

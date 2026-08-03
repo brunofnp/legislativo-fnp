@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-07-31 (Django Admin reconstruído com dashboard/sidebar em camadas e ícones, aprovação de cadastro, fotos de perfil com import do Google, LGPD, cadastro com município/setor/telefone, moderação automática de comentários por palavra proibida)
+> Última atualização: 2026-07-31 (link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos — além de paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
 
 ---
 
@@ -46,22 +46,23 @@ apps/
   proposicoes/               # Proposicao, Macrotema, Tema, Noticia, EdicaoMeritoHistorico
     models.py
     admin.py                 # ProposicaoAdmin.save_model grava EdicaoMeritoHistorico; badge de macrotema; inlines
-  comentarios/                # Comentario, Participacao, Notificacao, PalavraProibida
-    models.py
-    admin.py                 # ações em massa de moderação de comentário; PalavraProibida registrada aqui
+  comentarios/                # Comentario, Participacao, Notificacao, PalavraProibida, DenunciaComentario
+    models.py                  # Comentario.DENUNCIAS_PARA_OCULTAR = 3
+    admin.py                 # ações em massa de moderação de comentário; PalavraProibida e DenunciaComentario registradas aqui
     moderacao.py              # classificar_comentario() — aprova/rejeita automaticamente por palavra proibida
   legislativo/                # camada de views/urls/forms que orquestra os 3 apps acima
     admin.py                  # vazio (registros vivem nos apps de domínio)
     admin_site.py              # FNPAdminSite/FNPAdminConfig — AdminSite customizado (dashboard, index_template)
     models.py                 # vazio (models vivem nos apps de domínio)
-    views.py
+    views.py                 # get_home_sections() pagina "Todas as proposições" (24/página); denunciar_comentario()
     urls.py
     forms.py                # CustomSignupForm (município/UF/setor/cargo/telefone), PerfilForm, PerfilDadosForm, ComentarioForm, ParticipacaoForm
     context_processors.py   # notificacoes + usuario_display_name + usuario_avatar_url
     data_utils.py            # split_temas() — separa temas compostos "A, B/C"
+    throttling.py             # rate_limited() — throttle simples via cache (sessão+IP), sem dependência externa
     templatetags/
       admin_icons.py           # ícones SVG por app/model do Django Admin (barra lateral)
-    tests.py
+    tests.py                  # 29 testes — RequestFactory/middleware direto, não self.client (ver Observação Python 3.14)
     management/
       commands/
         ingest_legislativo.py
@@ -100,7 +101,7 @@ templates/
     solicitar_exclusao.html
     _proposicao_card.html
 setup/
-  settings.py                 # LOGIN_URL, MEDIA_URL/ROOT, SOCIALACCOUNT_ADAPTER
+  settings.py                 # LOGIN_URL, MEDIA_URL/ROOT, SOCIALACCOUNT_ADAPTER, cabeçalhos de segurança (if not DEBUG)
   urls.py
   wsgi.py
   asgi.py
@@ -152,7 +153,11 @@ A barra lateral (`templates/admin/nav_sidebar.html`) **não reaproveita** `admin
 - Página de perfil (`PerfilView`) com edição de nome/foto/telefone/cargo/município/UF/setor responsável, link para trocar senha (allauth) e para as ações de LGPD
 - Fórum de comentários por proposição com notificação aos demais participantes da discussão (só dispara se o comentário for aprovado)
 - **Moderação automática de comentários** (`apps/comentarios/moderacao.py`): comentário nasce aprovado por padrão (sem fila manual); é reprovado automaticamente só se contiver alguma `PalavraProibida` ativa (lista editável via Admin, nunca hardcoded). Checagem por fronteira de palavra (`\b`), sem acento/caixa — evita falso positivo tipo "droga" bloquear "drogaria" (Scunthorpe problem). Autor vê mensagem explicando a reprovação. Comentários "pendente" anteriores a essa mudança continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra novos envios.
-- Endpoint SSE/polling para atualização de dados em tempo real
+- **Denúncia de comentário** (`DenunciaComentario`, botão "Denunciar" no fórum, `denunciar_comentario` em views.py): complemento à lista de palavras proibidas para pegar assédio/sarcasmo sem palavrão. Usuário logado denuncia (não pode denunciar 2x o mesmo comentário — `UniqueConstraint`); ao atingir `Comentario.DENUNCIAS_PARA_OCULTAR` (3) denúncias distintas, o comentário volta sozinho para `'pendente'` até revisão manual. Visível no Admin (`total_denuncias` na listagem de Comentario).
+- **Rate limiting** nos formulários públicos (`apps/legislativo/throttling.py`): máx. 5 comentários/5min e 3 participações/10min por sessão+IP, via cache padrão do Django (sem dependência nova — trocar para Redis se o app crescer para múltiplos workers).
+- **Paginação** na home: "Todas as proposições" pagina de 24 em 24 (`PROPOSICOES_POR_PAGINA` em views.py) via `Paginator`; "Urgentes"/"Em alta" continuam como destaques fixos (6/4 itens), não paginam.
+- **Cabeçalhos de segurança de produção**: `SECURE_SSL_REDIRECT`, HSTS, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` — só ativam com `DEBUG=False`, assumindo que o Nginx do droplet repassa `X-Forwarded-Proto` (confirmar antes de habilitar em produção pela primeira vez, ver comentário em `settings.py`).
+- Endpoint SSE/polling para atualização de dados em tempo real; cards de Urgentes/Em alta/Todas se atualizam sozinhos (sem F5) via `api_proposicoes_cards`, que renderiza o HTML pronto (mesmos templates) em vez de duplicar lógica em JS
 - Acessibilidade WCAG 2.1-aligned (skip links, foco visível, redução de movimento)
 
 ---
@@ -174,11 +179,12 @@ Campos principais: `titulo`, `casa`, `status_tramitacao`, `local`, `pauta`, `urg
 - `Macrotema` organiza a classificação editorial das proposições
 - `Tema` representa subcategorias mais específicas (M2M com Proposicao)
 
-### Participacao / Comentario / Notificacao / PalavraProibida
+### Participacao / Comentario / Notificacao / PalavraProibida / DenunciaComentario
 
 - `Participacao` permite registrar contribuições, sugestões, dúvidas ou indicações — campos `municipio`, `uf`, `setor_responsavel`, `cargo`, `email`, `telefone`, `mensagem` (mesmo vocabulário do cadastro de usuário; `setor_responsavel`/`telefone` foram renomeados de `responsavel`/`whatsapp`)
-- `Comentario` é a base do fórum por proposição; `status_moderacao` é calculado automaticamente no envio via `apps.comentarios.moderacao.classificar_comentario()` — não fica mais pendente por padrão
+- `Comentario` é a base do fórum por proposição; `status_moderacao` é calculado automaticamente no envio via `apps.comentarios.moderacao.classificar_comentario()` — não fica mais pendente por padrão. `DENUNCIAS_PARA_OCULTAR = 3` (classe constante)
 - `PalavraProibida` (`palavra`, `ativa`) é a lista, editável só via Admin, que aciona a reprovação automática
+- `DenunciaComentario` (`comentario` FK, `denunciante` FK, `UniqueConstraint` por par) registra denúncias de usuários; ao atingir o limite, oculta o comentário automaticamente (`denunciar_comentario` em views.py)
 - `Notificacao` é criada para todo comentarista anterior quando alguém novo comenta na mesma discussão (`notificar_participantes_da_discussao`), só quando o comentário é aprovado
 
 ---
@@ -305,7 +311,9 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 
 **Autenticação:** auth nativo do Django, nunca senha única/`if pass == X`. Permissão via `django.contrib.auth` (permissions/groups) — grupos **Root** (superusuário, bypassa checagem de permissão), **Administrador FNP** (moderação/edição de conteúdo) e **Usuário** (padrão, atribuído automaticamente por signal a todo cadastro novo); ver `python manage.py setup_roles`. `Usuario` (auth) e `Perfil` (município/telefone/cargo/setor/foto, via signal) já são separados como o padrão User+Profile pede; `Perfil.municipio` é `ForeignKey` (não 1-para-1 — vários usuários podem ser do mesmo município). Cadastro novo exige aprovação (`Perfil.status_aprovacao`) antes de liberar navegação (`CadastroPendenteMiddleware`); staff já nasce aprovado.
 
-**Moderação de comentários:** publicação é automática por padrão (não pré-moderação total) — só é bloqueada por lista de palavras proibidas gerenciada via Admin (`PalavraProibida`), nunca hardcoded no código. Checagem por fronteira de palavra, sem acento/caixa. Ver `apps/comentarios/moderacao.py`. Não introduzir fila de aprovação manual por padrão de novo sem decisão revista — o ponto desta mudança foi justamente tirar a equipe pequena desse gargalo.
+**Moderação de comentários:** publicação é automática por padrão (não pré-moderação total) — só é bloqueada por lista de palavras proibidas gerenciada via Admin (`PalavraProibida`), nunca hardcoded no código. Checagem por fronteira de palavra, sem acento/caixa. Ver `apps/comentarios/moderacao.py`. Complementado por denúncia de usuários (`DenunciaComentario` — 3 denúncias distintas ocultam o comentário sozinho). Não introduzir fila de aprovação manual por padrão de novo sem decisão revista — o ponto desta mudança foi justamente tirar a equipe pequena desse gargalo.
+
+**Rate limiting/segurança:** throttle de formulário público via cache do Django (`apps/legislativo/throttling.py`), não via pacote externo — trocar por Redis só se o app crescer para múltiplos workers/servidores (não fazer isso preventivamente). Cabeçalhos de segurança de produção (HSTS/SSL redirect/cookies seguros) só ativam com `DEBUG=False` — nunca testar/depurar com eles ligados em ambiente local sem TLS.
 
 **Tempo real:** SSE é a solução fechada para notificação (já implementado). Não introduzir WebSocket/Channels/Redis sem decisão revista explicitamente.
 
@@ -353,25 +361,60 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 - LGPD: Política de Privacidade, exportação de dados (JSON) e solicitação de exclusão de conta (fila de revisão do Root, não é instantâneo)
 - Cadastro/perfil ganharam município (FK), UF, setor responsável, cargo, telefone — mesmo vocabulário usado em "Enviar participação" (`Participacao.setor_responsavel`/`telefone`, renomeados de `responsavel`/`whatsapp`)
 - Django Admin **reconstruído**, não só reskinado: `AdminSite` customizado com dashboard de métricas acionáveis, dark mode nativo do Django desativado (Admin sempre claro, só a sidebar é escura), barra lateral própria com ícones por função e grupos recolhíveis (sem o link "Adicionar" que o `app_list.html` padrão sempre renderiza)
-- Navegabilidade: topbar ganhou "← Voltar" estilo breadcrumb (oculto na própria home), rodapé só aparece na home
+- Navegabilidade: topbar ganhou "← Voltar" estilo breadcrumb (oculto na própria home) e, na própria home, um link "Início" (ícone de casa) que só aparece quando há paginação/filtro ativo (`?page=`/`?q=`/`?tema=`) na URL — home "limpa" (`/`) não mostra nenhum dos dois; rodapé só aparece na home
+- Busca da home com sugestões ao digitar: debounce de 250ms, mínimo de 2 caracteres, fragmento HTML renderizado no servidor (`api_busca_sugestoes` + `_busca_sugestoes.html`), guarda contra race condition comparando o termo buscado com o valor atual do campo antes de exibir
+- Índice do Admin sem duplicidade de menu: `fnp_index.html` não chama mais `{{ block.super }}` (que herdava o `admin/app_list.html` padrão, duplicando a navegação da sidebar); no lugar, dois painéis novos — "Top proposições por engajamento" (mesma fórmula de relevância da home: visualizações + comentários×5) e "Usuários e comentários" (cadastros/aprovações/comentários aprovados-rejeitados-denunciados) — mais uma fileira de atalhos rápidos (pills) pros changelists mais usados; dados computados em `FNPAdminSite.index()`
 - Ambiente local migrado para Python 3.12 (`.venv/`) — Python 3.14 tem um bug real do Django 4.2 (`copy.copy()` em `RequestContext`) que quebra todas as telas de listagem/adicionar do Admin em runtime normal, não só em teste; ver `docs/runbook.md`
 
 ### Itens validados (nesta última rodada)
 
 - `python manage.py check` → sem issues
-- `python manage.py test` → 10/10 OK, inclusive recriando o banco de testes do zero (pegou o bug de dependência de migration entre apps)
+- `python manage.py test` → 29/29 OK (era 10/10; 19 testes novos nesta sessão), inclusive recriando o banco de testes do zero (pegou o bug de dependência de migration entre apps)
 - Testado via `Client` (não só `RequestFactory`): signup com novos campos, dois usuários no mesmo município, upload de foto, exportação de dados, solicitação de exclusão, moderação automática (aprovado/rejeitado/falso-positivo de substring), dashboard do Admin refletindo pendências
 - `LOGIN_URL` não estava configurado (bug pré-existente, não introduzido nesta sessão) — `@login_required` mandava usuário anônimo pra `/accounts/login/` (404) em vez de `/contas/login/`; corrigido
 - Commit único enviado para `next` (origin) e mergeado/enviado para `main` em `origin` e `production`
+
+### Auditoria de duplicidade/código morto (2026-07-31)
+
+Rodada de limpeza a pedido do usuário — `ruff --select F401,F811,F841` no repo
+inteiro voltou limpo depois de: `.site-header` e `.auth-card h1` que estavam
+definidos duas vezes em `style.css` (a segunda versão sempre vencia, a
+primeira era código morto) mescladas numa só regra; `console.log` de debug
+removido de `main.js`; imports não usados (`pathlib.Path`) removidos de
+`ingest_legislativo.py` e `setup/asgi.py`. Templates, JS e migrations
+conferidos sem órfãos.
+
+### Melhorias de produto/segurança (2026-07-31, mesma sessão)
+
+A pedido do usuário, implementadas todas as sugestões que couberam sem
+depender de acesso externo (Google Cloud Console) ou decisão de infra maior
+(migração pra Postgres): paginação da home (24/página), rate limiting nos
+formulários públicos, denúncia de comentário, cabeçalhos de segurança de
+produção, e 19 testes novos (de 10 para 29) cobrindo moderação automática,
+aprovação de cadastro (middleware testado diretamente), LGPD, avatar/Google e
+os itens novos desta rodada. `ruff`, `check --deploy` (com `DEBUG=False`
+simulado) e `makemigrations --check` todos limpos.
+
+### Navegação, busca e Admin (2026-07-31, mesma sessão)
+
+A pedido do usuário, a partir de duas capturas de tela (índice do Admin com
+menu duplicado abaixo do dashboard; página "Painel Geral" de outra plataforma
+FNP usada só como referência de estilo/fonte, não de conteúdo): link
+"Início" na topbar da home paginada/filtrada, sugestões de busca ao digitar
+na home, e reconstrução do conteúdo do índice do Admin (painéis de
+engajamento/usuários + atalhos, sem repetir a sidebar). `check`, `test`
+(29/29) e `collectstatic` limpos; renderização do índice do Admin verificada
+via `Client` autenticado como superusuário (sem tabela de app_list duplicada,
+sem links "+ Adicionar" soltos, painéis novos presentes no HTML).
 
 ### Pendências e próximos passos
 
 - Obter credenciais reais do Google OAuth (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — bloqueado no usuário, documentado em `docs/runbook.md`
 - Popular `PalavraProibida` de verdade via Admin (a lista nasce vazia de propósito — curadoria é decisão da equipe FNP, não do código)
 - Comentários "pendente" que já existiam antes da moderação automática continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra envios novos
-- Considerar mecanismo de denúncia de comentário pelos próprios usuários como complemento à lista de palavras proibidas (nenhuma lista pega sarcasmo/assédio sem palavrão) — não implementado, não foi pedido ainda
+- Confirmar no Nginx do droplet que `X-Forwarded-Proto` é repassado antes de subir os cabeçalhos de segurança em produção pela primeira vez (`SECURE_SSL_REDIRECT` pode causar loop de redirect se não for)
 - Rodar `sync_legado_firestore`/`sync_camara` contra o banco de produção (só rodado localmente até agora)
-- Migrar produção de SQLite para PostgreSQL
+- Migrar produção de SQLite para PostgreSQL (também destrava full-text search de verdade na busca da home, hoje `icontains` encadeado)
 - Integração com o Senado (hoje só Câmara via `sync_camara`)
 - Redesign visual vem sendo feito incrementalmente a partir de referências de outra plataforma FNP que o usuário está enviando aos poucos (sidebar/topbar do site público e do Admin já alinhados; mais capturas de tela podem vir e pedir mais ajuste)
 

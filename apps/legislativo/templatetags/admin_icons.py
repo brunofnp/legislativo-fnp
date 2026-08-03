@@ -26,6 +26,7 @@ _ICON_PATHS = {
     'user': '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
     'users': '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     'ban': '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+    'flag': '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22V15"/>',
     'dot': '<circle cx="12" cy="12" r="3"/>',
 }
 
@@ -49,6 +50,7 @@ _MODEL_ICONS = {
     'comentarios.notificacao': 'bell',
     'comentarios.participacao': 'users',
     'comentarios.palavraproibida': 'ban',
+    'comentarios.denunciacomentario': 'flag',
     'account.emailaddress': 'mail',
     'socialaccount.socialapp': 'grid',
     'socialaccount.socialaccount': 'link',

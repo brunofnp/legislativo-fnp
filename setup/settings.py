@@ -129,3 +129,17 @@ SOCIALACCOUNT_PROVIDERS = {
         'SCOPE': ['profile', 'email'],
     }
 }
+
+# Cabeçalhos de segurança — só em produção (DEBUG=False), para não quebrar o
+# runserver local (HTTP puro, sem TLS). Assume que o Nginx do droplet `fnp-web`
+# repassa X-Forwarded-Proto (padrão em configs de proxy reverso); se não
+# repassar, SECURE_SSL_REDIRECT causa loop de redirecionamento — confirmar
+# antes de habilitar em produção pela primeira vez.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

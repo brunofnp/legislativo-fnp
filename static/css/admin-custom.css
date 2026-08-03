@@ -151,6 +151,127 @@ a.button {
   border-radius: 0.5rem;
 }
 
+.fnp-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.fnp-quick-link {
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  border: 1px solid var(--hairline-color, #e2e8f0);
+  transition: background .15s ease, color .15s ease;
+}
+
+.fnp-quick-link:hover,
+.fnp-quick-link:focus {
+  background: var(--primary);
+  color: #fff;
+}
+
+.fnp-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.fnp-panel {
+  padding: 1.25rem 1.4rem;
+  border-radius: 0.9rem;
+  background: var(--body-bg, #fff);
+  border: 1px solid var(--hairline-color, #e2e8f0);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.fnp-panel-title {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.fnp-panel-empty {
+  color: var(--body-quiet-color, #64748b);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.fnp-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.fnp-ranking-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--hairline-color, #f1f5f9);
+}
+
+.fnp-ranking-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fnp-ranking-item a:link,
+.fnp-ranking-item a:visited {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.fnp-ranking-item a:hover {
+  color: var(--primary);
+}
+
+.fnp-ranking-meta {
+  font-size: 0.78rem;
+  color: var(--body-quiet-color, #64748b);
+}
+
+.fnp-stat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.fnp-stat-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  color: var(--body-quiet-color, #475569);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--hairline-color, #f1f5f9);
+}
+
+.fnp-stat-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fnp-stat-list strong {
+  color: var(--primary);
+  font-size: 1rem;
+}
+
 /* Nav sidebar (menu de apps/models à esquerda, nativo do Django 4.1+) reskinado
    para seguir o mesmo padrão visual e de camadas (barra lateral escura, ícone +
    texto, grupos recolhíveis com subitens) do restante da plataforma — ver

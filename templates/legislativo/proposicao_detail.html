@@ -140,7 +140,16 @@
                       <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
                     </div>
                     <p>{{ comentario.texto }}</p>
-                    <button type="button" class="comment-reply-btn" data-parent-id="{{ comentario.pk }}" data-parent-nome="{{ comentario.autor.get_display_name|default:'Anônimo' }}">Responder</button>
+                    <div class="comment-actions-row">
+                      <button type="button" class="comment-reply-btn" data-parent-id="{{ comentario.pk }}" data-parent-nome="{{ comentario.autor.get_display_name|default:'Anônimo' }}">Responder</button>
+                      {% if request.user.is_authenticated and comentario.autor_id != request.user.id %}
+                        <form method="post" action="{% url 'legislativo:denunciar_comentario' comentario.pk %}" class="comment-denuncia-form">
+                          {% csrf_token %}
+                          <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                          <button type="submit" class="comment-denuncia-btn">Denunciar</button>
+                        </form>
+                      {% endif %}
+                    </div>
                     {% with respostas=comentario.respostas.all %}
                       {% if respostas %}
                         <ul class="comments comments-nested">
@@ -160,6 +169,13 @@
                                     <span class="comment-time">{{ resposta.criado_em|timesince }} atrás</span>
                                   </div>
                                   <p>{{ resposta.texto }}</p>
+                                  {% if request.user.is_authenticated and resposta.autor_id != request.user.id %}
+                                    <form method="post" action="{% url 'legislativo:denunciar_comentario' resposta.pk %}" class="comment-denuncia-form">
+                                      {% csrf_token %}
+                                      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                                      <button type="submit" class="comment-denuncia-btn">Denunciar</button>
+                                    </form>
+                                  {% endif %}
                                 </div>
                               </li>
                             {% endif %}

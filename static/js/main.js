@@ -38,6 +38,56 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initTemaDropdowns();
 
+  function initSearchSuggestions() {
+    const input = document.getElementById('search-input');
+    const box = document.getElementById('search-suggestions');
+    if (!input || !box) return;
+
+    let debounceTimer;
+
+    function hide() {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+    }
+
+    function fetchSuggestions(term) {
+      fetch(`/api/busca-sugestoes/?q=${encodeURIComponent(term)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (input.value.trim() !== term) return;
+          if (!data.html) {
+            hide();
+            return;
+          }
+          box.innerHTML = data.html;
+          box.classList.remove('hidden');
+        })
+        .catch(() => hide());
+    }
+
+    input.addEventListener('input', () => {
+      const term = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (term.length < 2) {
+        hide();
+        return;
+      }
+      debounceTimer = setTimeout(() => fetchSuggestions(term), 250);
+    });
+
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Escape') hide();
+    });
+
+    document.addEventListener('click', event => {
+      if (!box.contains(event.target) && event.target !== input) {
+        hide();
+      }
+    });
+  }
+
+  initSearchSuggestions();
+
   function initAppShell() {
     const shell = document.getElementById('app-shell');
     const collapseBtn = document.getElementById('sidebar-collapse-btn');
@@ -278,6 +328,4 @@ window.addEventListener('DOMContentLoaded', function () {
       setInterval(refreshCards, realtimeInterval);
     }
   }
-
-  console.log('Legislativo FNP pronto.');
 });

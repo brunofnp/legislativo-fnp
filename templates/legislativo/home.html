@@ -35,9 +35,12 @@
   </section>
 
   <section class="search-panel">
-    <form method="get" class="search-form" role="search" aria-label="Buscar proposições">
+    <form method="get" class="search-form" role="search" aria-label="Buscar proposições" autocomplete="off">
       <label for="search-input" class="sr-only">Buscar por proposição, ementa, status, tema ou prioridade</label>
-      <input type="search" name="q" id="search-input" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." />
+      <div class="search-input-wrapper">
+        <input type="search" name="q" id="search-input" value="{{ query }}" placeholder="Buscar por proposição, ementa, status, tema ou prioridade..." autocomplete="off" />
+        <div class="search-suggestions hidden" id="search-suggestions"></div>
+      </div>
       <button type="submit" class="fbtn">Buscar</button>
     </form>
 
@@ -122,6 +125,18 @@
     <section class="cards-grid" id="cards-todas">
       {% include 'legislativo/_cards_grid.html' %}
     </section>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pagination" aria-label="Paginação de proposições">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="pagination-link">‹ Anterior</a>
+        {% endif %}
+        <span class="pagination-status">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="pagination-link">Próxima ›</a>
+        {% endif %}
+      </nav>
+    {% endif %}
   </section>
 
   <div id="realtime-toast" class="realtime-toast hidden" aria-live="polite"></div>

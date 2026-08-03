@@ -1,0 +1,10 @@
+{% if proposicoes %}
+  {% for proposicao in proposicoes %}
+    <a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}" class="search-suggestion-item">
+      <span class="search-suggestion-title">{{ proposicao.titulo }}</span>
+      <span class="search-suggestion-meta">{{ proposicao.casa|title }} · {{ proposicao.status_tramitacao|default:"Status indisponível"|truncatechars:40 }}</span>
+    </a>
+  {% endfor %}
+{% else %}
+  <p class="search-suggestion-empty">Nenhuma proposição encontrada.</p>
+{% endif %}
