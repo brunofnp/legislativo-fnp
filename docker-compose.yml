@@ -1,0 +1,15 @@
+services:
+  legislativo:
+    build: .
+    command: sh entrypoint.sh
+    env_file: .env
+    ports:
+      - "127.0.0.1:8004:8004"  # nunca porta pública direta — só o Nginx expõe
+    volumes:
+      - ./media:/app/media
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

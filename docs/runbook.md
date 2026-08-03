@@ -34,6 +34,44 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 ```
 
+### Containerização (Docker + Nginx no droplet `fnp-web`)
+
+`Dockerfile`, `docker-compose.yml`, `entrypoint.sh`, `.dockerignore` e
+`.gitattributes` (força LF em `*.sh` — editar `entrypoint.sh` no Windows sem
+isso quebra o container Linux) já estão no repo, prontos para uso; nenhuma
+mudança de código foi necessária (`DATABASE_URL`/`dj-database-url`,
+`psycopg2-binary`, `gunicorn` e `whitenoise` já estavam em
+`requirements.txt`/`settings.py`). Ambiente real confirmado no dashboard da
+DigitalOcean: droplet `fnp-web` (NYC1, 2 GB RAM, IP `142.93.205.222`) e
+banco gerenciado `fnp-database` (NYC3, PostgreSQL, já existente — **não
+criar cluster novo**, usar 1 database + 1 role dedicados nele, ver seção
+"Banco de produção" abaixo).
+
+Passos a rodar via SSH no droplet (fora do alcance do Claude Code — sem
+acesso SSH ao servidor):
+
+1. **Reconhecimento antes de tudo**: `free -h`, `docker ps`, `docker stats --no-stream`
+   no `fnp-web` para confirmar headroom real de RAM antes de subir mais um
+   container (a documentação pode estar desatualizada quanto ao que já roda
+   lá). Droplet (NYC1) e banco (NYC3) estão em regiões/VPCs diferentes — a
+   conexão vai passar pela rede pública do banco (`sslmode=require`), não
+   por rede privada; medir a latência real com `\timing` no `psql` antes de
+   assumir que não importa.
+2. Adicionar o droplet `fnp-web` em **Trusted Sources** do `fnp-database`
+   (aba Settings do banco no dashboard DO) — sem isso a conexão é recusada
+   mesmo com credencial correta.
+3. Criar a role/database dedicados (`legislativo_app` / `legislativo`) — ver
+   "Banco de produção" abaixo.
+4. Clonar o repo no droplet via Deploy Key SSH read-only, criar o `.env` de
+   produção manualmente no servidor (não vem do clone — nunca commitar),
+   `docker compose build && docker compose up -d`.
+5. Validar por túnel SSH (`ssh -L 8004:localhost:8004 root@142.93.205.222`,
+   abrir `http://localhost:8004` local) **antes** de tocar no Nginx público.
+6. Só depois, adicionar um bloco novo e isolado no Nginx compartilhado do
+   `fnp-web` (que já serve outros sistemas da FNP) — `nginx -t` antes de
+   `systemctl reload nginx`, já que um erro aqui derruba os outros sistemas
+   também. TLS via certbot, domínio apontado no Cloudflare.
+
 ## Popular o banco com dados reais
 
 ### 1. Dados históricos do app legado (legislativo-fnp.web.app)
@@ -76,8 +114,33 @@ ainda; isso precisa ser feito por quem tem acesso SSH ao droplet.
 ## Banco de produção (PostgreSQL / DigitalOcean)
 
 A variável `DATABASE_URL` já é lida pelo `settings.py` via `dj-database-url`.
-Defina-a no `.env` de produção com a connection string real do Postgres
-(DigitalOcean ou outro provedor) — sem essa variável, o app usa SQLite.
+Defina-a no `.env` de produção com a connection string real do Postgres —
+sem essa variável, o app usa SQLite.
+
+Cluster gerenciado já existente: `fnp-database` (padrão da casa é 1 cluster
+compartilhado, N databases, 1 por sistema — não criar cluster novo). Rodar
+como `doadmin` via `psql` (a partir do droplet ou console do banco no
+dashboard DO):
+
+```sql
+CREATE ROLE legislativo_app LOGIN PASSWORD '<gerar com: openssl rand -hex 24>';
+CREATE DATABASE legislativo OWNER legislativo_app;
+REVOKE ALL ON DATABASE legislativo FROM PUBLIC;
+GRANT ALL ON DATABASE legislativo TO legislativo_app;
+-- conectando no database "legislativo":
+GRANT ALL ON SCHEMA public TO legislativo_app;
+ALTER SCHEMA public OWNER TO legislativo_app;
+```
+
+Connection string (Connection Details do `fnp-database` no dashboard,
+trocando database/usuário para os de cima):
+
+```text
+postgresql://legislativo_app:<senha>@<host-do-cluster>:25060/legislativo?sslmode=require
+```
+
+Guardar em dois lugares: `.env` do droplet (uso) e Bitwarden (backup) —
+nunca no git.
 
 ## Login (conta própria + Google)
 

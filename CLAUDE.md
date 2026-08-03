@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-03 (ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin, simétrica à "Aprovar" já existente — além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
+> Última atualização: 2026-08-03 (containerização Docker pronta no repo — Dockerfile/docker-compose.yml/entrypoint.sh/.dockerignore/.gitattributes — para deploy no droplet `fnp-web` contra o Postgres gerenciado `fnp-database` já existente na DigitalOcean; ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin; além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
 
 ---
 
@@ -407,14 +407,32 @@ engajamento/usuários + atalhos, sem repetir a sidebar). `check`, `test`
 via `Client` autenticado como superusuário (sem tabela de app_list duplicada,
 sem links "+ Adicionar" soltos, painéis novos presentes no HTML).
 
+### Deploy — containerização Docker (2026-08-03)
+
+A pedido do usuário, a partir de um guia de deploy (Docker + Nginx no droplet
+`fnp-web`, banco `fnp-database` gerenciado na DigitalOcean, ambos já
+provisionados e confirmados no dashboard real): criados `Dockerfile`,
+`docker-compose.yml`, `entrypoint.sh`, `.dockerignore` e `.gitattributes`
+(força LF em `*.sh`, evita o container quebrar se o arquivo for editado no
+Windows). Nenhuma mudança de código Django foi necessária — `DATABASE_URL`
+(`dj-database-url`), `psycopg2-binary`, `gunicorn` e `whitenoise` já
+existiam em `requirements.txt`/`settings.py` desde antes. Passos detalhados
+(reconhecimento via SSH, Trusted Sources, role/database dedicados, deploy
+key, validação por túnel SSH antes do Nginx, bloco Nginx isolado, TLS) estão
+em `docs/runbook.md` — tudo isso depende de acesso SSH ao droplet, que o
+Claude Code não tem; só o código/arquivos de containerização foram
+preparados aqui. `manage.py check` limpo; build Docker local não pôde ser
+testado (Docker Desktop não estava com o daemon rodando nesta máquina).
+
 ### Pendências e próximos passos
 
+- Rodar o deploy de fato: reconhecimento via SSH no `fnp-web` (RAM/containers já rodando), Trusted Sources, role/database dedicados no `fnp-database`, deploy key, `docker compose up`, validação por túnel antes do Nginx público — ver `docs/runbook.md` § Deploy
 - Obter credenciais reais do Google OAuth (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — bloqueado no usuário, documentado em `docs/runbook.md`
 - Popular `PalavraProibida` de verdade via Admin (a lista nasce vazia de propósito — curadoria é decisão da equipe FNP, não do código)
 - Comentários "pendente" que já existiam antes da moderação automática continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra envios novos
-- Confirmar no Nginx do droplet que `X-Forwarded-Proto` é repassado antes de subir os cabeçalhos de segurança em produção pela primeira vez (`SECURE_SSL_REDIRECT` pode causar loop de redirect se não for)
+- Confirmar no Nginx do droplet que `X-Forwarded-Proto` é repassado antes de subir os cabeçalhos de segurança em produção pela primeira vez (`SECURE_SSL_REDIRECT` pode causar loop de redirect se não for) — o bloco Nginx do guia de deploy já envia esse header
 - Rodar `sync_legado_firestore`/`sync_camara` contra o banco de produção (só rodado localmente até agora)
-- Migrar produção de SQLite para PostgreSQL (também destrava full-text search de verdade na busca da home, hoje `icontains` encadeado)
+- Migrar produção de SQLite para PostgreSQL — passo a passo já documentado (ver seção Deploy acima), falta executar de fato; também destrava full-text search de verdade na busca da home, hoje `icontains` encadeado
 - Integração com o Senado (hoje só Câmara via `sync_camara`)
 - Redesign visual vem sendo feito incrementalmente a partir de referências de outra plataforma FNP que o usuário está enviando aos poucos (sidebar/topbar do site público e do Admin já alinhados; mais capturas de tela podem vir e pedir mais ajuste)
 
