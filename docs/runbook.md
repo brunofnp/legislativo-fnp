@@ -43,9 +43,20 @@ mudança de código foi necessária (`DATABASE_URL`/`dj-database-url`,
 `psycopg2-binary`, `gunicorn` e `whitenoise` já estavam em
 `requirements.txt`/`settings.py`). Ambiente real confirmado no dashboard da
 DigitalOcean: droplet `fnp-web` (NYC1, 2 GB RAM, IP `142.93.205.222`) e
-banco gerenciado `fnp-database` (NYC3, PostgreSQL, já existente — **não
-criar cluster novo**, usar 1 database + 1 role dedicados nele, ver seção
-"Banco de produção" abaixo).
+banco gerenciado `fnp-database` (NYC3, PostgreSQL, 4 GB RAM / 2 vCPU / 60 GiB,
+já existente — **não criar cluster novo**, usar 1 database + 1 role
+dedicados nele, ver seção "Banco de produção" abaixo). Domínio de produção
+confirmado: **legislativo.fnp.org.br**.
+
+Dois arquivos de apoio já prontos, com os valores reais preenchidos (só
+faltam os segredos):
+
+- `.env.production.example` — template do `.env` do droplet, já com
+  `ALLOWED_HOSTS=legislativo.fnp.org.br` e o `DATABASE_URL` com os hosts
+  público e privado reais do `fnp-database`
+- `deploy/nginx-legislativo.conf` — bloco Nginx isolado pronto para copiar,
+  já com `server_name legislativo.fnp.org.br` e os `alias` batendo com
+  `STATIC_ROOT`/`MEDIA_ROOT` do `settings.py`
 
 Passos a rodar via SSH no droplet (fora do alcance do Claude Code — sem
 acesso SSH ao servidor):
@@ -69,13 +80,14 @@ acesso SSH ao servidor):
 3. Criar a role/database dedicados (`legislativo_app` / `legislativo`) — ver
    "Banco de produção" abaixo.
 4. Clonar o repo no droplet via Deploy Key SSH read-only, criar o `.env` de
-   produção manualmente no servidor (não vem do clone — nunca commitar),
+   produção manualmente no servidor a partir de `.env.production.example`
+   (não vem do clone — nunca commitar o `.env` real),
    `docker compose build && docker compose up -d`.
 5. Validar por túnel SSH (`ssh -L 8004:localhost:8004 root@142.93.205.222`,
    abrir `http://localhost:8004` local) **antes** de tocar no Nginx público.
-6. Só depois, adicionar um bloco novo e isolado no Nginx compartilhado do
-   `fnp-web` (que já serve outros sistemas da FNP) — `nginx -t` antes de
-   `systemctl reload nginx`, já que um erro aqui derruba os outros sistemas
+6. Só depois, instalar `deploy/nginx-legislativo.conf` (instruções de
+   instalação no próprio arquivo) — `nginx -t` antes de `systemctl reload
+   nginx`, já que um erro aqui derruba os outros sistemas
    também. TLS via certbot, domínio apontado no Cloudflare.
 
 ## Popular o banco com dados reais

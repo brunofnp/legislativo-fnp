@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-03 (containerização Docker pronta no repo — Dockerfile/docker-compose.yml/entrypoint.sh/.dockerignore/.gitattributes — para deploy no droplet `fnp-web` contra o Postgres gerenciado `fnp-database` já existente na DigitalOcean; ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin; além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
+> Última atualização: 2026-08-03 (domínio de produção confirmado — legislativo.fnp.org.br — com `.env.production.example` e `deploy/nginx-legislativo.conf` já preenchidos com os hosts reais do `fnp-database`; containerização Docker pronta no repo — Dockerfile/docker-compose.yml/entrypoint.sh/.dockerignore/.gitattributes — para deploy no droplet `fnp-web`; ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin; além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
 
 ---
 
@@ -9,7 +9,7 @@
 
 **Legislativo FNP** é uma plataforma Django para acompanhamento legislativo voltada ao monitoramento de proposições em tramitação no Congresso Nacional e ao impacto para municípios. A proposta é reunir um painel institucional, visual profissional e fluxo de participação colaborativa para a Frente Nacional de Prefeitas e Prefeitos.
 
-URL de produção: GitHub Pages/hosting definido pela organização (branch `main` do remoto `production`)
+URL de produção: `legislativo.fnp.org.br` (droplet `fnp-web` na DigitalOcean, via branch `main` do remoto `production` — deploy ainda não instalado no servidor, ver "Pendências e próximos passos")
 Branch de desenvolvimento ativo: `next`
 
 ---
@@ -426,7 +426,8 @@ testado (Docker Desktop não estava com o daemon rodando nesta máquina).
 
 ### Pendências e próximos passos
 
-- Rodar o deploy de fato: reconhecimento via SSH no `fnp-web` (RAM/containers já rodando), Trusted Sources, role/database dedicados no `fnp-database`, deploy key, `docker compose up`, validação por túnel antes do Nginx público — ver `docs/runbook.md` § Deploy
+- Rodar o deploy de fato: reconhecimento via SSH no `fnp-web` (RAM/containers já rodando, testar rota VPC privada vs. pública até o `fnp-database`), Trusted Sources, role/database dedicados, deploy key, `docker compose up` (usando `.env.production.example`), validação por túnel, instalar `deploy/nginx-legislativo.conf`, certbot para `legislativo.fnp.org.br` — ver `docs/runbook.md` § Deploy
+- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa captura de tela compartilhada nesta sessão (não foi usada/reproduzida, mas ficou registrada na conversa)
 - Obter credenciais reais do Google OAuth (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) — bloqueado no usuário, documentado em `docs/runbook.md`
 - Popular `PalavraProibida` de verdade via Admin (a lista nasce vazia de propósito — curadoria é decisão da equipe FNP, não do código)
 - Comentários "pendente" que já existiam antes da moderação automática continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra envios novos
