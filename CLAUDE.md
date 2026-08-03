@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-07-31 (link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos — além de paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
+> Última atualização: 2026-08-03 (ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin, simétrica à "Aprovar" já existente — além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
 
 ---
 
@@ -147,7 +147,7 @@ A barra lateral (`templates/admin/nav_sidebar.html`) **não reaproveita** `admin
 - "Em alta" (ranking por visualizações + comentários) e "Áreas de interesse" (derivado dos temas mais acessados)
 - Cadastro e login (e-mail/senha próprio ou Google OAuth via django-allauth); Google **sem credenciais reais ainda** — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` vazios em `.env`, documentado em `docs/runbook.md`
 - Cadastro coleta município/UF (vira `Municipio` via `get_or_create`, `Perfil.municipio` é `ForeignKey` — vários usuários podem apontar pro mesmo município), setor responsável, cargo e telefone; mesmos campos editáveis depois em `/perfil/`
-- **Aprovação de cadastro:** todo cadastro novo nasce `Perfil.status_aprovacao='pendente'` (staff nasce `'aprovado'`); `CadastroPendenteMiddleware` redireciona usuário pendente para `cadastro_pendente.html` até um Root/Administrador FNP aprovar (ação em massa no `UsuarioAdmin`)
+- **Aprovação de cadastro:** todo cadastro novo nasce `Perfil.status_aprovacao='pendente'` (staff nasce `'aprovado'`); `CadastroPendenteMiddleware` redireciona usuário pendente para `cadastro_pendente.html` até um Root/Administrador FNP aprovar ou rejeitar (ações em massa simétricas `aprovar_cadastros`/`rejeitar_cadastros` no `UsuarioAdmin`) — tela de aviso já distingue mensagem para pendente vs. rejeitado
 - **Fotos de perfil:** upload manual (`Perfil.foto`) ou importação automática da foto do Google no login social (`GoogleAccountAdapter.save_user` + signal `pre_social_login` para manter atualizada); exibida no topbar e nos comentários do fórum, com fallback pra inicial do nome
 - **LGPD:** página de Política de Privacidade, exportação dos dados do usuário em JSON (`exportar_meus_dados`) e solicitação de exclusão de conta (`solicitar_exclusao` — só marca `Perfil.exclusao_solicitada_em`, exclusão real é manual pelo Root via Admin, sem autoexclusão instantânea)
 - Página de perfil (`PerfilView`) com edição de nome/foto/telefone/cargo/município/UF/setor responsável, link para trocar senha (allauth) e para as ações de LGPD

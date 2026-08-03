@@ -22,7 +22,7 @@ class UsuarioAdmin(UserAdmin):
     )
     list_filter = UserAdmin.list_filter + ('groups', 'perfil__status_aprovacao', 'perfil__exclusao_solicitada_em')
     inlines = [PerfilInline]
-    actions = ['aprovar_cadastros']
+    actions = ['aprovar_cadastros', 'rejeitar_cadastros']
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('perfil')
@@ -41,6 +41,11 @@ class UsuarioAdmin(UserAdmin):
     def aprovar_cadastros(self, request, queryset):
         atualizados = Perfil.objects.filter(usuario__in=queryset).update(status_aprovacao=Perfil.APROVADO)
         self.message_user(request, f'{atualizados} cadastro(s) aprovado(s).')
+
+    @admin.action(description='Rejeitar cadastros selecionados')
+    def rejeitar_cadastros(self, request, queryset):
+        atualizados = Perfil.objects.filter(usuario__in=queryset).update(status_aprovacao=Perfil.REJEITADO)
+        self.message_user(request, f'{atualizados} cadastro(s) rejeitado(s).')
 
 
 @admin.register(Municipio)
