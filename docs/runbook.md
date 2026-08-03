@@ -53,10 +53,16 @@ acesso SSH ao servidor):
 1. **Reconhecimento antes de tudo**: `free -h`, `docker ps`, `docker stats --no-stream`
    no `fnp-web` para confirmar headroom real de RAM antes de subir mais um
    container (a documentação pode estar desatualizada quanto ao que já roda
-   lá). Droplet (NYC1) e banco (NYC3) estão em regiões/VPCs diferentes — a
-   conexão vai passar pela rede pública do banco (`sslmode=require`), não
-   por rede privada; medir a latência real com `\timing` no `psql` antes de
-   assumir que não importa.
+   lá). Droplet (NYC1) e banco (NYC3) estão em regiões diferentes — o painel
+   do `fnp-database` oferece host de rede pública e host de rede VPC
+   privada (`private-fnp-database-do-user-...`), mas isso só é alcançável
+   se as VPCs das duas regiões estiverem peered. Testar as duas rotas a
+   partir do próprio droplet antes de decidir (`nc -zv <host> 25060` ou
+   tentar `psql` direto em cada uma) — preferir a privada se conectar
+   (menor latência, não depende de allowlist de IP público), com fallback
+   pra pública (`sslmode=require`, com o droplet nas Trusted Sources).
+   De qualquer forma, medir a latência real com `\timing` no `psql` antes
+   de assumir que não importa.
 2. Adicionar o droplet `fnp-web` em **Trusted Sources** do `fnp-database`
    (aba Settings do banco no dashboard DO) — sem isso a conexão é recusada
    mesmo com credencial correta.
@@ -117,10 +123,14 @@ A variável `DATABASE_URL` já é lida pelo `settings.py` via `dj-database-url`.
 Defina-a no `.env` de produção com a connection string real do Postgres —
 sem essa variável, o app usa SQLite.
 
-Cluster gerenciado já existente: `fnp-database` (padrão da casa é 1 cluster
+Cluster gerenciado já existente: `fnp-database` (4 GB RAM / 2 vCPU / 60 GiB,
+"Primary only" — sem standby node hoje; padrão da casa é 1 cluster
 compartilhado, N databases, 1 por sistema — não criar cluster novo). Rodar
 como `doadmin` via `psql` (a partir do droplet ou console do banco no
-dashboard DO):
+dashboard DO) **só para este passo** — a credencial `doadmin`/`defaultdb` é
+administrativa do cluster inteiro (compartilhada com outros sistemas da
+FNP) e nunca deve ir para o `.env` da aplicação; a app sempre roda com a
+role dedicada criada abaixo (privilégio mínimo, só no database `legislativo`):
 
 ```sql
 CREATE ROLE legislativo_app LOGIN PASSWORD '<gerar com: openssl rand -hex 24>';
