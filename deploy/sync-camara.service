@@ -1,7 +1,16 @@
 # Template de unit systemd para manter `sync_camara --watch` rodando
 # permanentemente no servidor (ver docs/runbook.md).
 #
-# AJUSTE antes de instalar:
+# SUPERADO pelo serviço `sync-camara` já definido em docker-compose.yml (o
+# deploy do droplet fnp-web é containerizado — ver "Infraestrutura" no
+# CLAUDE.md). Para instalar de fato, no droplet via SSH, basta:
+#
+#   docker compose up -d sync-camara
+#   docker compose logs -f sync-camara    # acompanhar o log em tempo real
+#
+# Esta unit systemd só se aplica a um deploy SEM Docker (Python direto no
+# host, fora do escopo atual) — mantida apenas como referência/fallback.
+# AJUSTE antes de instalar, se algum dia for usada:
 #   - WorkingDirectory / caminho do projeto no servidor
 #   - Usuário/grupo (não rodar como root)
 #   - Caminho do Python (se usar virtualenv, aponte para <venv>/bin/python)
@@ -12,19 +21,6 @@
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now sync-camara
 #   journalctl -u sync-camara -f          # acompanhar o log em tempo real
-#
-# Se o app rodar em Docker (ver "Infraestrutura" no CLAUDE.md — Docker + Nginx
-# no droplet fnp-web), este processo deve rodar DENTRO do mesmo container/
-# imagem da aplicação (mesmo ambiente Python/dependências), não no host. Nesse
-# caso, prefira um serviço adicional no docker-compose.yml em vez desta unit:
-#
-#   sync-camara:
-#     image: <mesma imagem do serviço web>
-#     command: python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --watch 1800
-#     env_file: .env
-#     restart: unless-stopped
-#     depends_on:
-#       - db
 
 [Unit]
 Description=Legislativo FNP — sync_camara (watch contínuo da API da Câmara)

@@ -77,8 +77,8 @@ acesso SSH ao servidor):
 2. Adicionar o droplet `fnp-web` em **Trusted Sources** do `fnp-database`
    (aba Settings do banco no dashboard DO) — sem isso a conexão é recusada
    mesmo com credencial correta.
-3. Criar a role/database dedicados (`legislativo_app` / `legislativo`) — ver
-   "Banco de produção" abaixo.
+3. Role/database dedicados já provisionados via painel DO: `legislativo` /
+   `legislativo_fnp` (confirmar o `GRANT` — ver "Banco de produção" abaixo).
 4. Clonar o repo no droplet via Deploy Key SSH read-only, criar o `.env` de
    produção manualmente no servidor a partir de `.env.production.example`
    (não vem do clone — nunca commitar o `.env` real),
@@ -122,12 +122,19 @@ segundos — pensado para rodar como serviço/processo persistente (ex.:
 supervisor/systemd no droplet), já que a Câmara e o Senado não oferecem
 webhook de atualização em tempo real.
 
-**Rodando como serviço permanente:** ver template em `deploy/sync-camara.service`
-(systemd) com as instruções de instalação no próprio arquivo. Se o app rodar
-em Docker no droplet (`fnp-web`), prefira um serviço adicional no
-`docker-compose.yml` usando a mesma imagem da aplicação — exemplo comentado
-também está no template. Nenhuma das duas opções está instalada em produção
-ainda; isso precisa ser feito por quem tem acesso SSH ao droplet.
+**Rodando como serviço permanente:** já configurado como o serviço
+`sync-camara` em `docker-compose.yml` (mesma imagem do serviço `legislativo`,
+`restart: unless-stopped`). Para instalar de fato no droplet, via SSH, dentro
+de `/opt/legislativo-fnp` (ou onde o `docker-compose.yml` estiver):
+
+```bash
+docker compose up -d sync-camara
+docker compose logs -f sync-camara      # acompanhar o log em tempo real
+```
+
+Ainda não está rodando em produção — falta ser feito por quem tem acesso SSH
+ao droplet (ver `deploy/sync-camara.service` para o template systemd
+alternativo, só necessário se o deploy deixar de ser containerizado).
 
 ## Banco de produção (PostgreSQL / DigitalOcean)
 
@@ -137,28 +144,51 @@ sem essa variável, o app usa SQLite.
 
 Cluster gerenciado já existente: `fnp-database` (4 GB RAM / 2 vCPU / 60 GiB,
 "Primary only" — sem standby node hoje; padrão da casa é 1 cluster
-compartilhado, N databases, 1 por sistema — não criar cluster novo). Rodar
-como `doadmin` via `psql` (a partir do droplet ou console do banco no
-dashboard DO) **só para este passo** — a credencial `doadmin`/`defaultdb` é
-administrativa do cluster inteiro (compartilhada com outros sistemas da
-FNP) e nunca deve ir para o `.env` da aplicação; a app sempre roda com a
-role dedicada criada abaixo (privilégio mínimo, só no database `legislativo`):
+compartilhado, N databases, 1 por sistema — não criar cluster novo).
 
-```sql
-CREATE ROLE legislativo_app LOGIN PASSWORD '<gerar com: openssl rand -hex 24>';
-CREATE DATABASE legislativo OWNER legislativo_app;
-REVOKE ALL ON DATABASE legislativo FROM PUBLIC;
-GRANT ALL ON DATABASE legislativo TO legislativo_app;
--- conectando no database "legislativo":
-GRANT ALL ON SCHEMA public TO legislativo_app;
-ALTER SCHEMA public OWNER TO legislativo_app;
+**Role e database já provisionados via painel DO** (confirmado em
+2026-08-04 direto no dashboard, aba "Users & Databases" do `fnp-database`) —
+**não são os nomes que este runbook assumia antes**:
+
+- Role: `legislativo` (não `legislativo_app`)
+- Database: `legislativo_fnp` (não `legislativo`)
+
+Seguem o mesmo padrão dos outros sistemas já no cluster (`ifem`/`ifem_app`,
+`fnp_sistema`/`fnp_financeiro`, `nucleo_dados`/`nucleo_carga`/`nucleo_ro`) —
+1 database por sistema, role dedicada. A senha da role `legislativo` é
+recuperável ali mesmo (botão "show" ao lado do usuário — só é possível
+porque o usuário foi criado pelo painel, não via SQL; usuário criado por
+`psql` direto não fica com senha recuperável pela interface). **Copiar essa
+senha pro Bitwarden assim que possível** — é a única forma fácil de
+recuperá-la; se for perdida, só resetando.
+
+Usuário criado pelo painel nasce sem privilégio no database até alguém
+conceder — **ainda falta confirmar se isso já foi feito**. Testar direto do
+droplet (via SSH, depois do reconhecimento da Fase 1):
+
+```bash
+psql "postgresql://legislativo:<senha>@<host-do-cluster>:25060/legislativo_fnp?sslmode=require" -c "\dt"
 ```
 
-Connection string (Connection Details do `fnp-database` no dashboard,
-trocando database/usuário para os de cima):
+Se conectar e listar tabelas (mesmo vazio) sem erro, o `GRANT` já foi feito
+antes — pode pular pro passo seguinte. Se der erro de permissão negada,
+rodar como `doadmin` (via `psql` ou console do banco no dashboard DO — **só
+para este passo**, a credencial `doadmin`/`defaultdb` é administrativa do
+cluster inteiro, compartilhada com outros sistemas da FNP, e nunca deve ir
+para o `.env` da aplicação):
+
+```sql
+GRANT ALL ON DATABASE legislativo_fnp TO legislativo;
+-- conectando no database "legislativo_fnp":
+GRANT ALL ON SCHEMA public TO legislativo;
+ALTER SCHEMA public OWNER TO legislativo;
+```
+
+Connection string (Connection Details do `fnp-database` no dashboard, com
+os nomes reais confirmados acima):
 
 ```text
-postgresql://legislativo_app:<senha>@<host-do-cluster>:25060/legislativo?sslmode=require
+postgresql://legislativo:<senha>@<host-do-cluster>:25060/legislativo_fnp?sslmode=require
 ```
 
 Guardar em dois lugares: `.env` do droplet (uso) e Bitwarden (backup) —

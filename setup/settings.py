@@ -119,6 +119,13 @@ ACCOUNT_SIGNUP_FORM_CLASS = 'apps.legislativo.forms.CustomSignupForm'
 
 SOCIALACCOUNT_ADAPTER = 'apps.usuarios.adapters.GoogleAccountAdapter'
 
+# Unifica conta: se alguém já se cadastrou com e-mail/senha e depois tenta
+# entrar com o Google usando o mesmo e-mail, loga na MESMA conta em vez de
+# barrar com "e-mail já em uso" — seguro porque o Google confirma a posse do
+# e-mail via OAuth (allauth só permite por padrão para provedores confiáveis).
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {

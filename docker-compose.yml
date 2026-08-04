@@ -1,6 +1,7 @@
 services:
   legislativo:
     build: .
+    image: legislativo-fnp:latest
     command: sh entrypoint.sh
     env_file: .env
     ports:
@@ -13,3 +14,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  sync-camara:
+    image: legislativo-fnp:latest  # mesma imagem do serviço legislativo (build faz cache, não builda 2x)
+    command: python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --watch 1800
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - legislativo

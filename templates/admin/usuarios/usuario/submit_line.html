@@ -1,0 +1,20 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n %}
+{% block submit-row %}
+{{ block.super }}
+{% with perfil=original.perfil %}
+{% if perfil %}
+    {% if perfil.status_aprovacao != 'aprovado' %}
+        <input type="submit" value="Aprovar cadastro" name="_aprovar_cadastro">
+    {% endif %}
+    {% if perfil.status_aprovacao != 'rejeitado' %}
+        <input type="submit" value="Rejeitar cadastro" name="_rejeitar_cadastro">
+    {% endif %}
+    {% if perfil.exclusao_solicitada_em %}
+        <input type="submit" value="Rejeitar exclusão (manter conta)" name="_rejeitar_exclusao">
+        <input type="submit" value="Aprovar exclusão (excluir conta)" name="_aprovar_exclusao" class="deletelink"
+               onclick="return confirm('Excluir a conta de {{ original }} permanentemente? Essa ação não pode ser desfeita.');">
+    {% endif %}
+{% endif %}
+{% endwith %}
+{% endblock %}
