@@ -9,7 +9,7 @@
 
 **Legislativo FNP** é uma plataforma Django para acompanhamento legislativo voltada ao monitoramento de proposições em tramitação no Congresso Nacional e ao impacto para municípios. A proposta é reunir um painel institucional, visual profissional e fluxo de participação colaborativa para a Frente Nacional de Prefeitas e Prefeitos.
 
-URL de produção: `legislativo.fnp.org.br` (droplet `fnp-web` na DigitalOcean, via branch `main` do remoto `production` — deploy ainda não instalado no servidor, ver "Pendências e próximos passos")
+URL de produção: `legislativo.fnp.org.br` (droplet `fnp-web` na DigitalOcean, via branch `main` do remoto `production`) — **no ar desde 2026-08-05**, HTTPS via Let's Encrypt/certbot, confirmado com `curl` retornando 200 e HTML real da home
 Branch de desenvolvimento ativo: `next`
 
 ---
