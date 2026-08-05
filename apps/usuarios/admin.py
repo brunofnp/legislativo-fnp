@@ -25,7 +25,8 @@ class UsuarioAdmin(UserAdmin):
         'status_cadastro', 'exclusao_pendente', 'is_staff', 'is_superuser', 'is_active',
         'acoes_rapidas',
     )
-    list_filter = UserAdmin.list_filter + ('groups', 'perfil__status_aprovacao', 'perfil__exclusao_solicitada_em')
+    # UserAdmin.list_filter já inclui 'groups' -- não repetir aqui (duplicava o filtro).
+    list_filter = UserAdmin.list_filter + ('perfil__status_aprovacao', 'perfil__exclusao_solicitada_em')
     inlines = [PerfilInline]
     actions = ['aprovar_cadastros', 'rejeitar_cadastros', 'aprovar_exclusoes', 'rejeitar_exclusoes']
 

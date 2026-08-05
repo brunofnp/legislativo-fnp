@@ -133,9 +133,102 @@ a.button {
   background: #8c1d17;
 }
 
+/* Painel FILTRO (barra lateral direita da listagem): nativo do Django já
+   usa <details>/<summary> por filtro (com JS próprio de collapse/expand
+   persistido em sessionStorage, ver templates/admin/filter.html) — aqui só
+   reskina pra virar cards recolhíveis (mesma linguagem visual dos grupos
+   do menu à esquerda: chevron que gira, sem marker nativo), com o valor
+   selecionado em chip cheio em vez de link sublinhado. */
 #changelist-filter {
   border-radius: 0.75rem;
   overflow: hidden;
+}
+
+#changelist-filter details {
+  background: #fff;
+  border: 1px solid var(--hairline-color, #e2e8f0);
+  border-radius: 0.75rem;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+
+#changelist-filter summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #0f172a;
+  cursor: pointer;
+  list-style: none;
+}
+
+#changelist-filter summary::-webkit-details-marker {
+  display: none;
+}
+
+#changelist-filter summary::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+#changelist-filter details[open] summary::after {
+  transform: rotate(-135deg);
+}
+
+#changelist-filter details[open] summary {
+  border-bottom: 1px solid var(--hairline-color, #e2e8f0);
+}
+
+#changelist-filter ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.6rem 0.9rem 0.75rem;
+}
+
+#changelist-filter li {
+  margin: 0;
+}
+
+#changelist-filter li a {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  text-decoration: none;
+}
+
+#changelist-filter li a:hover {
+  background: #e2e8f0;
+}
+
+#changelist-filter li.selected a {
+  background: var(--primary);
+  color: #fff;
+}
+
+#changelist-filter-clear {
+  margin: 0 0 0.75rem;
+}
+
+#changelist-filter-clear a {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--primary);
 }
 
 /* Índice do Admin (dashboard): o base.css do Django trava #content em
