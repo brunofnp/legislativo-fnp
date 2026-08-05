@@ -8,6 +8,7 @@ services:
       - "127.0.0.1:8004:8004"  # nunca porta pública direta — só o Nginx expõe
     volumes:
       - ./media:/app/media
+      - ./staticfiles:/app/staticfiles  # Nginx serve /static/ direto do host (deploy/nginx-legislativo.conf) — sem isso o collectstatic fica preso dentro do container
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8004/"]
