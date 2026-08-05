@@ -746,6 +746,13 @@ body {
   box-shadow: 0 25px 55px rgba(15, 23, 42, 0.1);
 }
 
+/* Meu perfil reaproveita .auth-card (login/cadastro), mas tem mais campos
+   (foto, nome/sobrenome, município/UF, setor, cargo, telefone) -- 420px
+   deixava a maior parte da tela em branco. */
+.perfil-card {
+  width: min(640px, 100%);
+}
+
 .auth-subtitle {
   color: #6b7280;
   margin: 0 0 1.5rem;

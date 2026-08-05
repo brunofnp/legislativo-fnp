@@ -108,6 +108,20 @@ a.button {
   overflow: hidden;
 }
 
+/* Índice do Admin (dashboard): o base.css do Django trava #content em
+   600px fixos e reserva mais 300px de margem (.colMS) pra a sidebar nativa
+   de "Recent actions" -- removida via {% block sidebar %}{% endblock %} em
+   fnp_index.html, então o dashboard próprio (.fnp-dashboard/.fnp-panels)
+   fica livre pra usar a largura toda do #content-main. */
+.dashboard #content {
+  width: auto;
+  max-width: 1400px;
+}
+
+.dashboard #content.colMS {
+  margin-right: 0;
+}
+
 .fnp-dashboard {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
