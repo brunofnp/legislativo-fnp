@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-03 (domínio de produção confirmado — legislativo.fnp.org.br — com `.env.production.example` e `deploy/nginx-legislativo.conf` já preenchidos com os hosts reais do `fnp-database`; containerização Docker pronta no repo — Dockerfile/docker-compose.yml/entrypoint.sh/.dockerignore/.gitattributes — para deploy no droplet `fnp-web`; ação em massa "Rejeitar cadastros selecionados" no UsuarioAdmin; além de link "Início" na topbar quando a home está paginada/filtrada, busca da home com sugestões ao digitar, índice do Admin sem duplicidade de menu + painéis de engajamento/usuários/atalhos, paginação da home, rate limiting, denúncia de comentário, cabeçalhos de segurança de produção e suíte de testes ampliada de 10 para 29 já registrados antes)
+> Última atualização: 2026-08-05 (deploy em produção ativado e depurado de ponta a ponta nesta sessão — ver "Deploy real e correções pós-deploy" no Estado Atual — corrigidos: volume de `staticfiles` sem mount no `docker-compose.yml` (CSS/JS voltavam 404), UID do container `appuser` sem permissão de escrita no bind mount, certificado SSL perdido ao reinstalar o bloco Nginx do repo por cima do já configurado pelo certbot, `Noticia.url` estourando `varchar(200)` com links do Google News do Firestore legado (migration `0003_alter_noticia_url`, agora 1000), e banco de produção populado por engano só pelo `sync-camara` — 71 proposições sem nenhuma curadoria FNP, só 3 batendo com as 104 reais do legado — resolvido zerando e reimportando via `sync_legado_firestore`; ver Pendências para o risco do `sync-camara` repetir isso)
 
 ---
 
@@ -424,17 +424,74 @@ Claude Code não tem; só o código/arquivos de containerização foram
 preparados aqui. `manage.py check` limpo; build Docker local não pôde ser
 testado (Docker Desktop não estava com o daemon rodando nesta máquina).
 
+### Deploy real e correções pós-deploy (2026-08-05)
+
+Deploy efetivamente rodando no droplet `fnp-web` pela primeira vez nesta
+sessão (via SSH conduzido pelo usuário, comandos passados pelo Claude Code —
+sem acesso direto). Site caiu em produção logo depois de subir, com vários
+problemas em cadeia, todos corrigidos:
+
+- **CSS/JS voltando 404** — `docker-compose.yml` não montava `staticfiles/`
+  como volume; o `collectstatic` do `entrypoint.sh` gravava só dentro do
+  container, e o Nginx (`deploy/nginx-legislativo.conf`) serve `/static/`
+  direto de um caminho no host. Fix: `./staticfiles:/app/staticfiles`
+  adicionado ao `docker-compose.yml`.
+- **Container em restart loop (502 Bad Gateway)** — depois do fix acima, o
+  volume novo foi criado pelo Docker como `root:root` (rodado via `sudo`),
+  mas o processo do container roda como `appuser` (UID 1000, `Dockerfile`
+  não usa root) — sem permissão de escrita. Fix: `chown -R 1000:1000` no
+  host. **Atenção:** o volume de `media/` tem o mesmo risco em tese (nunca
+  testado upload de foto em produção) — vale conferir/chown antes que
+  alguém tente subir uma foto de perfil e caia no mesmo loop.
+- **Certificado SSL perdido** — copiar `deploy/nginx-legislativo.conf` por
+  cima de `/etc/nginx/sites-enabled/legislativo.conf` (pra sincronizar um
+  ajuste de comentário sobre DNS) apagou os blocos que o certbot tinha
+  adicionado (`listen 443 ssl`, `ssl_certificate`, redirect 80→443). Fix:
+  `sudo certbot --nginx -d legislativo.fnp.org.br` de novo, opção "1:
+  Attempt to reinstall". **Lembrete permanente:** todo `cp` desse arquivo
+  pro `/etc/nginx/sites-enabled/` precisa ser seguido de certbot de novo,
+  senão o Nginx volta a servir o certificado de outro sistema do droplet.
+- **Banco de produção com dado errado** — o serviço `sync-camara`
+  (`docker-compose.yml`, busca contínua por palavra-chave na API da
+  Câmara) subiu sozinho antes de qualquer importação do legado e populou
+  71 proposições **sem nenhuma curadoria da FNP** (`interlocutores` vazio
+  em todas). Comparação por título mostrou só 3 em comum com as 104 reais
+  do Firestore legado. Fix: zerado (`Proposicao.objects.all().delete()`,
+  confirmado sem comentários/participações reais antes) e reimportado via
+  `sync_legado_firestore` → 104/104 batendo. **Risco que continua**: o
+  `sync-camara --watch 1800` roda a cada 30min com as mesmas keywords
+  (`municípios,municipal,prefeituras,FPM`) e pode voltar a criar
+  proposições não-curadas com o tempo — decisão de produto ainda em
+  aberto (ver Pendências).
+- **Import do legado quebrando no meio** — `Noticia.url` é `URLField`
+  padrão (200 chars), mas links de notícia do Google News no Firestore
+  legado chegam a 714 chars (783 dos registros afetados) — um
+  `StringDataRightTruncation` no Postgres derrubava o comando inteiro sem
+  isolar por registro. Fix: migration `0003_alter_noticia_url`
+  (`max_length=1000`).
+- **Root preso na própria tela de aprovação de cadastro** — banco de
+  produção novo, ninguém ainda com `is_staff=True`; `CadastroPendenteMiddleware`
+  bloqueia todo mundo que não seja staff, inclusive quem seria o Root. Fix:
+  `python manage.py setup_roles` (promove `bruno.marra@fnp.org.br`,
+  idempotente) — **necessário rodar manualmente em todo banco de produção
+  novo do zero**, não acontece sozinho.
+
 ### Pendências e próximos passos
 
-- Rodar o deploy de fato: reconhecimento via SSH no `fnp-web` (RAM/containers já rodando, testar rota VPC privada vs. pública até o `fnp-database`), deploy key, `docker compose up` (usando `.env.production.example`), validação por túnel, instalar `deploy/nginx-legislativo.conf`, certbot para `legislativo.fnp.org.br` — ver `docs/runbook.md` § Deploy. Role/database já confirmados via painel DO em 2026-08-04: `legislativo`/`legislativo_fnp` (nomes reais, diferentes do que o runbook assumia antes — `.env.production.example` já corrigido); falta só confirmar se o `GRANT` já foi aplicado (testar `psql ... -c "\dt"` do droplet, ver `docs/runbook.md` § Banco de produção) e copiar a senha da role `legislativo` pro Bitwarden (visível via "show" no painel, só enquanto isso for possível). Trusted Sources do `fnp-database` pode já incluir o `fnp-web` (indício visto no painel, não confirmado) — checar antes de assumir que falta adicionar
-- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa captura de tela compartilhada nesta sessão (não foi usada/reproduzida, mas ficou registrada na conversa)
-- Credenciais reais do Google OAuth criadas em 2026-08-04 (Client ID/Secret preenchidos no `.env` local, não versionado); Client Secret foi exposto numa captura de tela compartilhada nesta sessão (risco baixo — app ainda em modo "teste" no Google Cloud Console, só e-mails cadastrados como usuário de teste completam o login; mesmo assim, considerar gerar um novo secret se o app for publicado). Redirect URIs já cadastrados e salvos no cliente OAuth (`http://127.0.0.1:8000/contas/google/login/callback/` dev + `https://legislativo.fnp.org.br/contas/google/login/callback/` produção). Falta: (1) testar o login local de fato assim que a configuração propagar (Google avisa que pode levar minutos a horas); (2) preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `.env` do servidor de produção (não é o mesmo `.env` local); (3) adicionar e-mails de teste na tela de consentimento OAuth até o app sair do modo "teste"
-- Serviço `sync-camara` (watch contínuo da API da Câmara) já definido em `docker-compose.yml`; falta subir no droplet (`docker compose up -d sync-camara`, ver `docs/runbook.md`) — depende do mesmo acesso SSH do item de deploy acima
+- **Política do `sync-camara` ainda não decidida**: hoje ele descobre e cria
+  proposições novas sozinho via busca por palavra-chave, sem qualquer
+  curadoria — o mesmo problema que causou a limpeza acima pode se repetir
+  a cada 30min. Decidir (revisão explícita, é mudança na diretriz de
+  Ingestão): manter como descoberta livre + fila de revisão manual no
+  Admin, restringir a só atualizar proposições já existentes (sem criar
+  novas), ou afinar as keywords.
+- Conferir/chown o volume de `media/` no droplet antes do primeiro upload de
+  foto de perfil em produção (mesmo risco de permissão do `staticfiles/`,
+  nunca testado)
+- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa captura de tela compartilhada em sessão anterior (não foi usada/reproduzida, mas ficou registrada na conversa)
+- Credenciais reais do Google OAuth criadas em 2026-08-04 (Client ID/Secret preenchidos no `.env` local, não versionado); Client Secret foi exposto numa captura de tela compartilhada em sessão anterior (risco baixo — app ainda em modo "teste" no Google Cloud Console, só e-mails cadastrados como usuário de teste completam o login; mesmo assim, considerar gerar um novo secret se o app for publicado). Redirect URIs já cadastrados e salvos no cliente OAuth (`http://127.0.0.1:8000/contas/google/login/callback/` dev + `https://legislativo.fnp.org.br/contas/google/login/callback/` produção). Falta: (1) testar o login local de fato; (2) preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `.env` do servidor de produção (não é o mesmo `.env` local); (3) adicionar e-mails de teste na tela de consentimento OAuth até o app sair do modo "teste"
 - Popular `PalavraProibida` de verdade via Admin (a lista nasce vazia de propósito — curadoria é decisão da equipe FNP, não do código)
 - Comentários "pendente" que já existiam antes da moderação automática continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra envios novos
-- Confirmar no Nginx do droplet que `X-Forwarded-Proto` é repassado antes de subir os cabeçalhos de segurança em produção pela primeira vez (`SECURE_SSL_REDIRECT` pode causar loop de redirect se não for) — o bloco Nginx do guia de deploy já envia esse header
-- Rodar `sync_legado_firestore`/`sync_camara` contra o banco de produção (só rodado localmente até agora)
-- Migrar produção de SQLite para PostgreSQL — passo a passo já documentado (ver seção Deploy acima), falta executar de fato; também destrava full-text search de verdade na busca da home, hoje `icontains` encadeado
 - Integração com o Senado (hoje só Câmara via `sync_camara`)
 - Redesign visual vem sendo feito incrementalmente a partir de referências de outra plataforma FNP que o usuário está enviando aos poucos (sidebar/topbar do site público e do Admin já alinhados; mais capturas de tela podem vir e pedir mais ajuste)
 
