@@ -103,6 +103,36 @@ a.button {
   background: var(--button-hover-bg);
 }
 
+/* Botões de ação rápida por linha (UsuarioAdmin.acoes_rapidas) -- aprovar/
+   rejeitar cadastro e exclusão sem precisar marcar checkbox + escolher no
+   dropdown de ação em massa (que continua existindo pra seleção múltipla). */
+.fnp-quick-action {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #fff;
+}
+
+.fnp-quick-action--ok {
+  background: #1a7f4b;
+}
+
+.fnp-quick-action--ok:hover {
+  background: #145c37;
+}
+
+.fnp-quick-action--danger {
+  background: #b3261e;
+}
+
+.fnp-quick-action--danger:hover {
+  background: #8c1d17;
+}
+
 #changelist-filter {
   border-radius: 0.75rem;
   overflow: hidden;

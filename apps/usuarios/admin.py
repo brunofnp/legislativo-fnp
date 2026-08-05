@@ -3,6 +3,7 @@ from django.contrib.admin.actions import delete_selected as django_delete_select
 from django.contrib.auth.admin import UserAdmin
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.html import format_html_join
 
 from .models import Municipio, Perfil, Usuario
 
@@ -22,10 +23,18 @@ class UsuarioAdmin(UserAdmin):
     list_display = (
         'username', 'email', 'first_name', 'last_name',
         'status_cadastro', 'exclusao_pendente', 'is_staff', 'is_superuser', 'is_active',
+        'acoes_rapidas',
     )
     list_filter = UserAdmin.list_filter + ('groups', 'perfil__status_aprovacao', 'perfil__exclusao_solicitada_em')
     inlines = [PerfilInline]
     actions = ['aprovar_cadastros', 'rejeitar_cadastros', 'aprovar_exclusoes', 'rejeitar_exclusoes']
+
+    class Media:
+        # Botões de ação rápida por linha (ver acoes_rapidas) reaproveitam o
+        # form/checkboxes/CSRF já existentes da changelist via JS, em vez de
+        # views/endpoints novos — aciona a mesma action registrada em
+        # `actions` (inclusive a tela nativa de confirmação de exclusão).
+        js = ('js/admin_quick_actions.js',)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('perfil')
@@ -67,6 +76,25 @@ class UsuarioAdmin(UserAdmin):
     def exclusao_pendente(self, obj):
         perfil = getattr(obj, 'perfil', None)
         return bool(perfil and perfil.exclusao_solicitada_em)
+
+    @admin.display(description='Ações rápidas')
+    def acoes_rapidas(self, obj):
+        perfil = getattr(obj, 'perfil', None)
+        botoes = []
+        if perfil and perfil.status_aprovacao == Perfil.PENDENTE:
+            botoes.append(('aprovar_cadastros', 'Aprovar cadastro', 'ok'))
+            botoes.append(('rejeitar_cadastros', 'Rejeitar cadastro', 'danger'))
+        if perfil and perfil.exclusao_solicitada_em:
+            botoes.append(('aprovar_exclusoes', 'Aprovar exclusão', 'danger'))
+            botoes.append(('rejeitar_exclusoes', 'Manter conta', 'ok'))
+        if not botoes:
+            return '—'
+        return format_html_join(
+            ' ',
+            '<button type="button" class="fnp-quick-action fnp-quick-action--{}" '
+            'data-fnp-action="{}" data-fnp-pk="{}">{}</button>',
+            ((estilo, acao, obj.pk, label) for acao, label, estilo in botoes),
+        )
 
     @admin.action(description='Aprovar cadastros selecionados')
     def aprovar_cadastros(self, request, queryset):
