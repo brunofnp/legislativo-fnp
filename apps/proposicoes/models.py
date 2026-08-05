@@ -130,7 +130,7 @@ class Noticia(models.Model):
     )
     titulo = models.CharField(max_length=512)
     resumo = models.TextField(blank=True)
-    url = models.URLField(blank=True)
+    url = models.URLField(max_length=1000, blank=True)
     publicado_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
