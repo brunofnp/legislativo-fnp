@@ -88,7 +88,8 @@ acesso SSH ao servidor):
 6. Só depois, instalar `deploy/nginx-legislativo.conf` (instruções de
    instalação no próprio arquivo) — `nginx -t` antes de `systemctl reload
    nginx`, já que um erro aqui derruba os outros sistemas
-   também. TLS via certbot, domínio apontado no Cloudflare.
+   também. TLS via certbot, domínio apontado no DNS do próprio DigitalOcean
+   (painel Networking → Domains, ver nota abaixo — não é Cloudflare).
 
 ## Popular o banco com dados reais
 
