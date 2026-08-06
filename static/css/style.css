@@ -755,7 +755,27 @@ body {
    (foto, nome/sobrenome, município/UF, setor, cargo, telefone) -- 420px
    deixava a maior parte da tela em branco. */
 .perfil-card {
-  width: min(640px, 100%);
+  width: min(820px, 100%);
+}
+
+/* Campos relacionados lado a lado (Nome/Sobrenome, Município/UF, Setor/
+   Cargo) em vez de empilhados -- usa a largura maior do card de verdade,
+   em vez de só esticar cada campo sozinho. Cada .form-row é 1 item do
+   flex column do .auth-form (mesmo espaçamento vertical de sempre); por
+   dentro é um grid de 2 colunas. */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.1rem;
+}
+
+.form-row-uf {
+  grid-template-columns: 2fr 1fr;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
 }
 
 .auth-subtitle {
@@ -1574,6 +1594,12 @@ body {
   .container {
     width: min(100%, calc(100% - 1rem));
     padding: 1rem 0;
+  }
+
+  .form-row,
+  .form-row-uf {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .page-shell {

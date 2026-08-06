@@ -27,18 +27,39 @@
         {% endif %}
         <div class="perfil-avatar-widget">{{ dados_form.foto }}</div>
       </div>
-      <label class="field-label">Nome</label>
-      {{ form.first_name }}
-      <label class="field-label">Sobrenome</label>
-      {{ form.last_name }}
-      <label class="field-label">Município</label>
-      {{ dados_form.municipio_nome }}
-      <label class="field-label">UF</label>
-      {{ dados_form.municipio_uf }}
-      <label class="field-label">Setor responsável</label>
-      {{ dados_form.setor_responsavel }}
-      <label class="field-label">Cargo</label>
-      {{ dados_form.cargo }}
+      <div class="form-row">
+        <div class="form-field">
+          <label class="field-label">Nome</label>
+          {{ form.first_name }}
+        </div>
+        <div class="form-field">
+          <label class="field-label">Sobrenome</label>
+          {{ form.last_name }}
+        </div>
+      </div>
+
+      <div class="form-row form-row-uf">
+        <div class="form-field">
+          <label class="field-label">Município</label>
+          {{ dados_form.municipio_nome }}
+        </div>
+        <div class="form-field">
+          <label class="field-label">UF</label>
+          {{ dados_form.municipio_uf }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label class="field-label">Setor responsável</label>
+          {{ dados_form.setor_responsavel }}
+        </div>
+        <div class="form-field">
+          <label class="field-label">Cargo</label>
+          {{ dados_form.cargo }}
+        </div>
+      </div>
+
       <label class="field-label">Telefone</label>
       {{ dados_form.telefone }}
       <button type="submit" class="fbtn auth-submit">Salvar</button>
