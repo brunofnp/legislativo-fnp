@@ -510,18 +510,58 @@ acessar e avisar manualmente, como aconteceu várias vezes antes desta
 sessão. Backup do `fnp-database` confirmado ativo (7 dias de retenção,
 point-in-time recovery, painel DO → Actions → Restore from backup).
 
+**Itens Alto/Médio, todos fechados na sequência (mesma sessão):**
+
+- Rate limit de login por IP explícito (`ACCOUNT_RATE_LIMITS`) — o allauth
+  65.x já vem com isso por padrão, só documentado.
+- **2FA obrigatório pra staff** (`allauth.mfa`, TOTP + códigos de
+  recuperação) via `MFAObrigatorioStaffMiddleware` novo — **todo staff
+  existente sem 2FA fica bloqueado no primeiro acesso depois do deploy**,
+  avisar a equipe antes.
+- `SECURE_REFERRER_POLICY`, `CSRF_TRUSTED_ORIGINS` (derivado do
+  `ALLOWED_HOSTS`) explícitos.
+- Limite de upload de foto de perfil (5MB): validador em `Perfil.foto` +
+  `client_max_body_size 6M` no `deploy/nginx-legislativo.conf` (precisa de
+  `cp` manual + reload no droplet pra valer, como todo ajuste desse
+  arquivo).
+- `ACCOUNT_EMAIL_VERIFICATION` `'none'` → `'optional'`.
+- **Content-Security-Policy** (`django-csp`) — `script-src` estrito (nonce
+  automático), `style-src` com `'unsafe-inline'` (vários templates ainda
+  usam `style="..."` inline, cleanup maior não feito agora).
+- **Lockfile com hash** (`requirements.lock`, pip-tools) — Dockerfile
+  instala dele agora, com verificação de hash. `pip-audit` rodando no CI a
+  cada push/PR.
+- **CAPTCHA no cadastro** (`django-recaptcha`) — só ativa com
+  `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY` preenchidas.
+- **Achado extra do `pip-audit`** (não estava na lista original): Pillow
+  10.4.0 tinha 24 vulnerabilidades conhecidas, corrigidas só na série
+  12.x — atualizado (`>=10.0,<11.0` → `>=12.0,<13.0`).
+
 ### Pendências e próximos passos
 
 - **Testar login com Google de verdade em produção** depois do upgrade do
   allauth (0.60→65.19) — só o login por e-mail foi verificado
   automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
-- **Itens de segurança Alto/Médio ainda não implementados** (levantamento
-  completo feito, aguardando priorização): 2FA para Root/Administrador FNP,
-  rate limit de login por IP (hoje só o padrão do allauth, por conta),
-  CAPTCHA no cadastro, `CSP`/`Referrer-Policy`/`Permissions-Policy`,
-  `CSRF_TRUSTED_ORIGINS` explícito, limite de upload (`client_max_body_size`
-  no Nginx / `DATA_UPLOAD_MAX_MEMORY_SIZE`), lockfile de dependências com
-  hash, scan automatizado de dependência vulnerável no CI.
+- **Contas externas que faltam ser criadas** pra ativar o que já está
+  implementado (tudo desligado até então, zero risco): `SENTRY_DSN`
+  (sentry.io), `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY`
+  (google.com/recaptcha/admin).
+- **`EMAIL_BACKEND` não configurado** — `ACCOUNT_EMAIL_VERIFICATION=optional`
+  manda e-mail de confirmação, mas sem backend real (SMTP/SES/etc.) ele
+  usa o backend console do Django e não entrega de verdade.
+- **Cache do Django é `LocMemCache`** (por processo) — com o Gunicorn
+  rodando `--workers 3`, tanto o rate limit de login quanto o
+  `throttling.py` de comentário/participação têm limite efetivo até 3x
+  mais permissivo do que o configurado (cada processo conta separado).
+  Decisão de trocar por cache compartilhado (Redis) ainda em aberto — é
+  reabrir a diretriz "só trocar por Redis se crescer pra múltiplos
+  workers", que já aconteceu.
+- **`style-src` do CSP com `'unsafe-inline'`** — vários templates usam
+  atributo `style="..."` inline; remover exigiria um cleanup maior
+  (mover pra classes CSS) não feito agora.
+- **Rodar `deploy/nginx-legislativo.conf` atualizado no droplet**
+  (`client_max_body_size`) — `cp` manual + certbot de novo (reinstalar
+  sobrescreve o bloco SSL, já aconteceu antes nesta sessão).
 - **Droplet `fnp-web` sem backup próprio** (só o `fnp-database` tem — o
   droplet em si, com Nginx/Docker/certificados, não tem snapshot nenhum).
 - Reverificar se o bug do Python 3.14 (`copy.copy()` em `RequestContext`)
