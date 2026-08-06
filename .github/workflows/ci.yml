@@ -22,3 +22,5 @@ jobs:
         run: python manage.py migrate
       - name: Run tests
         run: pytest
+      - name: Scan dependencies for known vulnerabilities
+        run: pip-audit -r requirements.lock
