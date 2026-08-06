@@ -35,6 +35,9 @@
         {{ form.password1 }}
         <label class="field-label">Confirmar senha</label>
         {{ form.password2 }}
+        {% if form.captcha %}
+          <div class="auth-captcha">{{ form.captcha }}</div>
+        {% endif %}
         <button type="submit" class="fbtn auth-submit">Criar conta</button>
       </form>
 

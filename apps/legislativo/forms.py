@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.utils.text import slugify
 
 from apps.comentarios.models import Comentario, Participacao
@@ -56,6 +57,19 @@ class CustomSignupForm(forms.Form):
         label='Telefone',
         widget=forms.TextInput(attrs={'placeholder': 'Seu telefone'}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Campo só existe se RECAPTCHA_PUBLIC_KEY/RECAPTCHA_PRIVATE_KEY
+        # estiverem configuradas (ver settings.py) -- sem chave real, o
+        # cadastro continua exatamente como antes, sem captcha nenhum
+        # (nunca usa as chaves de teste do Google, que sempre validam e
+        # não protegem nada de verdade).
+        if getattr(settings, 'RECAPTCHA_HABILITADO', False):
+            from django_recaptcha.fields import ReCaptchaField
+            from django_recaptcha.widgets import ReCaptchaV2Checkbox
+
+            self.fields['captcha'] = ReCaptchaField(widget=ReCaptchaV2Checkbox())
 
     def signup(self, request, user):
         user.first_name = self.cleaned_data['first_name']

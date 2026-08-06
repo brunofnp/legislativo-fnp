@@ -279,6 +279,7 @@ django==5.2.17 \
     #   dj-database-url
     #   django-allauth
     #   django-csp
+    #   django-recaptcha
 django-allauth[mfa,socialaccount]==65.19.0 \
     --hash=sha256:9a615fd7f48f31985e1e3d886f8983e12d09e189f8d00d7a9750b3d300b7b366 \
     --hash=sha256:e37efea604d0bf40a6b16edd5b00e1560414e2c3ed07c2431b6e5bb058e2a771
@@ -286,6 +287,10 @@ django-allauth[mfa,socialaccount]==65.19.0 \
 django-csp==4.0 \
     --hash=sha256:b27010bb702eb20a3dad329178df2b61a2b82d338b70fbdc13c3a3bd28712833 \
     --hash=sha256:d5a0a05463a6b75a4f1fc1828c58c89af8db9364d09fc6e12f122b4d7f3d00dc
+    # via -r requirements.txt
+django-recaptcha==4.1.0 \
+    --hash=sha256:463aa65967e973de466b28ce8e8b6abb2faffb1ce0c7faa1bf0e5b041e0497cb \
+    --hash=sha256:73097b958733f65b729d4e4630c51fc2bf147aca6f026017d18898dfc25cb4c5
     # via -r requirements.txt
 fido2==2.2.1 \
     --hash=sha256:85787428a94c3f8eaf72f0ff30afba983b559a1b1b795c93318c81b4ad4062c4 \

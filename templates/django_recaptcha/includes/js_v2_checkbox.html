@@ -1,0 +1,10 @@
+{# Override do template nativo do django_recaptcha só pra adicionar
+   nonce="{{ CSP_NONCE }}" no <script> inline -- nossa CSP (script-src)
+   não tem 'unsafe-inline', então sem o nonce esse script seria bloqueado
+   pelo navegador. Resto idêntico ao original do pacote. #}
+<script src="https://{{ recaptcha_domain }}/recaptcha/api.js{% if api_params %}?{{ api_params }}{% endif %}"></script>
+<script nonce="{{ CSP_NONCE }}">
+    var onSubmit_{{ widget_uuid }} = function(token) {
+        console.log("reCAPTCHA validated for 'data-widget-uuid=\"{{ widget_uuid }}\"'")
+    };
+</script>

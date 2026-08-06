@@ -45,6 +45,16 @@ CSRF_TRUSTED_ORIGINS = [
 # uma versão futura mudar sem a gente perceber).
 SECURE_REFERRER_POLICY = 'same-origin'
 
+# CAPTCHA no cadastro (django-recaptcha) — só ativa se as duas chaves
+# estiverem configuradas (criar em https://www.google.com/recaptcha/admin,
+# tipo "reCAPTCHA v2 checkbox"). Sem chave, o campo nem aparece no
+# CustomSignupForm (ver forms.py) e o CSP abaixo não abre exceção
+# nenhuma pro Google -- comportamento hoje é idêntico a antes de ter
+# django-recaptcha instalado.
+RECAPTCHA_PUBLIC_KEY = os.getenv('RECAPTCHA_PUBLIC_KEY', '')
+RECAPTCHA_PRIVATE_KEY = os.getenv('RECAPTCHA_PRIVATE_KEY', '')
+RECAPTCHA_HABILITADO = bool(RECAPTCHA_PUBLIC_KEY and RECAPTCHA_PRIVATE_KEY)
+
 # Content-Security-Policy (django-csp). style-src precisa de 'unsafe-inline'
 # porque vários templates ainda usam atributo style="..." inline (achado
 # no levantamento, não corrigido agora -- é um cleanup maior, ver
@@ -57,14 +67,24 @@ SECURE_REFERRER_POLICY = 'same-origin'
 # pra não precisar de 'unsafe-inline' em script.
 from csp.constants import NONCE, SELF, UNSAFE_INLINE  # noqa: E402
 
+_csp_script_src = [SELF, NONCE]
+_csp_frame_src = ["'none'"]
+if RECAPTCHA_HABILITADO:
+    # Widget do reCAPTCHA carrega um <script src> do Google + um iframe
+    # (o script inline dele próprio já ganha nonce via override em
+    # templates/django_recaptcha/includes/js_v2_checkbox.html).
+    _csp_script_src += ['https://www.google.com/recaptcha/', 'https://www.gstatic.com/recaptcha/']
+    _csp_frame_src = ['https://www.google.com/recaptcha/']
+
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': [SELF],
-        'script-src': [SELF, NONCE],
+        'script-src': _csp_script_src,
         'style-src': [SELF, UNSAFE_INLINE, 'https://fonts.googleapis.com'],
         'font-src': [SELF, 'https://fonts.gstatic.com'],
         'img-src': [SELF, 'data:', 'https:'],  # https: cobre foto de perfil do Google (googleusercontent.com, vários subdomínios)
         'connect-src': [SELF],
+        'frame-src': _csp_frame_src,
         'form-action': [SELF],
         'frame-ancestors': ["'none'"],
         'base-uri': [SELF],
@@ -101,6 +121,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.mfa',
     'csp',
+    'django_recaptcha',
     'apps.usuarios',
     'apps.proposicoes',
     'apps.comentarios',

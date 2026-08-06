@@ -360,6 +360,19 @@ class AvatarUrlTest(TestCase):
             usuario.perfil.full_clean()
 
 
+class CustomSignupFormCaptchaTest(TestCase):
+    def test_sem_chaves_configuradas_formulario_nao_tem_campo_captcha(self):
+        from .forms import CustomSignupForm
+
+        self.assertNotIn('captcha', CustomSignupForm().fields)
+
+    @override_settings(RECAPTCHA_HABILITADO=True)
+    def test_com_chaves_configuradas_formulario_ganha_campo_captcha(self):
+        from .forms import CustomSignupForm
+
+        self.assertIn('captcha', CustomSignupForm().fields)
+
+
 class RateLimitTest(TestCase):
     def setUp(self):
         cache.clear()
