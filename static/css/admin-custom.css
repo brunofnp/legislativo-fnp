@@ -146,6 +146,7 @@ a.button {
 .dashboard #content {
   width: auto;
   max-width: 1400px;
+  margin: 0 auto;
 }
 
 .dashboard #content.colMS {

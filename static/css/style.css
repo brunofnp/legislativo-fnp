@@ -126,6 +126,11 @@ body {
   display: grid;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  /* Dentro de um pai flex (.app-content), continua ocupando a largura
+     toda e alinhado à esquerda, em vez de encolher/centralizar junto
+     com o card abaixo (só o card deve ficar mais estreito e centrado). */
+  align-self: stretch;
+  width: 100%;
 }
 
 .eyebrow {
@@ -2083,6 +2088,14 @@ body {
 .app-content {
   flex: 1;
   padding: 1.75rem 2rem;
+  /* Conteúdo (ex.: .perfil-card) fica centralizado em vez de grudado no
+     canto esquerdo em telas largas -- .app-content preenche todo o
+     espaço ao lado da sidebar, mas o cartão em si é mais estreito.
+     Cada filho mantém sua própria largura (ex.: .perfil-card continua
+     min(640px, 100%)), só o alinhamento horizontal muda. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ==================== Modal de busca (Ctrl+K) ==================== */
