@@ -487,3 +487,32 @@ a.button {
   padding: 0.45rem 0.6rem;
   font-size: 0.85rem;
 }
+
+/* ==================== Mobile (Admin nunca teve nenhum ajuste próprio até
+   aqui -- só herdava o admin/css/responsive.css nativo do Django, que não
+   cobre a tabela de listagem: colunas simplesmente ficavam cortadas fora
+   da tela, sem scroll, em vez de acessíveis). Breakpoint 767px pra bater
+   com o breakpoint que o responsive.css do Django já usa. ==================== */
+
+@media (max-width: 767px) {
+  #header {
+    padding: 0.75rem 1rem;
+  }
+
+  #branding h1 {
+    font-size: 1rem;
+    gap: 0.4rem;
+  }
+
+  .admin-brand-logo {
+    height: 1.3rem;
+  }
+
+  /* A tabela de listagem (ex.: Comentários, Usuários) nunca tinha rolagem
+     própria -- colunas como STATUS ficavam cortadas fora da tela, com o
+     dado inacessível mesmo tentando rolar a página inteira. */
+  .results {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
