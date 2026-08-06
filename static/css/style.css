@@ -1602,7 +1602,13 @@ body {
 }
 
 .app-sidebar {
-  width: 240px;
+  /* rem, não px -- o botão de tamanho de fonte (Aa) escala o resto do
+     conteúdo da sidebar (texto/ícones/preenchimento, tudo em rem); se a
+     largura ficasse fixa em px, o espaço disponível encolheria na
+     prática cada vez que a fonte aumentasse, truncando os rótulos.
+     16rem (não os 15rem/240px originais) dá folga extra pra rótulos
+     como "Exportar meus dados" caberem por inteiro. */
+  width: 16rem;
   flex-shrink: 0;
   background: #16233c;
   color: #cbd5e1;
@@ -1617,7 +1623,7 @@ body {
 }
 
 .app-shell.sidebar-collapsed .app-sidebar {
-  width: 76px;
+  width: 4.75rem;
   padding: 1.25rem 0.6rem;
 }
 
