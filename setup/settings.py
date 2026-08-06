@@ -143,9 +143,12 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+# ACCOUNT_LOGIN_METHODS/ACCOUNT_SIGNUP_FIELDS substituem
+# ACCOUNT_AUTHENTICATION_METHOD/ACCOUNT_EMAIL_REQUIRED/ACCOUNT_USERNAME_REQUIRED
+# (renomeados no upgrade allauth 0.60->65.x) -- mesmo comportamento de antes:
+# login só por e-mail, sem campo de username no cadastro.
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_LOGOUT_ON_GET = True
 LOGIN_URL = '/contas/login/'
