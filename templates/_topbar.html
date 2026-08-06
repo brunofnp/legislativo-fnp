@@ -41,10 +41,12 @@
       <kbd>Ctrl K</kbd>
     </button>
 
-    {# Tamanho da fonte + tema agrupados num menu "Mais opções" pra não
-       lotar a topbar de ícone (chegava a 7 alvos de toque numa linha só
-       no mobile) -- mesmo padrão de dropdown/JS do #notif-wrapper abaixo
-       (initDropdown em main.js), ids inalterados. #}
+    {% comment %}
+      Tamanho da fonte + tema agrupados num menu "Mais opções" pra não
+      lotar a topbar de ícone (chegava a 7 alvos de toque numa linha só
+      no mobile) -- mesmo padrão de dropdown/JS do #notif-wrapper abaixo
+      (initDropdown em main.js), ids inalterados.
+    {% endcomment %}
     <div class="topbar-more-wrapper">
       <button type="button" class="icon-btn" id="topbar-more-btn" aria-label="Mais opções">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
