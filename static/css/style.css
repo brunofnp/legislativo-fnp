@@ -145,7 +145,7 @@ body {
 
 .page-hero p {
   margin: 1rem 0 0;
-  color: #475569;
+  color: var(--text-secondary, #475569);
   max-width: 56rem;
   font-size: 1rem;
   line-height: 1.8;
@@ -170,7 +170,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   margin-bottom: 0.75rem;
 }
 
@@ -277,13 +277,13 @@ body {
 
 .search-suggestion-meta {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .search-suggestion-empty {
   padding: 0.75rem 0.85rem;
   margin: 0;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-size: 0.85rem;
 }
 
@@ -495,7 +495,7 @@ body {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--text-secondary, #475569);
 }
 
 .meta-item {
@@ -628,7 +628,7 @@ body {
 }
 
 .card-excerpt {
-  color: #475569;
+  color: var(--text-secondary, #475569);
   margin: 0;
   line-height: 1.55;
   max-height: 3.1em;
@@ -638,7 +638,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-size: 0.95rem;
 }
 
@@ -652,7 +652,7 @@ body {
 }
 
 .footer-movimentacao {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-size: 0.85rem;
   line-height: 1.5;
 }
@@ -692,7 +692,7 @@ body {
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
-  color: #475569;
+  color: var(--text-secondary, #475569);
   background: #fff;
   border-radius: 1rem;
   box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
@@ -723,7 +723,7 @@ body {
 
 .pagination-status {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 [data-theme="dark"] .pagination-link {
@@ -754,7 +754,7 @@ body {
 }
 
 .auth-subtitle {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   margin: 0 0 1.5rem;
   font-size: 0.92rem;
   line-height: 1.6;
@@ -798,7 +798,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--text-secondary, #475569);
   margin-bottom: 0.75rem;
 }
 
@@ -822,7 +822,7 @@ body {
   display: flex;
   align-items: center;
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-muted, #9ca3af);
   font-size: 0.82rem;
   margin: 1.5rem 0;
 }
@@ -864,7 +864,7 @@ body {
   text-align: center;
   margin: 1.5rem 0 0;
   font-size: 0.88rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .auth-footer a {
@@ -907,7 +907,7 @@ body {
   min-width: 0;
   padding-top: 0.4rem;
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   line-height: 2;
 }
 
@@ -996,7 +996,7 @@ body {
 }
 
 .auth-card p {
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   line-height: 1.6;
   margin: 0 0 1.25rem;
 }
@@ -1011,7 +1011,7 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .auth-card form input:not([type="hidden"]):not([type="checkbox"]):not([type="file"]),
@@ -1136,7 +1136,7 @@ body {
 .panel-block p {
   margin: 0;
   line-height: 1.8;
-  color: #475569;
+  color: var(--text-secondary, #475569);
 }
 
 .two-columns {
@@ -1156,7 +1156,7 @@ body {
 
 .merit-columns > div h3 {
   font-size: 0.82rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   margin-bottom: 0.5rem;
 }
 
@@ -1186,7 +1186,7 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .toast.success {
@@ -1217,7 +1217,7 @@ body {
   gap: 0.9rem;
   flex-wrap: wrap;
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .forum-metric strong {
@@ -1651,7 +1651,7 @@ body {
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   white-space: nowrap;
   overflow: hidden;
 }
