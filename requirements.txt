@@ -8,3 +8,4 @@ requests>=2.31,<3.0
 django-allauth[socialaccount,mfa]>=65.7,<66.0
 Pillow>=10.0,<11.0
 sentry-sdk>=2.0,<3.0
+django-csp>=4.0,<5.0

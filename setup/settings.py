@@ -45,6 +45,33 @@ CSRF_TRUSTED_ORIGINS = [
 # uma versão futura mudar sem a gente perceber).
 SECURE_REFERRER_POLICY = 'same-origin'
 
+# Content-Security-Policy (django-csp). style-src precisa de 'unsafe-inline'
+# porque vários templates ainda usam atributo style="..." inline (achado
+# no levantamento, não corrigido agora -- é um cleanup maior, ver
+# Pendências) -- então a proteção de XSS via CSS/estilo fica mais fraca
+# por enquanto. script-src fica estrito (só 'self' + nonce automático):
+# o único <script> inline do projeto (detecção de tema/fonte antes da
+# primeira renderização, em base.html) usa {{ CSP_NONCE }}; o onclick
+# que existia em admin/usuarios/usuario/submit_line.html foi movido pra
+# um JS externo (mesmo padrão do admin_quick_actions.js) especificamente
+# pra não precisar de 'unsafe-inline' em script.
+from csp.constants import NONCE, SELF, UNSAFE_INLINE  # noqa: E402
+
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': [SELF],
+        'script-src': [SELF, NONCE],
+        'style-src': [SELF, UNSAFE_INLINE, 'https://fonts.googleapis.com'],
+        'font-src': [SELF, 'https://fonts.gstatic.com'],
+        'img-src': [SELF, 'data:', 'https:'],  # https: cobre foto de perfil do Google (googleusercontent.com, vários subdomínios)
+        'connect-src': [SELF],
+        'form-action': [SELF],
+        'frame-ancestors': ["'none'"],
+        'base-uri': [SELF],
+        'object-src': ["'none'"],
+    },
+}
+
 # Monitoramento de erro (Sentry) — só ativa se SENTRY_DSN estiver setado
 # (fica desligado em dev local por padrão, sem precisar de conta/projeto).
 SENTRY_DSN = os.getenv('SENTRY_DSN', '')
@@ -73,6 +100,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.mfa',
+    'csp',
     'apps.usuarios',
     'apps.proposicoes',
     'apps.comentarios',
@@ -81,6 +109,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -107,6 +136,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.legislativo.context_processors.notificacoes',
+                'csp.context_processors.nonce',
             ],
         },
     },

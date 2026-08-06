@@ -13,7 +13,7 @@
     {% if perfil.exclusao_solicitada_em %}
         <input type="submit" value="Rejeitar exclusão (manter conta)" name="_rejeitar_exclusao">
         <input type="submit" value="Aprovar exclusão (excluir conta)" name="_aprovar_exclusao" class="deletelink"
-               onclick="return confirm('Excluir a conta de {{ original }} permanentemente? Essa ação não pode ser desfeita.');">
+               data-confirm="Excluir a conta de {{ original }} permanentemente? Essa ação não pode ser desfeita.">
     {% endif %}
 {% endif %}
 {% endwith %}

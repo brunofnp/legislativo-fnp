@@ -17,3 +17,14 @@ document.addEventListener('click', function (event) {
 
   form.requestSubmit ? form.requestSubmit() : form.submit();
 });
+
+// Confirmação antes de ação destrutiva (ex.: "Aprovar exclusão" na página
+// do usuário) -- substitui onclick="return confirm(...)" inline, que a
+// Content-Security-Policy (script-src sem 'unsafe-inline') bloquearia.
+document.addEventListener('click', function (event) {
+  var botao = event.target.closest('[data-confirm]');
+  if (!botao) return;
+  if (!confirm(botao.dataset.confirm)) {
+    event.preventDefault();
+  }
+});
