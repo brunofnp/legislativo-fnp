@@ -341,6 +341,24 @@ class AvatarUrlTest(TestCase):
         self.assertIn('avatar', usuario.get_avatar_url())
         self.assertNotEqual(usuario.get_avatar_url(), 'https://exemplo.com/foto.jpg')
 
+    def test_foto_maior_que_o_limite_e_rejeitada(self):
+        from django.core.exceptions import ValidationError
+
+        from apps.usuarios.models import FOTO_PERFIL_TAMANHO_MAXIMO_MB, validar_tamanho_foto_perfil
+
+        usuario = Usuario.objects.create(username='av4', email='av4@fnp.org.br')
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2)).save(buffer, format='PNG')
+        arquivo = SimpleUploadedFile('avatar.png', buffer.getvalue())
+        arquivo.size = FOTO_PERFIL_TAMANHO_MAXIMO_MB * 1024 * 1024 + 1  # simula arquivo grande sem gerar bytes reais
+
+        with self.assertRaises(ValidationError):
+            validar_tamanho_foto_perfil(arquivo)
+
+        usuario.perfil.foto = arquivo
+        with self.assertRaises(ValidationError):
+            usuario.perfil.full_clean()
+
 
 class RateLimitTest(TestCase):
     def setUp(self):

@@ -1,7 +1,16 @@
 import re
 
 from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.core.exceptions import ValidationError
 from django.db import models
+
+FOTO_PERFIL_TAMANHO_MAXIMO_MB = 5
+
+
+def validar_tamanho_foto_perfil(arquivo):
+    limite = FOTO_PERFIL_TAMANHO_MAXIMO_MB * 1024 * 1024
+    if arquivo.size > limite:
+        raise ValidationError(f'Imagem muito grande (máx. {FOTO_PERFIL_TAMANHO_MAXIMO_MB}MB).')
 
 
 class Municipio(models.Model):
@@ -99,7 +108,9 @@ class Perfil(models.Model):
         choices=STATUS_APROVACAO_CHOICES,
         default=PENDENTE,
     )
-    foto = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    foto = models.ImageField(
+        upload_to='avatars/', blank=True, null=True, validators=[validar_tamanho_foto_perfil],
+    )
     foto_google_url = models.URLField(blank=True)
     exclusao_solicitada_em = models.DateTimeField(null=True, blank=True)
 

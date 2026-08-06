@@ -34,6 +34,17 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
 
+# Derivado do próprio ALLOWED_HOSTS em vez de uma env var nova -- fica
+# sempre em sincronia. Pula hosts de dev local (sem HTTPS, não precisam).
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{host}' for host in ALLOWED_HOSTS if host not in ('127.0.0.1', 'localhost')
+]
+
+# Referrer-Policy explícito (mesmo valor que já é o default do Django desde
+# a 3.0 -- documentado aqui pra não depender implicitamente do default de
+# uma versão futura mudar sem a gente perceber).
+SECURE_REFERRER_POLICY = 'same-origin'
+
 # Monitoramento de erro (Sentry) — só ativa se SENTRY_DSN estiver setado
 # (fica desligado em dev local por padrão, sem precisar de conta/projeto).
 SENTRY_DSN = os.getenv('SENTRY_DSN', '')
@@ -150,7 +161,13 @@ AUTHENTICATION_BACKENDS = [
 # login só por e-mail, sem campo de username no cadastro.
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+# 'optional' em vez de 'none': manda e-mail de confirmação mas não bloqueia
+# login sem clicar -- cadastro pendente (CadastroPendenteMiddleware) já
+# exige aprovação manual da equipe antes de liberar navegação de qualquer
+# forma, então 'mandatory' (bloquear login sem confirmar) não é obrigatório
+# agora. Nota: sem EMAIL_BACKEND configurado, o e-mail de confirmação usa o
+# backend console do Django (não entrega de verdade) -- ver Pendências.
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_LOGOUT_ON_GET = True
 LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
