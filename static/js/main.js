@@ -183,6 +183,7 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initDropdown('notif-btn', 'notif-dropdown');
+  initDropdown('topbar-more-btn', 'topbar-more-panel');
 
   function initSearchModal() {
     const modal = document.getElementById('search-modal');

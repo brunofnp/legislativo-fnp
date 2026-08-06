@@ -1976,6 +1976,57 @@ body {
   margin: 0;
 }
 
+.topbar-more-wrapper {
+  position: relative;
+}
+
+.topbar-more-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-surface);
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 25px 55px rgba(15, 23, 42, 0.18);
+  z-index: 20;
+  display: none;
+  padding: 0.4rem;
+}
+
+.topbar-more-panel.open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.topbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topbar-more-item:hover {
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+}
+
+.topbar-more-item svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
 .user-menu-trigger {
   display: flex;
   align-items: center;
@@ -2120,6 +2171,28 @@ body {
 
   .topbar-search-trigger span {
     display: none;
+  }
+
+  /* Área de toque confortável (WCAG/HIG recomendam mínimo de 44px) --
+     no desktop o tamanho menor (2.25rem) já é suficiente com mouse. */
+  .icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .topbar-search-trigger {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .topbar-search-trigger kbd {
+    display: none;
+  }
+
+  .app-topbar-actions {
+    gap: 0.25rem;
   }
 }
 
