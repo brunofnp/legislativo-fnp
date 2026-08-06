@@ -1663,6 +1663,15 @@ body {
   font-weight: 500;
   transition: background .15s ease, color .15s ease;
   white-space: nowrap;
+  /* Rótulos mais longos ("Exportar meus dados") truncam com "..." em vez
+     de estourar a largura fixa da sidebar e forçar rolagem horizontal. */
+  overflow: hidden;
+}
+
+.sidebar-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .sidebar-link svg {
