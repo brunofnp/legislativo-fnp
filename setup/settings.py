@@ -13,6 +13,21 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
 
+# Monitoramento de erro (Sentry) — só ativa se SENTRY_DSN estiver setado
+# (fica desligado em dev local por padrão, sem precisar de conta/projeto).
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.0,  # só captura erro, sem tracing de performance
+        send_default_pii=False,  # nunca envia dado pessoal de usuário por padrão
+        environment='production' if not DEBUG else 'development',
+    )
+
 INSTALLED_APPS = [
     'apps.legislativo.admin_site.FNPAdminConfig',
     'django.contrib.auth',
