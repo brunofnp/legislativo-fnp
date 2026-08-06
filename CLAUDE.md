@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-05 (deploy em produção ativado e depurado de ponta a ponta nesta sessão — ver "Deploy real e correções pós-deploy" no Estado Atual — corrigidos: volume de `staticfiles` sem mount no `docker-compose.yml` (CSS/JS voltavam 404), UID do container `appuser` sem permissão de escrita no bind mount, certificado SSL perdido ao reinstalar o bloco Nginx do repo por cima do já configurado pelo certbot, `Noticia.url` estourando `varchar(200)` com links do Google News do Firestore legado (migration `0003_alter_noticia_url`, agora 1000), e banco de produção populado por engano só pelo `sync-camara` — 71 proposições sem nenhuma curadoria FNP, só 3 batendo com as 104 reais do legado — resolvido zerando e reimportando via `sync_legado_firestore`; ver Pendências para o risco do `sync-camara` repetir isso)
+> Última atualização: 2026-08-06 (auditoria de segurança + upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual; também melhorias de UI mobile em várias telas nesta sessão — topbar, Admin, sidebar, formulário de perfil — e correção de um comentário Django `{# #}` multi-linha vazando como texto na topbar. Sessão anterior, 2026-08-05: deploy em produção ativado e depurado de ponta a ponta — ver "Deploy real e correções pós-deploy" no Estado Atual)
 
 ---
 
@@ -18,10 +18,10 @@ Branch de desenvolvimento ativo: `next`
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | Django 4.2.x · Python 3.12 local (via `.venv/`) / 3.11 no CI |
-| Auth | django-allauth (login por e-mail + Google OAuth, cadastro manual ou Google) |
+| Backend | Django 5.2 LTS (suporte até abril/2028) · Python 3.12 local (via `.venv/`) / 3.11 no CI |
+| Auth | django-allauth 65.x (login por e-mail + Google OAuth, cadastro manual ou Google) |
 | Banco (dev) | SQLite |
-| Banco (prod) | PostgreSQL (planejado, via `DATABASE_URL`) |
+| Banco (prod) | PostgreSQL 18 (DigitalOcean Managed Database, `fnp-database`), via `DATABASE_URL` |
 | Templates | Django Templates + CSS/JS vanilla |
 | Estáticos | WhiteNoise |
 | Dados | Modelos Django + management commands (`ingest_legislativo`, `sync_legado_firestore`, `sync_camara --watch`) |
@@ -29,7 +29,7 @@ Branch de desenvolvimento ativo: `next`
 | UI | HTML semântico, CSS customizado (dark mode via `[data-theme]`), JavaScript vanilla |
 | Testes | Django TestCase (via `RequestFactory`, não `self.client` — ver Observações) + pytest |
 
-**Observação sobre Python 3.14:** Django 4.2 só suporta oficialmente até Python 3.12 — no 3.14 há um bug real do próprio Django (`copy.copy()` sobre `RequestContext`, `django/template/context.py`) que quebra `self.client.get(...)` nos testes E **todas as telas de listagem/adicionar do Django Admin** em runtime normal (não só em teste). Não é bug deste projeto, não afeta CI (3.11) nem produção. Fix local: sempre rodar via `.venv/` (Python 3.12, já criado e no `.gitignore`) — ver `docs/runbook.md`. Os testes usam `RequestFactory` + `SessionMiddleware` manual (funciona em qualquer versão, mantido por robustez).
+**Observação sobre Python 3.14:** documentado quando o projeto ainda estava no Django 4.2 — havia um bug real do próprio Django (`copy.copy()` sobre `RequestContext`, `django/template/context.py`) que quebrava `self.client.get(...)` nos testes E as telas de listagem/adicionar do Admin em runtime normal no 3.14. Com o upgrade pra Django 5.2 (2026-08-06), esse bug pode já ter sido corrigido nas versões mais novas — **não testado/reverificado ainda** (o `.venv/` local continua em Python 3.12 por segurança). Os testes continuam usando `RequestFactory` + `SessionMiddleware` manual (funciona em qualquer versão, mantido por robustez), independente disso.
 
 ---
 
@@ -476,8 +476,57 @@ problemas em cadeia, todos corrigidos:
   idempotente) — **necessário rodar manualmente em todo banco de produção
   novo do zero**, não acontece sozinho.
 
+### Auditoria de segurança e upgrade Django/allauth (2026-08-06)
+
+A pedido do usuário, levantamento de segurança do sistema (plataforma é fórum
+de discussão política, alvo plausível de ataque) — achados verificados no
+código, não lista genérica. Dois itens **Crítico** corrigidos nesta sessão:
+
+- **Django 4.2 sem patch de segurança desde 2026-04-07** (confirmado na
+  fonte oficial, `djangoproject.com/download`) — upgrade feito em 3 etapas
+  (5.0→5.1→5.2 LTS, suporte até abril/2028), cada uma com `check` + 29
+  testes limpos e o changelog oficial cruzado contra o código real (nada
+  do 5.0/5.1/5.2 afetava o projeto, fora `USE_L10N` removida). Pré-requisito
+  descoberto no caminho: o `django-allauth` instalado (0.60.1) só suportava
+  até Django 4.2 — upgrade pra 65.19 exigiu trocar
+  `ACCOUNT_EMAIL_REQUIRED`/`ACCOUNT_USERNAME_REQUIRED`/
+  `ACCOUNT_AUTHENTICATION_METHOD` por `ACCOUNT_LOGIN_METHODS`/
+  `ACCOUNT_SIGNUP_FIELDS` (renomeados) e adicionar o extra `[socialaccount]`
+  ao pacote (senão o login Google quebra). Verificado end-to-end com
+  `Client` contra banco descartável: cadastro, login por e-mail, logout
+  (inclusive via GET, que o Django 5.0 removeu do `LogoutView` nativo mas
+  não do allauth) e índice do Admin — tudo funcionando. **Login Google real
+  via OAuth não dá pra automatizar, precisa de teste manual.**
+- **`DEBUG`/`SECRET_KEY` com fallback inseguro** — `DEBUG` tinha default
+  `'True'` (deveria falhar fechado); `SECRET_KEY` caía pra
+  `'django-insecure-change-me'`, string conhecida de todo tutorial Django,
+  se a env var sumisse. Agora `DEBUG` default é `False`, e produção sem
+  `SECRET_KEY` derruba o boot (`ImproperlyConfigured`) em vez de rodar
+  insegura; dev local sem a env var gera uma chave efêmera.
+
+Também integrado: monitoramento de erro (Sentry, `SENTRY_DSN` opcional via
+env, desligado por padrão) — hoje uma queda só é percebida se alguém tentar
+acessar e avisar manualmente, como aconteceu várias vezes antes desta
+sessão. Backup do `fnp-database` confirmado ativo (7 dias de retenção,
+point-in-time recovery, painel DO → Actions → Restore from backup).
+
 ### Pendências e próximos passos
 
+- **Testar login com Google de verdade em produção** depois do upgrade do
+  allauth (0.60→65.19) — só o login por e-mail foi verificado
+  automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
+- **Itens de segurança Alto/Médio ainda não implementados** (levantamento
+  completo feito, aguardando priorização): 2FA para Root/Administrador FNP,
+  rate limit de login por IP (hoje só o padrão do allauth, por conta),
+  CAPTCHA no cadastro, `CSP`/`Referrer-Policy`/`Permissions-Policy`,
+  `CSRF_TRUSTED_ORIGINS` explícito, limite de upload (`client_max_body_size`
+  no Nginx / `DATA_UPLOAD_MAX_MEMORY_SIZE`), lockfile de dependências com
+  hash, scan automatizado de dependência vulnerável no CI.
+- **Droplet `fnp-web` sem backup próprio** (só o `fnp-database` tem — o
+  droplet em si, com Nginx/Docker/certificados, não tem snapshot nenhum).
+- Reverificar se o bug do Python 3.14 (`copy.copy()` em `RequestContext`)
+  documentado acima ainda ocorre agora que o projeto está no Django 5.2 —
+  não testado ainda, `.venv/` local continua em 3.12 por segurança.
 - **Política do `sync-camara` ainda não decidida**: hoje ele descobre e cria
   proposições novas sozinho via busca por palavra-chave, sem qualquer
   curadoria — o mesmo problema que causou a limpeza acima pode se repetir
