@@ -9,8 +9,29 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
+# Falha segura: sem a env var, roda como produção fechada (DEBUG=False) —
+# antes o padrão era 'True', então um .env ausente/corrompido em produção
+# vazaria stack trace, SQL de erro e configuração pra qualquer visitante.
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('1', 'true', 'yes')
+
+# Sem fallback pra uma chave conhecida (era 'django-insecure-change-me',
+# a mesma string usada em todo tutorial Django — se a env var sumisse em
+# produção, rodaria com uma chave pública, comprometendo sessão/CSRF).
+# Em dev local sem SECRET_KEY no .env, gera uma efêmera (muda a cada
+# reinício, invalida sessão, mas nunca é previsível); em produção
+# (DEBUG=False) sem a env var, falha no boot em vez de rodar insegura.
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        from django.core.management.utils import get_random_secret_key
+        SECRET_KEY = get_random_secret_key()
+    else:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            'SECRET_KEY não configurada. Defina a variável de ambiente SECRET_KEY '
+            '(nunca reaproveitar entre ambientes) antes de subir em produção.'
+        )
+
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
 
 # Monitoramento de erro (Sentry) — só ativa se SENTRY_DSN estiver setado
