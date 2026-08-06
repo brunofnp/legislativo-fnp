@@ -15,7 +15,7 @@ from PIL import Image
 from apps.comentarios.models import Comentario, PalavraProibida
 from apps.comentarios.moderacao import classificar_comentario, contem_palavra_proibida
 from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema
-from apps.usuarios.middleware import CadastroPendenteMiddleware
+from apps.usuarios.middleware import CadastroPendenteMiddleware, MFAObrigatorioStaffMiddleware
 from apps.usuarios.models import Perfil, Usuario
 
 from .throttling import rate_limited
@@ -224,6 +224,38 @@ class CadastroPendenteMiddlewareTest(TestCase):
         usuario.perfil.status_aprovacao = Perfil.PENDENTE
         usuario.perfil.save()
         response = self._passa_pela_middleware(usuario)
+        self.assertEqual(response.status_code, 200)
+
+
+class MFAObrigatorioStaffMiddlewareTest(TestCase):
+    def _passa_pela_middleware(self, usuario, path='/qualquer-pagina/'):
+        request = RequestFactory().get(path)
+        request.user = usuario
+        middleware = MFAObrigatorioStaffMiddleware(lambda req: HttpResponse('ok'))
+        return middleware(request)
+
+    def test_staff_sem_2fa_e_redirecionado_pra_ativacao(self):
+        usuario = Usuario.objects.create(username='staffsem2fa', email='staffsem2fa@fnp.org.br', is_staff=True)
+        response = self._passa_pela_middleware(usuario)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/2fa/', response.url)
+
+    def test_staff_com_2fa_passa_direto(self):
+        from allauth.mfa.models import Authenticator
+
+        usuario = Usuario.objects.create(username='staffcom2fa', email='staffcom2fa@fnp.org.br', is_staff=True)
+        Authenticator.objects.create(user=usuario, type=Authenticator.Type.TOTP, data={})
+        response = self._passa_pela_middleware(usuario)
+        self.assertEqual(response.status_code, 200)
+
+    def test_usuario_comum_sem_2fa_nao_e_afetado(self):
+        usuario = Usuario.objects.create(username='comumsem2fa', email='comumsem2fa@fnp.org.br', is_staff=False)
+        response = self._passa_pela_middleware(usuario)
+        self.assertEqual(response.status_code, 200)
+
+    def test_pagina_de_ativacao_do_2fa_fica_liberada_pro_staff_sem_2fa(self):
+        usuario = Usuario.objects.create(username='staffativando', email='staffativando@fnp.org.br', is_staff=True)
+        response = self._passa_pela_middleware(usuario, path=reverse('mfa_activate_totp'))
         self.assertEqual(response.status_code, 200)
 
 

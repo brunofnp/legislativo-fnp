@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'allauth.mfa',
     'apps.usuarios',
     'apps.proposicoes',
     'apps.comentarios',
@@ -76,6 +77,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'apps.usuarios.middleware.CadastroPendenteMiddleware',
+    'apps.usuarios.middleware.MFAObrigatorioStaffMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -154,6 +156,26 @@ LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_SIGNUP_FORM_CLASS = 'apps.legislativo.forms.CustomSignupForm'
+
+# Explícito em vez de depender do default embutido do allauth (mesmo valor
+# de fábrica, só documentado): limita tentativa de login falha por IP e por
+# conta atacada, cadastro em massa e reset de senha. Nota: o cache padrão
+# do Django (LocMemCache) é por processo -- com múltiplos workers do
+# Gunicorn, cada processo conta separado, então o limite efetivo pode ser
+# até N vezes mais permissivo (N = nº de workers). Revisar se vale trocar
+# pra um cache compartilhado (Redis) — não decidido ainda, ver Pendências.
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '10/m/ip,5/5m/key',
+    'signup': '20/m/ip',
+    'reset_password': '20/m/ip,5/m/key',
+}
+
+# 2FA (allauth.mfa) — TOTP (app autenticador) + códigos de recuperação.
+# Sem WebAuthn/passkey por enquanto (exige mais infraestrutura de
+# navegador/HTTPS, não decidido). Disponível pra qualquer usuário em
+# /contas/2fa/; reforçado como obrigatório pra staff via
+# apps.usuarios.middleware.MFAObrigatorioStaffMiddleware.
+MFA_SUPPORTED_TYPES = ['totp', 'recovery_codes']
 
 SOCIALACCOUNT_ADAPTER = 'apps.usuarios.adapters.GoogleAccountAdapter'
 
