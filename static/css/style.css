@@ -976,42 +976,6 @@ body {
   font-size: 0.85rem;
 }
 
-.perfil-conta-section {
-  margin: 1.5rem 0 0;
-  padding: 1.5rem 2rem;
-}
-
-.perfil-conta-heading {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-}
-
-.perfil-conta-link {
-  display: block;
-  padding: 0.7rem 0;
-  color: #1a4b8f;
-  font-weight: 600;
-  font-size: 0.92rem;
-  text-decoration: none;
-  border-top: 1px solid #e2e8f0;
-}
-
-.perfil-conta-link:first-of-type {
-  border-top: none;
-}
-
-.perfil-conta-link:hover {
-  text-decoration: underline;
-}
-
-.perfil-conta-link-danger {
-  color: #dc2626;
-}
-
-[data-theme="dark"] .perfil-conta-link {
-  border-top-color: var(--border-color);
-}
-
 /* Paginas geradas pelo allauth (logout, confirmacao social, reset de senha etc.)
    usam elementos HTML puros (h1/form/input/button/p), sem classes. */
 .auth-card h1 {
@@ -1715,6 +1679,15 @@ body {
 .sidebar-link.active {
   background: #1a4b8f;
   color: #fff;
+}
+
+.sidebar-link-danger {
+  color: #f87171;
+}
+
+.sidebar-link-danger:hover {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
 }
 
 .sidebar-collapse-btn {

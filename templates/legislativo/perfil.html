@@ -67,11 +67,4 @@
 
     <p class="auth-footer">E-mail de acesso: {{ user.email }}</p>
   </div>
-
-  <div class="auth-card perfil-conta-section">
-    <h2 class="perfil-conta-heading">Conta e privacidade</h2>
-    <a href="{% url 'account_change_password' %}" class="perfil-conta-link">Alterar senha</a>
-    <a href="{% url 'legislativo:exportar_meus_dados' %}" class="perfil-conta-link">Exportar meus dados</a>
-    <a href="{% url 'legislativo:solicitar_exclusao' %}" class="perfil-conta-link perfil-conta-link-danger">Solicitar exclusão da conta</a>
-  </div>
 {% endblock %}
