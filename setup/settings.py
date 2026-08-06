@@ -138,7 +138,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'apps.usuarios.middleware.CadastroPendenteMiddleware',
-    'apps.usuarios.middleware.MFAObrigatorioStaffMiddleware',
+    # MFAObrigatorioStaffMiddleware desativado a pedido do usuário
+    # (2026-08-06) -- 2FA deixou de ser obrigatório pra staff. Classe
+    # mantida em apps/usuarios/middleware.py, é só reativar a linha acima
+    # se a decisão for revista.
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -241,8 +244,8 @@ ACCOUNT_RATE_LIMITS = {
 # 2FA (allauth.mfa) — TOTP (app autenticador) + códigos de recuperação.
 # Sem WebAuthn/passkey por enquanto (exige mais infraestrutura de
 # navegador/HTTPS, não decidido). Disponível pra qualquer usuário em
-# /contas/2fa/; reforçado como obrigatório pra staff via
-# apps.usuarios.middleware.MFAObrigatorioStaffMiddleware.
+# /contas/2fa/, mas não é mais obrigatório pra staff (MFAObrigatorioStaffMiddleware
+# desativado em MIDDLEWARE a pedido do usuário em 2026-08-06).
 MFA_SUPPORTED_TYPES = ['totp', 'recovery_codes']
 
 SOCIALACCOUNT_ADAPTER = 'apps.usuarios.adapters.GoogleAccountAdapter'

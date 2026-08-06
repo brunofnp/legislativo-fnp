@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-06 (auditoria de segurança + upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual; também melhorias de UI mobile em várias telas nesta sessão — topbar, Admin, sidebar, formulário de perfil — e correção de um comentário Django `{# #}` multi-linha vazando como texto na topbar. Sessão anterior, 2026-08-05: deploy em produção ativado e depurado de ponta a ponta — ver "Deploy real e correções pós-deploy" no Estado Atual)
+> Última atualização: 2026-08-06 (itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff, CSP, lockfile+pip-audit, CAPTCHA, limite de upload; 2FA obrigatório pra staff desativado a pedido do usuário logo em seguida, ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual. Também: auditoria de segurança + upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19; melhorias de UI mobile em várias telas — topbar, Admin, sidebar, formulário de perfil — e correção de um comentário Django `{# #}` multi-linha vazando como texto na topbar. Sessão anterior, 2026-08-05: deploy em produção ativado e depurado de ponta a ponta — ver "Deploy real e correções pós-deploy" no Estado Atual)
 
 ---
 
@@ -517,7 +517,12 @@ point-in-time recovery, painel DO → Actions → Restore from backup).
 - **2FA obrigatório pra staff** (`allauth.mfa`, TOTP + códigos de
   recuperação) via `MFAObrigatorioStaffMiddleware` novo — **todo staff
   existente sem 2FA fica bloqueado no primeiro acesso depois do deploy**,
-  avisar a equipe antes.
+  avisar a equipe antes. **Desativado a pedido do usuário em 2026-08-06**
+  (linha comentada em `MIDDLEWARE`, ver `setup/settings.py`) — 2FA deixou de
+  ser obrigatório pra staff; a funcionalidade continua disponível e
+  opcional em `/contas/2fa/` pra quem quiser ativar por conta própria, e a
+  classe do middleware segue em `apps/usuarios/middleware.py`, é só
+  reativar a linha se a decisão for revista.
 - `SECURE_REFERRER_POLICY`, `CSRF_TRUSTED_ORIGINS` (derivado do
   `ALLOWED_HOSTS`) explícitos.
 - Limite de upload de foto de perfil (5MB): validador em `Perfil.foto` +
