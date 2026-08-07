@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro não disponível | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="auth-page">
+    <div class="auth-card">
+      <h1>Cadastro não disponível por Google</h1>
+      <p class="auth-subtitle">
+        O login com Google é exclusivo para colaboradores da FNP, com e-mail institucional
+        (<strong>@fnp.org.br</strong>). Não encontramos um e-mail institucional válido na sua conta Google.
+      </p>
+      <p class="auth-subtitle">
+        Se você representa uma prefeitura, câmara municipal ou outra entidade pública, cadastre-se
+        normalmente pelo formulário abaixo.
+      </p>
+      <a href="{% url 'account_signup' %}" class="fbtn auth-submit">Ir para o cadastro</a>
+      <p class="auth-footer">Já tem uma conta com e-mail e senha? <a href="{% url 'account_login' %}">Entrar</a></p>
+    </div>
+  </section>
+{% endblock %}

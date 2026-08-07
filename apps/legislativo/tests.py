@@ -319,6 +319,55 @@ class LGPDTest(TestCase):
         self.assertIsNotNone(usuario.perfil.exclusao_solicitada_em)
 
 
+class ExportarDadosEngajamentoTest(TestCase):
+    """Exportação em massa/por usuário pro Root -- diferente da exportação
+    de LGPD (LGPDTest acima), que cada usuário faz só dos próprios dados."""
+
+    def setUp(self):
+        self.root = Usuario.objects.create(
+            username='rootexp', email='rootexp@fnp.org.br', is_staff=True, is_superuser=True,
+        )
+        self.staff_comum = Usuario.objects.create(
+            username='staffexp', email='staffexp@fnp.org.br', is_staff=True,
+        )
+        self.usuario = Usuario.objects.create(username='alvoexp', email='alvoexp@fnp.org.br', first_name='Alvo')
+
+    def test_nao_superuser_recebe_permission_denied(self):
+        from django.core.exceptions import PermissionDenied
+
+        from apps.usuarios.admin_views import exportar_dados_view
+
+        request = _request_with_session('/admin/exportar-dados/')
+        request.user = self.staff_comum
+        with self.assertRaises(PermissionDenied):
+            exportar_dados_view(request)
+
+    def test_superuser_exportacao_em_massa_inclui_todos_os_usuarios(self):
+        from apps.usuarios.admin_views import exportar_dados_view
+
+        request = _post_request_with_session('/admin/exportar-dados/', {'modo': 'massa'})
+        request.user = self.root
+        response = exportar_dados_view(request)
+
+        self.assertEqual(response.status_code, 200)
+        dados = json.loads(response.content)
+        self.assertEqual(dados['total_usuarios'], Usuario.objects.count())
+        self.assertIn('attachment', response['Content-Disposition'])
+
+    def test_superuser_exportacao_de_um_usuario_especifico(self):
+        from apps.usuarios.admin_views import exportar_dados_view
+
+        request = _post_request_with_session(
+            '/admin/exportar-dados/', {'modo': 'usuario', 'usuario_id': self.usuario.pk},
+        )
+        request.user = self.root
+        response = exportar_dados_view(request)
+
+        dados = json.loads(response.content)
+        self.assertEqual(dados['total_usuarios'], 1)
+        self.assertEqual(dados['usuarios'][0]['cadastro']['email'], 'alvoexp@fnp.org.br')
+
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class AvatarUrlTest(TestCase):
     def test_sem_foto_retorna_none(self):
@@ -371,6 +420,31 @@ class CustomSignupFormCaptchaTest(TestCase):
         from .forms import CustomSignupForm
 
         self.assertIn('captcha', CustomSignupForm().fields)
+
+
+class GoogleSignupDomainRestrictionTest(TestCase):
+    """Cadastro novo via Google só é aberto pra e-mail @fnp.org.br -- login
+    de quem já tem conta não passa por is_open_for_signup (ver docstring
+    do adapter), então não é coberto/afetado por este teste."""
+
+    class _ContaSocialFalsa:
+        def __init__(self, email):
+            self.user = type('UsuarioFalso', (), {'email': email})()
+            self.account = type('SocialAccountFalso', (), {'extra_data': {'email': email}})()
+
+    def test_email_institucional_pode_se_cadastrar(self):
+        from apps.usuarios.adapters import GoogleAccountAdapter
+
+        adapter = GoogleAccountAdapter()
+        sociallogin = self._ContaSocialFalsa('funcionario@fnp.org.br')
+        self.assertTrue(adapter.is_open_for_signup(None, sociallogin))
+
+    def test_email_nao_institucional_nao_pode_se_cadastrar(self):
+        from apps.usuarios.adapters import GoogleAccountAdapter
+
+        adapter = GoogleAccountAdapter()
+        sociallogin = self._ContaSocialFalsa('prefeito@algummunicipio.gov.br')
+        self.assertFalse(adapter.is_open_for_signup(None, sociallogin))
 
 
 class RateLimitTest(TestCase):
