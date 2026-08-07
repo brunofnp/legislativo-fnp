@@ -752,6 +752,22 @@ via `Client` que o header `Content-Security-Policy` da resposta não tem
 mais `'unsafe-inline'` em `style-src`, e que o chip de macrotema
 renderiza `data-cor-macrotema` com o valor certo.
 
+### `PalavraProibida` populada com lista inicial (2026-08-07)
+
+A pedido explícito do usuário, migration de seed
+(`apps/comentarios/migrations/0006_seed_palavras_proibidas.py`, `RunPython`
+idempotente via `get_or_create`) populou 35 termos comuns banidos em redes
+sociais — xingamentos/calão geral, calão sexual, misoginia, homofobia,
+capacitismo, racismo. **Nota de arquitetura**: `moderacao.py` documenta
+que a lista nunca deveria ficar hardcoded no código pra evitar "lista
+desatualizada, incompleta ou embaraçosa versionada no git" — esta
+migração roda só uma vez pra popular o banco; a partir daqui a lista é
+100% editável via Admin (`PalavraProibida.ativa`, adicionar/remover),
+igual antes. Testado: comentário legítimo segue `aprovado`, comentário
+com termo da lista vira `rejeitado`, e o teste de Scunthorpe (`cultura`
+não deveria bloquear por conter `cu`) continua passando. `check`, 44
+testes e `makemigrations --check` limpos.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
@@ -800,8 +816,6 @@ renderiza `data-cor-macrotema` com o valor certo.
   no `.env` do servidor de produção (não é o mesmo `.env` local) e
   adicionar e-mails de teste na tela de consentimento OAuth até o app
   sair do modo "teste".
-- Popular `PalavraProibida` de verdade via Admin (lista nasce vazia de
-  propósito — curadoria é decisão da equipe FNP).
 - Comentários "pendente" de antes da moderação automática continuam
   precisando de revisão manual (ação em massa no Admin).
 - Integração com o Senado (hoje só Câmara via `sync_camara`).
