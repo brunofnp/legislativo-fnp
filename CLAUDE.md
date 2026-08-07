@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`; confirmado funcionando de ponta a ponta no Microsoft Edge (Chrome ainda não retestado). Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
+> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`; confirmado funcionando de ponta a ponta no Microsoft Edge (Chrome ainda não retestado). Também nesta sessão: painel de busca sticky não tampa mais os cards (encolhe ao rolar), username de cadastro novo virou "nome.sobrenome" (era só o primeiro nome), e corrigido um bug real de `EMAIL_BACKEND` (default do Django é SMTP, não console — derrubava cadastro local sem servidor SMTP). Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
 
 ---
 
@@ -614,6 +614,35 @@ bug). No Chrome (perfil "Trabalho") o mesmo teste não foi refeito depois
 do fix — se persistir bloqueado lá, é outra causa (extensão/política do
 perfil), não mais a CSP.
 
+**Painel de busca sticky tampava os cards ao rolar** (usuário reportou
+com captura de tela) — ficava grudado no topo pela extensão inteira das
+listas (Urgentes/Em alta/Todas), cobrindo boa parte da primeira fileira
+de cards conforme a página rolava. Fix: `.search-panel` agora detecta
+(via `IntersectionObserver` num elemento-sentinela logo acima dele, ver
+`initSearchPanelCompact` em `main.js`) quando ficou "grudado" e encolhe
+pra uma barra fina de uma linha só (busca + tema lado a lado), reduzindo
+bastante quanto de conteúdo fica coberto.
+
+**Username padrão de cadastro novo virou "nome.sobrenome"** (ex.: Bruno
+Marra → `bruno.marra`), a pedido do usuário, pra bater com o padrão já
+usado nas contas cadastradas manualmente (visível na listagem do Admin).
+O allauth por padrão usaria só o primeiro nome (`populate_username`
+pega o primeiro campo não-vazio de uma lista, não combina nome+sobrenome)
+— `CustomAccountAdapter.populate_username` em `apps/usuarios/adapters.py`
+(novo `ACCOUNT_ADAPTER`) prioriza `"{nome}.{sobrenome}"` reaproveitando a
+sanitização/checagem de unicidade nativa do allauth (acento é removido,
+duplicata ganha sufixo). Vale tanto pro cadastro por e-mail/senha quanto
+pelo Google (`DefaultSocialAccountAdapter` delega pro `ACCOUNT_ADAPTER`).
+4 testes novos (nome+sobrenome, acento, duplicata, só primeiro nome sem
+sobrenome). No caminho, achado um bug real de configuração: sem
+`EMAIL_BACKEND`, o default do próprio Django é SMTP (não console, como
+um comentário antigo aqui dizia) — cadastro local derrubava com
+`ConnectionRefusedError` ao mandar o e-mail de confirmação, sem SMTP
+local rodando. Corrigido: `DEBUG=True` sem `EMAIL_BACKEND` no ambiente
+agora usa `console.EmailBackend` automaticamente. `check` e 45 testes
+(era 41) limpos; cadastro completo testado via `Client` HTTP real
+(não só a função do adapter isolada) confirmando o username gerado.
+
 ### Pendências e próximos passos
 
 - **Login Google local no Chrome (perfil "Trabalho") não foi reconfirmado**
@@ -628,9 +657,15 @@ perfil), não mais a CSP.
   implementado (tudo desligado até então, zero risco): `SENTRY_DSN`
   (sentry.io), `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY`
   (google.com/recaptcha/admin).
-- **`EMAIL_BACKEND` não configurado** — `ACCOUNT_EMAIL_VERIFICATION=optional`
-  manda e-mail de confirmação, mas sem backend real (SMTP/SES/etc.) ele
-  usa o backend console do Django e não entrega de verdade.
+- **`EMAIL_BACKEND` de produção ainda não configurado de verdade** —
+  `ACCOUNT_EMAIL_VERIFICATION=optional` manda e-mail de confirmação, mas
+  sem um backend real (SMTP/SES/etc.) configurado via env var, cai no
+  default do Django (SMTP genérico) e não entrega. Corrigido o *crash* em
+  dev local (2026-08-07): sem `EMAIL_BACKEND` no ambiente, `DEBUG=True`
+  agora usa `console.EmailBackend` automaticamente (`setup/settings.py`)
+  em vez de tentar SMTP de verdade e derrubar o cadastro com
+  `ConnectionRefusedError` — produção continua exigindo `EMAIL_BACKEND`
+  real via env pra entregar e-mail de fato.
 - **Cache do Django é `LocMemCache`** (por processo) — com o Gunicorn
   rodando `--workers 3`, tanto o rate limit de login quanto o
   `throttling.py` de comentário/participação têm limite efetivo até 3x
