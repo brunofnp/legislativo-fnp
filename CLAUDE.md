@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`. Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
+> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`; confirmado funcionando de ponta a ponta no Microsoft Edge (Chrome ainda não retestado). Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
 
 ---
 
@@ -605,16 +605,22 @@ Console). Fix em `setup/settings.py`: `form-action` passou a incluir
 `https://accounts.google.com` explicitamente. `check` e 41 testes
 continuam limpos; confirmado via `Client` que o header
 `Content-Security-Policy` da resposta agora inclui o domínio do Google
-em `form-action` — **falta só o usuário reconfirmar no navegador que o
-login completa até o fim** (a etapa de digitar a senha/escolher a conta
-Google em si não dá pra automatizar).
+em `form-action` — **confirmado pelo usuário no Microsoft Edge: login
+completo até o fim, inclusive a verificação de 2FA do Root** (a conta já
+tinha TOTP configurado de antes; o allauth pede o código no login
+independente do `MFAObrigatorioStaffMiddleware` desativado, que só força
+configuração de quem ainda não tem 2FA — comportamento esperado, não
+bug). No Chrome (perfil "Trabalho") o mesmo teste não foi refeito depois
+do fix — se persistir bloqueado lá, é outra causa (extensão/política do
+perfil), não mais a CSP.
 
 ### Pendências e próximos passos
 
-- **Reconfirmar no navegador que o login Google local completa até o
-  fim** depois do fix de CSP acima (ver seção "Rodada de UX/UI..." —
-  já validado que o redirect não é mais bloqueado, falta só o usuário
-  passar pela tela de escolha de conta/senha do Google de verdade).
+- **Login Google local no Chrome (perfil "Trabalho") não foi reconfirmado**
+  depois do fix de CSP -- funcionou no Microsoft Edge, mas o teste original
+  que expôs o bug foi feito nesse perfil do Chrome; vale um retest rápido
+  lá pra garantir que não é uma segunda causa (extensão/política) somada à
+  da CSP.
 - **Testar login com Google de verdade em produção** depois do upgrade do
   allauth (0.60→65.19) — só o login por e-mail foi verificado
   automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
