@@ -660,6 +660,19 @@ o `entrypoint.sh` já roda `migrate`/`collectstatic` automaticamente,
 inclusive a migration nova `0005_alter_perfil_foto`). Ver item no topo das
 pendências pra confirmar que subiu sem erro.
 
+**CI quebrou logo depois do push pra `main`** (usuário recebeu e-mail do
+GitHub Actions) — causa: o job de CI não define `DEBUG`/`SECRET_KEY`, e
+a correção de segurança de 2026-08-06 fez `DEBUG` virar `False` por
+padrão (fail-closed), então o `settings.py` passou a exigir
+`SECRET_KEY` e derrubar o boot antes de qualquer teste rodar. Isso
+estava quebrado desde aquela correção, mas só apareceu agora porque o
+CI só roda em push pra `main` (`.github/workflows/ci.yml`,
+`on: push: branches: [main]`) — essa foi a primeira vez que `main`
+recebia push desde então. Fix: `DEBUG: 'True'` no `env:` do job (CI se
+comporta como dev local, chave efêmera, não como produção real).
+Confirmado verde via `gh run watch` nos dois repositórios (`origin` e
+`production`) depois do fix.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
