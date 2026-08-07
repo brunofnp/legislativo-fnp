@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 — **`next` foi promovido pra `main`/produção nesta sessão** (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **O deploy de fato nos containers do droplet é manual via SSH e pode ainda estar em andamento** — ver checklist no topo de "Pendências e próximos passos" pra confirmar que subiu sem erro antes de considerar produção atualizada de verdade. Detalhes de cada item em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" e "Promoção completa next → main → produção", ambos no Estado Atual.
+> Última atualização: 2026-08-07 — **`next` foi promovido pra `main`/produção nesta sessão** (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **Deploy nos containers do droplet confirmado e saudável** (rebuild via SSH, migrations aplicadas, site respondendo 200 por fora, `sync-camara` com `--paginas 1` confirmado rodando) — só falta o teste manual do login Google em produção pelo navegador. Detalhes em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento", "Promoção completa next → main → produção" e "Deploy de produção confirmado", todos no Estado Atual.
 
 ---
 
@@ -673,23 +673,39 @@ comporta como dev local, chave efêmera, não como produção real).
 Confirmado verde via `gh run watch` nos dois repositórios (`origin` e
 `production`) depois do fix.
 
+### Deploy de produção confirmado (2026-08-07)
+
+Rebuild via SSH concluído com sucesso em `/opt/legislativo-fnp`, depois de
+corrigir no caminho: (1) `git pull production main` falhou porque o clone
+do droplet só tem o remoto `origin` (aponta direto pro
+`dadosfnp/legislativo-fnp` — o nome "production" só existe na máquina
+local, com dois remotos); comando certo era `git pull origin main`. (2) Na
+primeira tentativa, o `docker compose build` seguiu mesmo com o `git pull`
+tendo falhado, reconstruindo com código **antigo** (cache pesado,
+`requirements.txt` em vez de `requirements.lock`, "No migrations to
+apply") — silencioso, só percebido comparando o log linha a linha.
+Depois do pull correto (`e69e5d9` → `f2ae093`), rebuild real: migrations
+novas aplicadas limpo (`account.0006`-`0009`, `mfa.0001`-`0003`,
+`usuarios.0005_alter_perfil_foto`), 136 estáticos coletados, Gunicorn sem
+traceback. Verificado depois via SSH: `curl -sI
+https://legislativo.fnp.org.br/` → `200 OK` por fora (não só dentro do
+container), e `docker compose top sync-camara` confirmando o comando
+rodando com `--paginas 1` de fato. **Login Google em produção ainda não
+testado no navegador de verdade** (só o lado servidor foi confirmado) —
+próximo passo do usuário.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
-- **Confirmar que o deploy de produção (rebuild via `docker compose
-  build && up -d`) subiu sem erro** — é um salto grande de código
-  (upgrade de Django/allauth incluído) na primeira vez que vai pra
-  produção; conferir `docker compose logs legislativo`, login por e-mail,
-  login Google (conta @fnp.org.br), e `docker compose logs sync-camara`
-  mostrando o comando novo com `--paginas 1`.
-- **Login Google em produção ainda não testado de verdade** — só validado
-  em dev (Microsoft Edge; Chrome com perfil "Trabalho" não foi
-  reconfirmado depois do fix de CSP, testar lá também se der).
+- **Testar login Google em produção no navegador** (conta @fnp.org.br) —
+  o deploy já está confirmado saudável do lado servidor, só falta esse
+  teste manual.
 - **Decidir o que fazer com as 70 proposições não-curadas já em
-  produção** (`interlocutores` vazio) — ficou pra depois do deploy do
-  `--paginas 1`, pra não serem recriadas à toa no próximo ciclo do
-  `sync-camara`. Reais, sem duplicata, só sem revisão editorial da FNP.
+  produção** (`interlocutores` vazio) — o `--paginas 1` já está no ar,
+  então agora dá pra limpar sem risco de recriação imediata no próximo
+  ciclo do `sync-camara`. Reais, sem duplicata, só sem revisão editorial
+  da FNP.
 
 **Seguem em aberto (sem mudança nesta sessão):**
 
