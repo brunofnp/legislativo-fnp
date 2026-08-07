@@ -43,6 +43,58 @@
   border-bottom: 1px solid var(--hairline-color);
 }
 
+/* "Ver o site"/"Alterar senha"/"Sair" nasciam como texto sublinhado
+   separado por "/" -- nada indicava que eram clicáveis. Viram pill
+   buttons, no mesmo padrão visual do resto da plataforma (ex.:
+   .topbar-logout do site público: link vermelho pro "Sair"). */
+#user-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.fnp-user-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fnp-user-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+#user-tools .fnp-user-btn:link,
+#user-tools .fnp-user-btn:visited {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.fnp-user-btn:hover {
+  background: #f1f5f9;
+  border-color: var(--primary);
+}
+
+.fnp-user-btn-logout {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.fnp-user-btn-logout:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
 #branding h1,
 #branding h1 a:link,
 #branding h1 a:visited {
