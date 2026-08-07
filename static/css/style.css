@@ -2299,7 +2299,7 @@ body {
 
 .help-modal-panel {
   position: relative;
-  width: min(480px, 100%);
+  width: min(540px, 100%);
   background: var(--bg-surface);
   border-radius: 1rem;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.3);
@@ -2506,7 +2506,7 @@ body {
 
 .tour-modal-panel {
   position: relative;
-  width: min(380px, 100%);
+  width: min(460px, 100%);
   background: var(--bg-surface);
   border-radius: 1rem;
   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.3);
