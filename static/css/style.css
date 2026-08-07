@@ -214,6 +214,10 @@ body {
   color: #15803d;
 }
 
+.search-panel-sentinel {
+  height: 1px;
+}
+
 .search-panel {
   background: var(--bg-surface, #fff);
   border-radius: 1.5rem;
@@ -227,6 +231,31 @@ body {
   position: sticky;
   top: var(--header-height, 4.5rem);
   z-index: 14;
+  transition: padding .2s ease, border-radius .2s ease, box-shadow .2s ease;
+}
+
+/* Enquanto "grudado" no topo (detectado via IntersectionObserver no
+   .search-panel-sentinel, initSearchPanelCompact em main.js), o painel
+   encolhe pra uma barra fina de uma linha só -- cheio o tempo todo, ele
+   tampava boa parte da primeira fileira de cards ao rolar por listas
+   longas (Urgentes/Em alta/Todas). */
+.search-panel.is-compact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.85rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.search-panel.is-compact .search-form {
+  flex: 1;
+  min-width: 220px;
+}
+
+.search-panel.is-compact .tema-dropdown {
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 .search-form {

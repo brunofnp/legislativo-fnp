@@ -183,6 +183,25 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initStickyHeaderOffset();
 
+  function initSearchPanelCompact() {
+    const sentinel = document.querySelector('.search-panel-sentinel');
+    const panel = document.querySelector('.search-panel');
+    if (!sentinel || !panel || !window.IntersectionObserver) return;
+
+    // rootMargin negativo no topo = considera "saiu da tela" já na borda
+    // de baixo do cabeçalho (onde o painel sticky de fato gruda), não na
+    // borda de cima da viewport -- sem isso o modo compacto ligaria um
+    // instante tarde demais (o painel já teria começado a tampar cards).
+    const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => panel.classList.toggle('is-compact', !entry.isIntersecting),
+      { threshold: 0, rootMargin: `-${headerHeight}px 0px 0px 0px` }
+    );
+    observer.observe(sentinel);
+  }
+
+  initSearchPanelCompact();
+
   function initDropdown(triggerId, dropdownId) {
     const trigger = document.getElementById(triggerId);
     const dropdown = document.getElementById(dropdownId);
