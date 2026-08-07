@@ -2862,6 +2862,13 @@ body {
   outline-offset: 2px;
 }
 
+/* Sem forçar border-radius aqui (era 2px fixo) -- o contorno de foco
+   agora segue o raio de cada elemento (Chrome/Firefox/Safari já
+   acompanham o border-radius do próprio box automaticamente). Um
+   valor fixo de 2px ficava bem em botão/input normal, mas distorcia
+   qualquer coisa com raio maior (ex.: .user-menu-trigger, pill de
+   999px) — o contorno virava um retângulo quase reto em cima de um
+   avatar redondo, parecendo um anel torto. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -2871,7 +2878,6 @@ summary:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid #193657;
   outline-offset: 2px;
-  border-radius: 2px;
 }
 
 [data-theme="dark"] a:focus-visible,
