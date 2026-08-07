@@ -226,14 +226,26 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 # login sem clicar -- cadastro pendente (CadastroPendenteMiddleware) já
 # exige aprovação manual da equipe antes de liberar navegação de qualquer
 # forma, então 'mandatory' (bloquear login sem confirmar) não é obrigatório
-# agora. Nota: sem EMAIL_BACKEND configurado, o e-mail de confirmação usa o
-# backend console do Django (não entrega de verdade) -- ver Pendências.
+# agora.
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
+
+# Sem isso, o default do próprio Django é SMTP (não console, como um
+# comentário antigo aqui dizia) -- em DEBUG, sem servidor SMTP local, todo
+# cadastro derrubava com ConnectionRefusedError ao tentar mandar o e-mail
+# de confirmação. EMAIL_BACKEND explícito no .env de produção continua
+# sobrescrevendo isto (ver Pendências sobre configurar SMTP de verdade lá).
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
+)
 ACCOUNT_LOGOUT_ON_GET = True
 LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_SIGNUP_FORM_CLASS = 'apps.legislativo.forms.CustomSignupForm'
+# Nome de usuário padrão "nome.sobrenome" em vez de só o primeiro nome
+# (default do allauth) -- ver CustomAccountAdapter.populate_username.
+ACCOUNT_ADAPTER = 'apps.usuarios.adapters.CustomAccountAdapter'
 
 # Explícito em vez de depender do default embutido do allauth (mesmo valor
 # de fábrica, só documentado): limita tentativa de login falha por IP e por

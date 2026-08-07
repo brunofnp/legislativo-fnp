@@ -447,6 +447,42 @@ class GoogleSignupDomainRestrictionTest(TestCase):
         self.assertFalse(adapter.is_open_for_signup(None, sociallogin))
 
 
+class UsernamePadraoTest(TestCase):
+    """Username de cadastro novo segue "nome.sobrenome" (ex.: Bruno Marra ->
+    bruno.marra), mesmo padrão das contas já cadastradas manualmente --
+    sem isso o allauth usaria só o primeiro nome."""
+
+    def test_nome_e_sobrenome_viram_nome_ponto_sobrenome(self):
+        from apps.usuarios.adapters import CustomAccountAdapter
+
+        usuario = Usuario(first_name='Bruno', last_name='Marra', email='brunoteste@fnp.org.br')
+        CustomAccountAdapter().populate_username(None, usuario)
+        self.assertEqual(usuario.username, 'bruno.marra')
+
+    def test_acentos_sao_removidos(self):
+        from apps.usuarios.adapters import CustomAccountAdapter
+
+        usuario = Usuario(first_name='José', last_name='Andrade', email='joseandrade@fnp.org.br')
+        CustomAccountAdapter().populate_username(None, usuario)
+        self.assertEqual(usuario.username, 'jose.andrade')
+
+    def test_username_ja_existente_ganha_sufixo_unico(self):
+        from apps.usuarios.adapters import CustomAccountAdapter
+
+        Usuario.objects.create(username='bruno.marra', email='brunooriginal@fnp.org.br')
+        usuario = Usuario(first_name='Bruno', last_name='Marra', email='brunosegundo@fnp.org.br')
+        CustomAccountAdapter().populate_username(None, usuario)
+        self.assertNotEqual(usuario.username, 'bruno.marra')
+        self.assertTrue(usuario.username.startswith('bruno.marra'))
+
+    def test_sem_sobrenome_cai_no_padrao_do_allauth(self):
+        from apps.usuarios.adapters import CustomAccountAdapter
+
+        usuario = Usuario(first_name='Nucleo', last_name='', email='nucleo2@fnp.org.br')
+        CustomAccountAdapter().populate_username(None, usuario)
+        self.assertEqual(usuario.username, 'nucleo')
+
+
 class RateLimitTest(TestCase):
     def setUp(self):
         cache.clear()

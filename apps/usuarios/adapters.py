@@ -1,8 +1,29 @@
+from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account.utils import user_email, user_field, user_username
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 
 from .models import Perfil
 
 DOMINIO_INSTITUCIONAL_FNP = 'fnp.org.br'
+
+
+class CustomAccountAdapter(DefaultAccountAdapter):
+    """Nome de usuário padrão é "nome.sobrenome" (ex.: Bruno Marra ->
+    bruno.marra), mesmo padrão já usado nas contas cadastradas manualmente
+    -- o allauth por padrão usaria só o primeiro nome. Vale tanto pro
+    cadastro por e-mail/senha quanto pelo Google (DefaultSocialAccountAdapter
+    delega pra cá via get_account_adapter().populate_username)."""
+
+    def populate_username(self, request, user):
+        first_name = user_field(user, 'first_name')
+        last_name = user_field(user, 'last_name')
+        email = user_email(user)
+        username = user_username(user)
+        candidatos = []
+        if first_name and last_name:
+            candidatos.append(f'{first_name}.{last_name}')
+        candidatos += [first_name, last_name, email, username, 'user']
+        user_username(user, username or self.generate_unique_username(candidatos))
 
 
 class GoogleAccountAdapter(DefaultSocialAccountAdapter):
