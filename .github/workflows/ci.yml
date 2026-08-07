@@ -7,6 +7,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Sem isso, DEBUG cai no default fail-closed (False) e o settings.py
+      # exige SECRET_KEY (correção de segurança de 2026-08-06) -- CI roda
+      # como dev local, não como produção, então usa a chave efêmera.
+      DEBUG: 'True'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
