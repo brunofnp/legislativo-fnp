@@ -28,6 +28,7 @@ _ICON_PATHS = {
     'ban': '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
     'flag': '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22V15"/>',
     'dot': '<circle cx="12" cy="12" r="3"/>',
+    'download': '<path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
 }
 
 # Ícone por app do Django Admin (usado no link direto, se o app só tiver um

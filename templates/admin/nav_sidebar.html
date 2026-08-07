@@ -58,5 +58,12 @@
         {% endif %}
       {% endwith %}
     {% endfor %}
+
+    {% if request.user.is_superuser %}
+      <a href="{% url 'admin:exportar_dados' %}" class="fnp-nav-link{% if request.path == '/admin/exportar-dados/' %} active{% endif %}">
+        <span class="fnp-nav-icon">{% icon 'download' %}</span>
+        <span>Exportar dados</span>
+      </a>
+    {% endif %}
   </div>
 </nav>

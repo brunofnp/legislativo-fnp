@@ -24,7 +24,6 @@ from .views import (
     HomeView,
     PerfilView,
     denunciar_comentario,
-    exportar_meus_dados,
     get_home_sections,
     solicitar_exclusao,
 )
@@ -295,17 +294,6 @@ class DenunciaComentarioTest(TestCase):
 
 
 class LGPDTest(TestCase):
-    def test_exportar_meus_dados_retorna_json_com_campos_esperados(self):
-        usuario = Usuario.objects.create(username='lgpd1', email='lgpd1@fnp.org.br', first_name='Ana')
-        request = _request_with_session(reverse('legislativo:exportar_meus_dados'))
-        request.user = usuario
-        response = exportar_meus_dados(request)
-
-        self.assertEqual(response.status_code, 200)
-        dados = json.loads(response.content)
-        self.assertEqual(dados['usuario']['email'], 'lgpd1@fnp.org.br')
-        self.assertIn('attachment', response['Content-Disposition'])
-
     def test_solicitar_exclusao_marca_data_no_perfil(self):
         usuario = Usuario.objects.create(username='lgpd2', email='lgpd2@fnp.org.br')
         self.assertIsNone(usuario.perfil.exclusao_solicitada_em)

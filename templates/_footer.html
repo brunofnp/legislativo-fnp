@@ -48,8 +48,6 @@
         <a href="{% url 'legislativo:politica_privacidade' %}">Política de Privacidade</a>
         {% if user.is_authenticated %}
           <span class="footer-sep">|</span>
-          <a href="{% url 'legislativo:exportar_meus_dados' %}">Exportar meus dados</a>
-          <span class="footer-sep">|</span>
           <a href="{% url 'legislativo:solicitar_exclusao' %}">Solicitar exclusão</a>
         {% endif %}
       </p>

@@ -76,8 +76,11 @@ def exportar_dados_view(request):
     """Exportação de dados de cadastro + engajamento pra Root, um usuário
     específico ou em massa -- alimenta um banco externo de pontuação de
     engajamento, fora deste sistema. Só Root (is_superuser): dados de
-    interação de todo mundo é PII sensível, diferente da exportação
-    individual de LGPD (exportar_meus_dados, cada um só a própria)."""
+    interação de todo mundo é PII sensível. Único ponto de exportação da
+    plataforma -- a exportação individual de LGPD que existia antes
+    (self-service, qualquer usuário só dos próprios dados) foi removida a
+    pedido do usuário; Root cobre pedidos de portabilidade de dados
+    exportando o usuário específico aqui."""
     if not request.user.is_superuser:
         raise PermissionDenied
 
@@ -92,7 +95,7 @@ def exportar_dados_view(request):
                 return render(
                     request,
                     'admin/exportar_dados.html',
-                    {**admin.site.each_context(request), 'title': 'Exportar dados de engajamento',
+                    {**admin.site.each_context(request), 'title': 'Exportar dados',
                      'usuarios': usuarios, 'erro': 'Selecione um usuário válido.'},
                 )
             nome_arquivo = f'engajamento-usuario-{usuario_id}'
@@ -114,7 +117,7 @@ def exportar_dados_view(request):
 
     context = {
         **admin.site.each_context(request),
-        'title': 'Exportar dados de engajamento',
+        'title': 'Exportar dados',
         'usuarios': usuarios,
     }
     return render(request, 'admin/exportar_dados.html', context)

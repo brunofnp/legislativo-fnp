@@ -473,48 +473,6 @@ def politica_privacidade(request):
 
 
 @login_required
-def exportar_meus_dados(request):
-    usuario = request.user
-    perfil = usuario.perfil
-    dados = {
-        'usuario': {
-            'nome_completo': usuario.get_full_name(),
-            'email': usuario.email,
-            'data_cadastro': usuario.date_joined.isoformat(),
-        },
-        'perfil': {
-            'telefone': perfil.telefone,
-            'cargo': perfil.cargo,
-            'municipio': str(perfil.municipio) if perfil.municipio else None,
-            'status_aprovacao': perfil.get_status_aprovacao_display(),
-        },
-        'comentarios': [
-            {
-                'proposicao': comentario.proposicao.titulo,
-                'texto': comentario.texto,
-                'status_moderacao': comentario.get_status_moderacao_display(),
-                'criado_em': comentario.criado_em.isoformat(),
-            }
-            for comentario in Comentario.objects.filter(autor=usuario).select_related('proposicao')
-        ],
-        'participacoes_enviadas_com_este_email': [
-            {
-                'tipo': participacao.get_tipo_display(),
-                'proposicao': participacao.proposicao,
-                'municipio': participacao.municipio,
-                'mensagem': participacao.mensagem,
-                'criado_em': participacao.criado_em.isoformat(),
-            }
-            for participacao in Participacao.objects.filter(email__iexact=usuario.email)
-        ],
-    }
-
-    response = JsonResponse(dados, json_dumps_params={'ensure_ascii': False, 'indent': 2})
-    response['Content-Disposition'] = 'attachment; filename="meus-dados-legislativo-fnp.json"'
-    return response
-
-
-@login_required
 def solicitar_exclusao(request):
     perfil = request.user.perfil
     if request.method == 'POST':

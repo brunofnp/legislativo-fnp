@@ -149,7 +149,7 @@ A barra lateral (`templates/admin/nav_sidebar.html`) **não reaproveita** `admin
 - Cadastro coleta município/UF (vira `Municipio` via `get_or_create`, `Perfil.municipio` é `ForeignKey` — vários usuários podem apontar pro mesmo município), setor responsável, cargo e telefone; mesmos campos editáveis depois em `/perfil/`
 - **Aprovação de cadastro:** todo cadastro novo nasce `Perfil.status_aprovacao='pendente'` (staff nasce `'aprovado'`); `CadastroPendenteMiddleware` redireciona usuário pendente para `cadastro_pendente.html` até um Root/Administrador FNP aprovar ou rejeitar (ações em massa simétricas `aprovar_cadastros`/`rejeitar_cadastros` no `UsuarioAdmin`) — tela de aviso já distingue mensagem para pendente vs. rejeitado
 - **Fotos de perfil:** upload manual (`Perfil.foto`) ou importação automática da foto do Google no login social (`GoogleAccountAdapter.save_user` + signal `pre_social_login` para manter atualizada); exibida no topbar e nos comentários do fórum, com fallback pra inicial do nome
-- **LGPD:** página de Política de Privacidade, exportação dos dados do usuário em JSON (`exportar_meus_dados`) e solicitação de exclusão de conta (`solicitar_exclusao` — só marca `Perfil.exclusao_solicitada_em`, exclusão real é manual pelo Root via Admin, sem autoexclusão instantânea). `UsuarioAdmin` tem ações simétricas `aprovar_exclusoes` (reaproveita a tela de confirmação nativa do `delete_selected` — exclui de fato) e `rejeitar_exclusoes` (limpa `exclusao_solicitada_em`, mantém a conta), no mesmo padrão de `aprovar_cadastros`/`rejeitar_cadastros`
+- **LGPD:** página de Política de Privacidade e solicitação de exclusão de conta (`solicitar_exclusao` — só marca `Perfil.exclusao_solicitada_em`, exclusão real é manual pelo Root via Admin, sem autoexclusão instantânea). `UsuarioAdmin` tem ações simétricas `aprovar_exclusoes` (reaproveita a tela de confirmação nativa do `delete_selected` — exclui de fato) e `rejeitar_exclusoes` (limpa `exclusao_solicitada_em`, mantém a conta), no mesmo padrão de `aprovar_cadastros`/`rejeitar_cadastros`. Exportação de dados **não é mais self-service** (removido em 2026-08-07, a pedido do usuário) — só o Root exporta, via `/admin/exportar-dados/` (ver "Exportar dados de engajamento" no Estado Atual); pedido de portabilidade de dados de um usuário específico é atendido por lá, selecionando a pessoa.
 - Página de perfil (`PerfilView`) com edição de nome/foto/telefone/cargo/município/UF/setor responsável, link para trocar senha (allauth) e para as ações de LGPD
 - Fórum de comentários por proposição com notificação aos demais participantes da discussão (só dispara se o comentário for aprovado)
 - **Moderação automática de comentários** (`apps/comentarios/moderacao.py`): comentário nasce aprovado por padrão (sem fila manual); é reprovado automaticamente só se contiver alguma `PalavraProibida` ativa (lista editável via Admin, nunca hardcoded). Checagem por fronteira de palavra (`\b`), sem acento/caixa — evita falso positivo tipo "droga" bloquear "drogaria" (Scunthorpe problem). Autor vê mensagem explicando a reprovação. Comentários "pendente" anteriores a essa mudança continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra novos envios.
@@ -586,12 +586,43 @@ registrado via `FNPAdminSite.get_urls()`), exporta cadastro (Usuario +
 Perfil) e interação (comentários, participações — casadas por e-mail, já
 que `Participacao` não tem FK pra Usuario —, denúncias feitas,
 notificações) de um usuário específico ou em massa, em JSON pra alimentar
-um banco externo de pontuação de engajamento; **completamente separada**
-da exportação de LGPD já existente (`exportar_meus_dados`, cada usuário
-só dos próprios dados, continua intacta). `check`, `makemigrations
---check` e 41 testes (era 38) limpos; páginas renderizadas via `Client`
-pra conferir ausência de erro de template (não visualmente — sem acesso a
-navegador neste ambiente).
+um banco externo de pontuação de engajamento; nesta primeira versão,
+implementada como uma tela **separada** da exportação de LGPD que já
+existia (`exportar_meus_dados`, self-service) — **corrigido depois no
+mesmo dia**, ver "Exportar dados de engajamento — correção" abaixo.
+`check`, `makemigrations --check` e 41 testes (era 38) limpos; páginas
+renderizadas via `Client` pra conferir ausência de erro de template (não
+visualmente — sem acesso a navegador neste ambiente).
+
+### Exportar dados de engajamento — correção (2026-08-07, mesmo dia)
+
+Usuário apontou que a implementação original não seguiu o pedido original
+à risca: "somente na área do root devemos ter o botão de exportar
+informações" foi lido por mim, na hora, como "criar uma área nova pro
+Root" — mas deixei a exportação de LGPD antiga (`exportar_meus_dados`,
+self-service, qualquer usuário logado) **intacta e visível pra todo
+mundo**, e a nova exportação só apareceu como um botão solto no
+dashboard do Admin, não um item de menu de verdade como os outros do
+Root. Correção, consolidando num único ponto de exportação:
+
+- **Removida por completo** a exportação de LGPD self-service
+  (`exportar_meus_dados`): view, URL (`/conta/exportar-meus-dados/`),
+  teste e os 2 links que existiam (`_sidebar.html` na seção
+  "Privacidade" — visível pra qualquer usuário — e `_footer.html`). Root
+  agora cobre pedido de portabilidade de dados exportando a pessoa
+  específica na tela nova.
+- **Renomeado** de "Exportar dados de engajamento" pra só **"Exportar
+  dados"** (título da página, breadcrumb, pill do dashboard) — nome mais
+  curto, como pedido.
+- **Item de menu de verdade** adicionado em `templates/admin/
+  nav_sidebar.html` (não só a pill do dashboard) — link direto "Exportar
+  dados" com ícone próprio (`download`, novo em `admin_icons.py`),
+  visível só pra `request.user.is_superuser`, no mesmo padrão visual dos
+  outros itens da barra lateral do Admin.
+- 44 testes (era 45, -1 pelo teste do `exportar_meus_dados` removido);
+  smoke test via `Client` confirmando: usuário comum não vê mais o link
+  em lugar nenhum, staff sem `is_superuser` não vê o item novo no Admin,
+  só Root vê.
 
 **Bug real encontrado e corrigido: login Google local não funcionava**
 (usuário reportou: clica em "Continuar" na tela de confirmação e nada
