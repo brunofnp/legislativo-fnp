@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-06 (itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff, CSP, lockfile+pip-audit, CAPTCHA, limite de upload; 2FA obrigatório pra staff desativado a pedido do usuário logo em seguida, ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual. Também: auditoria de segurança + upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19; melhorias de UI mobile em várias telas — topbar, Admin, sidebar, formulário de perfil — e correção de um comentário Django `{# #}` multi-linha vazando como texto na topbar. Sessão anterior, 2026-08-05: deploy em produção ativado e depurado de ponta a ponta — ver "Deploy real e correções pós-deploy" no Estado Atual)
+> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Login Google local com problema não resolvido, aguardando diagnóstico do usuário. Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
 
 ---
 
@@ -542,8 +542,68 @@ point-in-time recovery, painel DO → Actions → Restore from backup).
   10.4.0 tinha 24 vulnerabilidades conhecidas, corrigidas só na série
   12.x — atualizado (`>=10.0,<11.0` → `>=12.0,<13.0`).
 
+### Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento (2026-08-07)
+
+A pedido do usuário, a partir de capturas de tela anotadas (home, card de
+proposição, fórum, tela de confirmação de login Google): (1) painel de
+busca/filtro da home agora acompanha o cabeçalho ao rolar a página
+(`position: sticky`, offset calculado em JS via `initStickyHeaderOffset`
+em `main.js` porque a altura do cabeçalho varia por breakpoint e pelo
+tamanho de fonte configurável — nunca hardcoded em px); (2) badge
+"SEM PAUTA" tinha a mesma cor de alerta (vermelho) de "PAUTA", como se
+qualquer proposição sem pauta fosse urgente — `badge-pauta-on`/
+`badge-pauta-off` agora diferenciam; meta-itens do card ganharam `title`
+explicando que "status" é o nome oficial da fase de tramitação (evita
+confusão com a função "Notificações" do próprio site — o texto que
+aparecia ali, ex. "Notificações", é dado real vindo da fonte oficial, não
+bug); (3) fonte dos rótulos dos cards de estatística da home aumentada
+(0.75rem → 0.85rem); (4) comentários do fórum: só os 5 primeiros
+aparecem, resto fica atrás de um botão "Ver mais comentários (N)"
+(`comment-extra`/`.hidden`, expandido via JS sem reload); (5) rodapé
+subindo pro meio da página em telas allauth com pouco conteúdo (ex. tela
+de confirmação "Entrar com Google") — `body` global virou flex column
+(fix de padrão "rodapé no fim", `templates/allauth/layouts/base.html` não
+tinha o wrapper `.app-main`/`.app-shell` que o `base.html` normal tem);
+(6) título da proposição na página de detalhe agora é hyperlink pra fonte
+oficial (`Proposicao.link`, populado em 102/104 registros) quando
+existir; (7) **cadastro novo via Google restrito a e-mail institucional
+@fnp.org.br** — `GoogleAccountAdapter.is_open_for_signup()` em
+`apps/usuarios/adapters.py` bloqueia cadastro (não login — quem já tem
+conta continua entrando normal, independente do domínio) se o e-mail do
+Google não terminar em `@fnp.org.br`; aviso formal nas telas de
+login/cadastro (`.google-hint`) explicando que prefeitura/entidade
+pública deve usar o botão "Cadastre-se", e `account/signup_closed.html`
+sobrescrito com mensagem específica em vez do texto genérico em inglês do
+allauth; (8) **exportação de dados de engajamento pro Root**, telas
+novas — só visível/acessível a `is_superuser` (`/admin/exportar-dados/`,
+registrado via `FNPAdminSite.get_urls()`), exporta cadastro (Usuario +
+Perfil) e interação (comentários, participações — casadas por e-mail, já
+que `Participacao` não tem FK pra Usuario —, denúncias feitas,
+notificações) de um usuário específico ou em massa, em JSON pra alimentar
+um banco externo de pontuação de engajamento; **completamente separada**
+da exportação de LGPD já existente (`exportar_meus_dados`, cada usuário
+só dos próprios dados, continua intacta). `check`, `makemigrations
+--check` e 41 testes (era 38) limpos; páginas renderizadas via `Client`
+pra conferir ausência de erro de template (não visualmente — sem acesso a
+navegador neste ambiente).
+
+**Login Google local não funcionava** (usuário reportou: clica em
+"Continuar" na tela de confirmação e nada acontece, sem navegar) —
+diagnosticado até onde deu sem navegador: a URL de OAuth construída pelo
+Django está correta (`client_id` real, `redirect_uri`
+`http://127.0.0.1:8000/contas/google/login/callback/` batendo com o
+cadastrado no Google Cloud Console), sem `SocialApp` duplicado no banco
+que pudesse conflitar. Causa provável está do lado do navegador
+(extensão bloqueando redirect, cache/cookie), não do código — **aguardando
+o usuário checar a aba Network/Console do DevTools ao clicar em
+"Continuar"** pra achar a causa raiz.
+
 ### Pendências e próximos passos
 
+- **Login Google local não funciona, causa raiz ainda não identificada**
+  (ver seção acima) — lado Django já verificado correto; falta o usuário
+  reportar o que aparece no DevTools (Network/Console) ao clicar em
+  "Continuar" pra fechar o diagnóstico.
 - **Testar login com Google de verdade em produção** depois do upgrade do
   allauth (0.60→65.19) — só o login por e-mail foi verificado
   automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
