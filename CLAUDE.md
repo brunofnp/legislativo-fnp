@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`; confirmado funcionando de ponta a ponta no Microsoft Edge (Chrome ainda não retestado). Também nesta sessão: painel de busca sticky não tampa mais os cards (encolhe ao rolar), username de cadastro novo virou "nome.sobrenome" (era só o primeiro nome), e corrigido um bug real de `EMAIL_BACKEND` (default do Django é SMTP, não console — derrubava cadastro local sem servidor SMTP). Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
+> Última atualização: 2026-08-07 — **`next` foi promovido pra `main`/produção nesta sessão** (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **O deploy de fato nos containers do droplet é manual via SSH e pode ainda estar em andamento** — ver checklist no topo de "Pendências e próximos passos" pra confirmar que subiu sem erro antes de considerar produção atualizada de verdade. Detalhes de cada item em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" e "Promoção completa next → main → produção", ambos no Estado Atual.
 
 ---
 
@@ -545,11 +545,17 @@ point-in-time recovery, painel DO → Actions → Restore from backup).
 ### Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento (2026-08-07)
 
 A pedido do usuário, a partir de capturas de tela anotadas (home, card de
-proposição, fórum, tela de confirmação de login Google): (1) painel de
-busca/filtro da home agora acompanha o cabeçalho ao rolar a página
-(`position: sticky`, offset calculado em JS via `initStickyHeaderOffset`
-em `main.js` porque a altura do cabeçalho varia por breakpoint e pelo
-tamanho de fonte configurável — nunca hardcoded em px); (2) badge
+proposição, fórum, tela de confirmação de login Google): (1) filtro da
+home ao rolar a página — passou por 3 iterações no mesmo dia (painel
+inteiro sticky → encolhia ao ficar "grudado" → **estado final**: só o
+filtro de Tema fica sticky, como uma pill alinhada à direita
+(`.tema-filter-floating`, `top: var(--header-height)`, offset medido em
+JS via `initStickyHeaderOffset` em `main.js` porque a altura do
+cabeçalho varia por breakpoint/tamanho de fonte); a barra de busca
+grande voltou a ser 100% estática, no lugar original — o painel sticky
+cheio tampava boa parte da primeira fileira de cards ao rolar listas
+longas (Urgentes/Em alta/Todas), e mesmo a versão "encolhida" ainda
+incomodava; (2) badge
 "SEM PAUTA" tinha a mesma cor de alerta (vermelho) de "PAUTA", como se
 qualquer proposição sem pauta fosse urgente — `badge-pauta-on`/
 `badge-pauta-off` agora diferenciam; meta-itens do card ganharam `title`
@@ -614,15 +620,6 @@ bug). No Chrome (perfil "Trabalho") o mesmo teste não foi refeito depois
 do fix — se persistir bloqueado lá, é outra causa (extensão/política do
 perfil), não mais a CSP.
 
-**Painel de busca sticky tampava os cards ao rolar** (usuário reportou
-com captura de tela) — ficava grudado no topo pela extensão inteira das
-listas (Urgentes/Em alta/Todas), cobrindo boa parte da primeira fileira
-de cards conforme a página rolava. Fix: `.search-panel` agora detecta
-(via `IntersectionObserver` num elemento-sentinela logo acima dele, ver
-`initSearchPanelCompact` em `main.js`) quando ficou "grudado" e encolhe
-pra uma barra fina de uma linha só (busca + tema lado a lado), reduzindo
-bastante quanto de conteúdo fica coberto.
-
 **Username padrão de cadastro novo virou "nome.sobrenome"** (ex.: Bruno
 Marra → `bruno.marra`), a pedido do usuário, pra bater com o padrão já
 usado nas contas cadastradas manualmente (visível na listagem do Admin).
@@ -643,70 +640,90 @@ agora usa `console.EmailBackend` automaticamente. `check` e 45 testes
 (era 41) limpos; cadastro completo testado via `Client` HTTP real
 (não só a função do adapter isolada) confirmando o username gerado.
 
+### Promoção completa `next` → `main` → produção (2026-08-07)
+
+A pedido explícito do usuário ("subir tudo pra next e produção"), depois
+de validar `check` + 45 testes + `makemigrations --check` limpos: `main`
+local recebeu um `git merge --ff-only origin/next` (sem divergência, fast-
+forward direto) e foi enviado tanto pro `origin` quanto pro `production`
+(GitHub `dadosfnp/legislativo-fnp`), levando **tudo** que estava represado
+desde a última sincronização de produção (bem antes desta sessão) —
+upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de
+segurança (MFA depois desativado, CSP com o fix de `form-action`, rate
+limit, CAPTCHA, lockfile+pip-audit), mais tudo desta sessão (restrição de
+cadastro Google, exportação de engajamento, username `nome.sobrenome`,
+fix do `EMAIL_BACKEND` em dev, ajustes de UI, redução de `--paginas` do
+`sync-camara`). **O push no git não reinicia os containers sozinho** — o
+deploy de fato (rebuild + restart) é feito pelo usuário via SSH
+(`docker compose build && docker compose up -d` em `/opt/legislativo-fnp`,
+o `entrypoint.sh` já roda `migrate`/`collectstatic` automaticamente,
+inclusive a migration nova `0005_alter_perfil_foto`). Ver item no topo das
+pendências pra confirmar que subiu sem erro.
+
 ### Pendências e próximos passos
 
-- **Login Google local no Chrome (perfil "Trabalho") não foi reconfirmado**
-  depois do fix de CSP -- funcionou no Microsoft Edge, mas o teste original
-  que expôs o bug foi feito nesse perfil do Chrome; vale um retest rápido
-  lá pra garantir que não é uma segunda causa (extensão/política) somada à
-  da CSP.
-- **Testar login com Google de verdade em produção** depois do upgrade do
-  allauth (0.60→65.19) — só o login por e-mail foi verificado
-  automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
-- **Contas externas que faltam ser criadas** pra ativar o que já está
-  implementado (tudo desligado até então, zero risco): `SENTRY_DSN`
+**Mais urgente agora:**
+
+- **Confirmar que o deploy de produção (rebuild via `docker compose
+  build && up -d`) subiu sem erro** — é um salto grande de código
+  (upgrade de Django/allauth incluído) na primeira vez que vai pra
+  produção; conferir `docker compose logs legislativo`, login por e-mail,
+  login Google (conta @fnp.org.br), e `docker compose logs sync-camara`
+  mostrando o comando novo com `--paginas 1`.
+- **Login Google em produção ainda não testado de verdade** — só validado
+  em dev (Microsoft Edge; Chrome com perfil "Trabalho" não foi
+  reconfirmado depois do fix de CSP, testar lá também se der).
+- **Decidir o que fazer com as 70 proposições não-curadas já em
+  produção** (`interlocutores` vazio) — ficou pra depois do deploy do
+  `--paginas 1`, pra não serem recriadas à toa no próximo ciclo do
+  `sync-camara`. Reais, sem duplicata, só sem revisão editorial da FNP.
+
+**Seguem em aberto (sem mudança nesta sessão):**
+
+- Contas externas que faltam ser criadas pra ativar o que já está
+  implementado (tudo desligado até lá, zero risco): `SENTRY_DSN`
   (sentry.io), `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY`
   (google.com/recaptcha/admin).
-- **`EMAIL_BACKEND` de produção ainda não configurado de verdade** —
-  `ACCOUNT_EMAIL_VERIFICATION=optional` manda e-mail de confirmação, mas
-  sem um backend real (SMTP/SES/etc.) configurado via env var, cai no
-  default do Django (SMTP genérico) e não entrega. Corrigido o *crash* em
-  dev local (2026-08-07): sem `EMAIL_BACKEND` no ambiente, `DEBUG=True`
-  agora usa `console.EmailBackend` automaticamente (`setup/settings.py`)
-  em vez de tentar SMTP de verdade e derrubar o cadastro com
-  `ConnectionRefusedError` — produção continua exigindo `EMAIL_BACKEND`
-  real via env pra entregar e-mail de fato.
-- **Cache do Django é `LocMemCache`** (por processo) — com o Gunicorn
-  rodando `--workers 3`, tanto o rate limit de login quanto o
-  `throttling.py` de comentário/participação têm limite efetivo até 3x
-  mais permissivo do que o configurado (cada processo conta separado).
-  Decisão de trocar por cache compartilhado (Redis) ainda em aberto — é
-  reabrir a diretriz "só trocar por Redis se crescer pra múltiplos
-  workers", que já aconteceu.
-- **`style-src` do CSP com `'unsafe-inline'`** — vários templates usam
-  atributo `style="..."` inline; remover exigiria um cleanup maior
-  (mover pra classes CSS) não feito agora.
-- **Rodar `deploy/nginx-legislativo.conf` atualizado no droplet**
-  (`client_max_body_size`) — `cp` manual + certbot de novo (reinstalar
-  sobrescreve o bloco SSL, já aconteceu antes nesta sessão).
-- **Droplet `fnp-web` sem backup próprio** (só o `fnp-database` tem — o
-  droplet em si, com Nginx/Docker/certificados, não tem snapshot nenhum).
+- `EMAIL_BACKEND` de produção ainda não configurado com um backend real
+  (SMTP/SES/etc.) via env var — `ACCOUNT_EMAIL_VERIFICATION=optional`
+  manda e-mail de confirmação mas não entrega de verdade lá. (O bug de
+  dev, cadastro local derrubando sem `EMAIL_BACKEND`, já foi corrigido —
+  isso aqui é só sobre produção ter um backend real configurado.)
+- Cache do Django é `LocMemCache` (por processo) — com Gunicorn
+  `--workers 3`, rate limit de login e `throttling.py` de
+  comentário/participação têm limite efetivo até 3x mais permissivo do
+  que o configurado. Trocar por Redis é reabrir a diretriz "só trocar se
+  crescer pra múltiplos workers" — decisão ainda não tomada.
+- `style-src` do CSP com `'unsafe-inline'` — vários templates usam
+  `style="..."` inline; remover exige um cleanup maior (mover pra classes
+  CSS), não feito.
+- `deploy/nginx-legislativo.conf` atualizado (limite de upload 6MB) ainda
+  não copiado pro droplet — `cp` manual + certbot de novo (reinstalar
+  sobrescreve o bloco SSL, já aconteceu antes).
+- Droplet `fnp-web` sem backup próprio (só o `fnp-database` tem).
 - Reverificar se o bug do Python 3.14 (`copy.copy()` em `RequestContext`)
-  documentado acima ainda ocorre agora que o projeto está no Django 5.2 —
-  não testado ainda, `.venv/` local continua em 3.12 por segurança.
-- **O problema do `sync-camara` se repetiu, decisão parcial tomada em
-  2026-08-07**: produção estava com 171 proposições (era 104), 70 sem
-  curadoria (`interlocutores` vazio) — confirmado via SSH que são todas
-  reais e sem duplicata (só 2 vetos vieram sem ementa, `VETO 46/2023` e
-  `VETO 8/2026`, lacuna à parte na API da Câmara pra vetos, não corrigida).
-  Decisão do usuário: manter a descoberta automática (não construir fila de
-  revisão manual nem restringir a só atualizar as já existentes por
-  enquanto), só reduzir o volume por ciclo — `--paginas 1` (era o default
-  2) no comando do `sync-camara` em `docker-compose.yml`, ainda **não
-  deployado em produção** (só no `next`). As 70 já existentes em produção
-  **não foram apagadas** — decisão de limpá-las ficou pra depois de aplicar
-  o corte de página, já que apagar antes seria inútil (o próprio
-  `sync-camara` as recriaria no próximo ciclo, casando por `titulo` via
-  `update_or_create`). Retomar decisão de limpeza depois do deploy.
-- Conferir/chown o volume de `media/` no droplet antes do primeiro upload de
-  foto de perfil em produção (mesmo risco de permissão do `staticfiles/`,
-  nunca testado)
-- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa captura de tela compartilhada em sessão anterior (não foi usada/reproduzida, mas ficou registrada na conversa)
-- Credenciais reais do Google OAuth criadas em 2026-08-04 (Client ID/Secret preenchidos no `.env` local, não versionado); Client Secret foi exposto numa captura de tela compartilhada em sessão anterior (risco baixo — app ainda em modo "teste" no Google Cloud Console, só e-mails cadastrados como usuário de teste completam o login; mesmo assim, considerar gerar um novo secret se o app for publicado). Redirect URIs já cadastrados e salvos no cliente OAuth (`http://127.0.0.1:8000/contas/google/login/callback/` dev + `https://legislativo.fnp.org.br/contas/google/login/callback/` produção). Falta: (1) testar o login local de fato; (2) preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `.env` do servidor de produção (não é o mesmo `.env` local); (3) adicionar e-mails de teste na tela de consentimento OAuth até o app sair do modo "teste"
-- Popular `PalavraProibida` de verdade via Admin (a lista nasce vazia de propósito — curadoria é decisão da equipe FNP, não do código)
-- Comentários "pendente" que já existiam antes da moderação automática continuam precisando de revisão manual (ação em massa no Admin) — o auto-approve só vale pra envios novos
-- Integração com o Senado (hoje só Câmara via `sync_camara`)
-- Redesign visual vem sendo feito incrementalmente a partir de referências de outra plataforma FNP que o usuário está enviando aos poucos (sidebar/topbar do site público e do Admin já alinhados; mais capturas de tela podem vir e pedir mais ajuste)
+  ainda ocorre agora que o projeto está no Django 5.2 — não testado,
+  `.venv/` local continua em 3.12 por segurança.
+- Conferir/chown o volume de `media/` no droplet antes do primeiro upload
+  de foto de perfil em produção (mesmo risco de permissão que o
+  `staticfiles/` teve, nunca testado).
+- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa
+  captura de tela compartilhada numa sessão anterior (não usada/
+  reproduzida, mas ficou registrada).
+- Client Secret do Google OAuth também foi exposto numa captura de tela
+  em sessão anterior (risco baixo — app ainda em modo "teste" no Google
+  Cloud Console). Falta preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
+  no `.env` do servidor de produção (não é o mesmo `.env` local) e
+  adicionar e-mails de teste na tela de consentimento OAuth até o app
+  sair do modo "teste".
+- Popular `PalavraProibida` de verdade via Admin (lista nasce vazia de
+  propósito — curadoria é decisão da equipe FNP).
+- Comentários "pendente" de antes da moderação automática continuam
+  precisando de revisão manual (ação em massa no Admin).
+- Integração com o Senado (hoje só Câmara via `sync_camara`).
+- Redesign visual incremental a partir de referências que o usuário vai
+  mandando aos poucos (sidebar/topbar do site público e do Admin já
+  alinhados; mais capturas de tela podem vir e pedir mais ajuste).
 
 ---
 
