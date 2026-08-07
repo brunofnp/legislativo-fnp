@@ -34,7 +34,6 @@
     </div>
   </section>
 
-  <div class="search-panel-sentinel" aria-hidden="true"></div>
   <section class="search-panel">
     <form method="get" class="search-form" role="search" aria-label="Buscar proposições" autocomplete="off">
       <label for="search-input" class="sr-only">Buscar por proposição, ementa, status, tema ou prioridade</label>
@@ -44,7 +43,9 @@
       </div>
       <button type="submit" class="fbtn">Buscar</button>
     </form>
+  </section>
 
+  <div class="tema-filter-floating">
     <details class="tema-dropdown" id="tema-dropdown">
       <summary class="tema-dropdown-trigger">
         <span class="tema-dropdown-icon" aria-hidden="true">
@@ -65,7 +66,7 @@
         </div>
       </div>
     </details>
-  </section>
+  </div>
 
   {% if urgentes %}
     <section class="home-section">

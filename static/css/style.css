@@ -214,48 +214,36 @@ body {
   color: #15803d;
 }
 
-.search-panel-sentinel {
-  height: 1px;
-}
-
 .search-panel {
   background: var(--bg-surface, #fff);
   border-radius: 1.5rem;
   padding: 1.5rem;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
-  margin-bottom: 2rem;
-  /* Acompanha o cabeçalho (topbar/site-header) ao rolar -- --header-height
-     é medido em JS (initStickyHeaderOffset em main.js) porque a altura do
-     cabeçalho varia por breakpoint e pelo tamanho de fonte configurável
-     pelo usuário; o fallback cobre o instante antes do JS rodar. */
+  margin-bottom: 1.25rem;
+}
+
+/* Só o filtro de tema acompanha o cabeçalho ao rolar (a barra de busca
+   grande voltou a ficar estática, como antes -- ficar sticky tampava boa
+   parte da primeira fileira de cards ao rolar listas longas). Pill já
+   pequena o bastante pra não precisar de um modo "compacto" à parte.
+   --header-height é medido em JS (initStickyHeaderOffset em main.js). */
+.tema-filter-floating {
   position: sticky;
   top: var(--header-height, 4.5rem);
   z-index: 14;
-  transition: padding .2s ease, border-radius .2s ease, box-shadow .2s ease;
-}
-
-/* Enquanto "grudado" no topo (detectado via IntersectionObserver no
-   .search-panel-sentinel, initSearchPanelCompact em main.js), o painel
-   encolhe pra uma barra fina de uma linha só -- cheio o tempo todo, ele
-   tampava boa parte da primeira fileira de cards ao rolar por listas
-   longas (Urgentes/Em alta/Todas). */
-.search-panel.is-compact {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 0.6rem 1.25rem;
-  border-radius: 0.85rem;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  justify-content: flex-end;
+  margin-bottom: 2rem;
+  pointer-events: none;
 }
 
-.search-panel.is-compact .search-form {
-  flex: 1;
-  min-width: 220px;
-}
-
-.search-panel.is-compact .tema-dropdown {
-  flex-shrink: 0;
+.tema-filter-floating .tema-dropdown {
   margin-top: 0;
+  pointer-events: auto;
+}
+
+.tema-filter-floating .tema-dropdown-trigger {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .search-form {
