@@ -30,12 +30,13 @@ class UsuarioAdmin(UserAdmin):
     inlines = [PerfilInline]
     actions = ['aprovar_cadastros', 'rejeitar_cadastros', 'aprovar_exclusoes', 'rejeitar_exclusoes']
 
-    class Media:
-        # Botões de ação rápida por linha (ver acoes_rapidas) reaproveitam o
-        # form/checkboxes/CSRF já existentes da changelist via JS, em vez de
-        # views/endpoints novos — aciona a mesma action registrada em
-        # `actions` (inclusive a tela nativa de confirmação de exclusão).
-        js = ('js/admin_quick_actions.js',)
+    # Botões de ação rápida por linha (ver acoes_rapidas) reaproveitam o
+    # form/checkboxes/CSRF já existentes da changelist via JS, em vez de
+    # views/endpoints novos — aciona a mesma action registrada em
+    # `actions` (inclusive a tela nativa de confirmação de exclusão).
+    # js/admin_quick_actions.js agora carrega globalmente (ver
+    # templates/admin/base_site.html), não só nesta página -- o modal de
+    # Ajuda também precisa dele em todo o Admin.
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('perfil')

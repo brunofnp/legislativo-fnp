@@ -169,6 +169,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.legislativo.context_processors.notificacoes',
+                'apps.legislativo.context_processors.ajuda_pagina',
                 'csp.context_processors.nonce',
             ],
         },

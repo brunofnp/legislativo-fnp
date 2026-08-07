@@ -216,7 +216,6 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initDropdown('notif-btn', 'notif-dropdown');
-  initDropdown('topbar-more-btn', 'topbar-more-panel');
 
   function initSearchModal() {
     const modal = document.getElementById('search-modal');
@@ -250,6 +249,117 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initSearchModal();
+
+  function initHelpModal() {
+    const modal = document.getElementById('help-modal');
+    const trigger = document.getElementById('page-help-btn');
+    const backdrop = document.getElementById('help-modal-backdrop');
+    const closeBtn = document.getElementById('help-modal-close');
+    const okBtn = document.getElementById('help-modal-ok-btn');
+    const tourBtn = document.getElementById('help-modal-tour-btn');
+    if (!modal || !trigger) return;
+
+    function openModal() {
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      trigger.focus();
+    }
+
+    trigger.addEventListener('click', openModal);
+    if (backdrop) backdrop.addEventListener('click', closeModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (okBtn) okBtn.addEventListener('click', closeModal);
+    if (tourBtn) {
+      tourBtn.addEventListener('click', () => {
+        closeModal();
+        if (window.iniciarTourFNP) window.iniciarTourFNP();
+      });
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+  }
+
+  initHelpModal();
+
+  function initTour() {
+    const modal = document.getElementById('tour-modal');
+    if (!modal) return;
+
+    const slides = Array.from(modal.querySelectorAll('.tour-modal-slide'));
+    const progressBars = Array.from(modal.querySelectorAll('.tour-modal-progress-bar'));
+    const stepCount = document.getElementById('tour-modal-step-count');
+    const backdrop = document.getElementById('tour-modal-backdrop');
+    const closeTextBtn = document.getElementById('tour-modal-close-text');
+    const backBtn = document.getElementById('tour-modal-back');
+    const nextBtn = document.getElementById('tour-modal-next');
+    const naoMostrarCheckbox = document.getElementById('tour-modal-nao-mostrar');
+    const TOTAL_STEPS = slides.length;
+    const STORAGE_KEY = 'fnp-tour-visto';
+    let passoAtual = 1;
+
+    function mostrarPasso(passo) {
+      passoAtual = passo;
+      slides.forEach(slide => {
+        slide.classList.toggle('hidden', Number(slide.dataset.tourStep) !== passo);
+      });
+      progressBars.forEach(bar => {
+        bar.classList.toggle('active', Number(bar.dataset.progressStep) <= passo);
+      });
+      if (stepCount) stepCount.textContent = `${passo} de ${TOTAL_STEPS}`;
+      if (backBtn) backBtn.disabled = passo === 1;
+      if (nextBtn) nextBtn.textContent = passo === TOTAL_STEPS ? 'Concluir' : 'Próximo';
+    }
+
+    function abrirTour() {
+      mostrarPasso(1);
+      modal.classList.remove('hidden');
+    }
+
+    function fecharTour() {
+      modal.classList.add('hidden');
+      if (naoMostrarCheckbox && naoMostrarCheckbox.checked) {
+        localStorage.setItem(STORAGE_KEY, '1');
+      }
+    }
+
+    if (backdrop) backdrop.addEventListener('click', fecharTour);
+    if (closeTextBtn) closeTextBtn.addEventListener('click', fecharTour);
+    if (backBtn) backBtn.addEventListener('click', () => { if (passoAtual > 1) mostrarPasso(passoAtual - 1); });
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        if (passoAtual < TOTAL_STEPS) {
+          mostrarPasso(passoAtual + 1);
+        } else {
+          fecharTour();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+        fecharTour();
+      }
+    });
+
+    // Exposto globalmente pro botão "Rever o tour" do modal de Ajuda
+    // (initHelpModal acima) chamar de qualquer página autenticada.
+    window.iniciarTourFNP = abrirTour;
+
+    // Mostra sozinho só no primeiro acesso (Painel Geral) de quem nunca
+    // viu ou desmarcou "Não mostrar novamente" da última vez.
+    if (window.location.pathname === '/' && localStorage.getItem(STORAGE_KEY) !== '1') {
+      abrirTour();
+    }
+  }
+
+  initTour();
 
   function initForumReply() {
     const parentInput = document.getElementById('id_parent');

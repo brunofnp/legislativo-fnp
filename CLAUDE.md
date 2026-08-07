@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 — **`next` foi promovido pra `main`/produção nesta sessão** (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **Deploy nos containers do droplet confirmado e saudável** (rebuild via SSH, migrations aplicadas, site respondendo 200 por fora, `sync-camara` com `--paginas 1` confirmado rodando) — só falta o teste manual do login Google em produção pelo navegador. Detalhes em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento", "Promoção completa next → main → produção" e "Deploy de produção confirmado", todos no Estado Atual.
+> Última atualização: 2026-08-07 — **Header/Ajuda contextual/tour de onboarding novos, ainda só em `next`, não visualmente testados num navegador de verdade (ver "Header com ícones sempre visíveis..." no Estado Atual) — revisar antes de promover pra produção.** Sessão anterior no mesmo dia: `next` foi promovido pra `main`/produção (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **Deploy nos containers do droplet confirmado e saudável** (rebuild via SSH, migrations aplicadas, site respondendo 200 por fora, `sync-camara` com `--paginas 1` confirmado rodando) — só falta o teste manual do login Google em produção pelo navegador. Detalhes em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento", "Promoção completa next → main → produção" e "Deploy de produção confirmado", todos no Estado Atual.
 
 ---
 
@@ -767,6 +767,61 @@ igual antes. Testado: comentário legítimo segue `aprovado`, comentário
 com termo da lista vira `rejeitado`, e o teste de Scunthorpe (`cultura`
 não deveria bloquear por conter `cu`) continua passando. `check`, 44
 testes e `makemigrations --check` limpos.
+
+### Header com ícones sempre visíveis, "Ajuda desta página" e tour de onboarding (2026-08-07)
+
+A pedido do usuário, a partir de capturas de tela de outro sistema da FNP
+("Sistema FNP", usado só como referência visual/UX, não código):
+
+- **Topbar do site público reformulada**: tamanho da fonte e tema
+  claro/escuro saíram do menu "..." (`.topbar-more-panel`, removido por
+  completo — CSS/JS mortos limpos) e viraram ícones sempre visíveis, no
+  mesmo padrão da referência (busca → avatar+nome → sino → Aa → lua → "?"
+  → Sair). Em mobile, `.app-topbar-actions` ganhou `flex-wrap: wrap` pra
+  não transbordar horizontalmente com mais ícones na fileira — não
+  visualmente testado num aparelho de verdade, vale conferir.
+- **Header do Django Admin**: ganhou o ícone de "Ajuda desta página"
+  também (ver abaixo). **Sem toggle de tema escuro no Admin** —
+  reabriria a diretriz fechada "Admin sempre claro" (ver Diretrizes de
+  Engenharia), sinalizado e propositalmente deixado de fora. Sino de
+  notificações também deixado de fora do Admin por ora (exigiria portar
+  todo o CSS/JS do dropdown pro admin-custom.css/admin_quick_actions.js
+  — Root já vê pendências via os cards do dashboard).
+- **"Ajuda desta página"** (novo): modal acionado pelo ícone "?",
+  conteúdo varia por página. `apps/legislativo/ajuda_conteudo.py` tem um
+  dicionário `AJUDA_PAGINAS` indexado por `url_name` (título, descrição
+  e lista "como usar"), com fallback genérico; injetado globalmente via
+  novo context processor `apps.legislativo.context_processors.ajuda_pagina`
+  (registrado no `TEMPLATES`, por isso funciona também no Admin sem
+  código extra por view). Cobre home, detalhe de proposição, perfil,
+  favoritos, participações, cadastro pendente, índice do Admin e a tela
+  de exportar dados. Modal (`templates/_help_modal.html`) duplicado em
+  CSS entre `style.css` (site público, usa as CSS vars de tema) e
+  `admin-custom.css` (Admin, sempre claro, cores fixas) — mesma
+  separação que já existia entre os dois reskins.
+- **Tour de onboarding** (novo, só site público — Admin não tem):
+  `templates/_tour_modal.html`, 6 passos com conteúdo adaptado ao que a
+  plataforma realmente tem (Painel Geral, Ctrl+K, favoritos, fórum,
+  notificações, "Ajuda desta página" — não é cópia do sistema de
+  referência, que tem módulos que não existem aqui). Aparece sozinho no
+  Painel Geral (`window.location.pathname === '/'`) pra quem nunca viu
+  ou desmarcou "Não mostrar novamente" da última vez — persistência via
+  `localStorage` (`fnp-tour-visto`), mesmo padrão já usado pra
+  tema/tamanho de fonte/sidebar recolhida, sem migration nem campo novo
+  no `Perfil`. Pode ser revisto a qualquer momento pelo botão "Rever o
+  tour" dentro do modal de Ajuda (`window.iniciarTourFNP`, exposto
+  globalmente por `initTour()` em `main.js`).
+- **Item dos submenus em cascata (pedido separado do usuário) foi
+  propositalmente pulado** — perguntei onde faltava aplicar esse padrão
+  (Admin já tem via `nav_sidebar.html`) e o usuário respondeu "deixe como
+  está", então nada mudou na sidebar do site público (`_sidebar.html`
+  continua uma lista plana, sem colapsar).
+- `check`, 44 testes e `makemigrations --check` limpos; validado via
+  `Client` que os modais renderizam com o conteúdo certo por página
+  (inclusive no Admin) e que os elementos removidos (`.topbar-more-*`)
+  sumiram — **não testado visualmente num navegador de verdade**, sem
+  acesso a esse ambiente aqui; vale uma conferida cuidadosa antes de
+  considerar pronto (é a maior mudança de UI de uma vez só nesta sessão).
 
 ### Pendências e próximos passos
 

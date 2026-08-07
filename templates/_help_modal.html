@@ -1,0 +1,40 @@
+<div class="help-modal hidden" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+  <div class="help-modal-backdrop" id="help-modal-backdrop"></div>
+  <div class="help-modal-panel">
+    <div class="help-modal-header">
+      <span class="help-modal-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </span>
+      <div class="help-modal-heading">
+        <span class="help-modal-eyebrow">Ajuda desta página</span>
+        <h2 class="help-modal-title" id="help-modal-title">{{ ajuda_pagina.titulo }}</h2>
+      </div>
+      <button type="button" class="help-modal-close" id="help-modal-close" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="help-modal-body">
+      <p>{{ ajuda_pagina.descricao }}</p>
+      {% if ajuda_pagina.dicas %}
+        <p class="help-modal-subheading">Como usar</p>
+        <ul class="help-modal-list">
+          {% for dica in ajuda_pagina.dicas %}
+            <li>{{ dica }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="help-modal-footer">
+      <span class="help-modal-support">Precisa de mais? Fale com <a href="mailto:suporte@fnp.org.br">o suporte</a>.</span>
+      <div class="help-modal-footer-actions">
+        {% if mostrar_tour %}
+          <button type="button" class="help-modal-btn-ghost" id="help-modal-tour-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            Rever o tour
+          </button>
+        {% endif %}
+        <button type="button" class="help-modal-btn-primary" id="help-modal-ok-btn">Entendi</button>
+      </div>
+    </div>
+  </div>
+</div>

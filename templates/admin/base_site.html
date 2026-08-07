@@ -48,6 +48,9 @@
         {% icon 'key' %}
       </a>
     {% endif %}
+    <button type="button" class="fnp-icon-btn" id="page-help-btn" aria-label="Ajuda desta página" title="Ajuda desta página">
+      {% icon 'help-circle' %}
+    </button>
     <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
       {% csrf_token %}
       <button type="submit" class="fnp-logout-link">{% translate 'Log out' %}</button>
@@ -56,3 +59,8 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+{% block extrabody %}
+  {% include '_help_modal.html' with mostrar_tour=False %}
+  <script src="{% static 'js/admin_quick_actions.js' %}" defer></script>
+{% endblock %}

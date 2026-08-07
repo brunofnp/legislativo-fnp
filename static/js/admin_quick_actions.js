@@ -28,3 +28,36 @@ document.addEventListener('click', function (event) {
     event.preventDefault();
   }
 });
+
+// Modal "Ajuda desta página" -- mesmo componente do site público
+// (templates/_help_modal.html), sem o botão "Rever o tour" (o Admin não
+// tem tour de onboarding).
+document.addEventListener('DOMContentLoaded', function () {
+  var modal = document.getElementById('help-modal');
+  var trigger = document.getElementById('page-help-btn');
+  if (!modal || !trigger) return;
+
+  var backdrop = document.getElementById('help-modal-backdrop');
+  var closeBtn = document.getElementById('help-modal-close');
+  var okBtn = document.getElementById('help-modal-ok-btn');
+
+  function abrir() {
+    modal.classList.remove('hidden');
+  }
+
+  function fechar() {
+    modal.classList.add('hidden');
+    trigger.focus();
+  }
+
+  trigger.addEventListener('click', abrir);
+  if (backdrop) backdrop.addEventListener('click', fechar);
+  if (closeBtn) closeBtn.addEventListener('click', fechar);
+  if (okBtn) okBtn.addEventListener('click', fechar);
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+      fechar();
+    }
+  });
+});

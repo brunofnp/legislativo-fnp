@@ -66,6 +66,10 @@
   </div>
 
   {% include '_search_modal.html' %}
+  {% include '_help_modal.html' with mostrar_tour=True %}
+  {% if user.is_authenticated %}
+    {% include '_tour_modal.html' %}
+  {% endif %}
 
   <script src="{% static 'js/main.js' %}" defer></script>
 </body>
