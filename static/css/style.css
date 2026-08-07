@@ -1796,7 +1796,7 @@ body {
 .sidebar-section-label {
   margin: 0.65rem 0 0.25rem;
   padding: 0 0.65rem;
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted, #64748b);
@@ -1808,17 +1808,22 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0.65rem;
+  padding: 0.5rem 0.65rem;
   border-radius: 0.55rem;
   color: #cbd5e1;
   text-decoration: none;
-  font-size: 0.78rem;
+  /* Mesmo tamanho da barra lateral do Admin (.fnp-nav-link) -- ficava
+     menor de propósito porque "Exportar meus dados" não cabia, mas
+     esse item saiu da sidebar (exportação de dados virou exclusiva do
+     Root, só no Admin agora), então não há mais rótulo comprido o
+     bastante pra forçar uma fonte menor aqui. */
+  font-size: 0.9rem;
   font-weight: 500;
   transition: background .15s ease, color .15s ease;
   white-space: nowrap;
-  /* Rede de segurança: se algum rótulo futuro ainda não couber mesmo com
-     a fonte menor, trunca com "..." em vez de estourar a largura fixa
-     da sidebar e forçar rolagem horizontal. */
+  /* Rede de segurança: se algum rótulo futuro ainda não couber, trunca
+     com "..." em vez de estourar a largura fixa da sidebar e forçar
+     rolagem horizontal. */
   overflow: hidden;
 }
 
@@ -1829,8 +1834,8 @@ body {
 }
 
 .sidebar-link svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
 }
 
