@@ -80,6 +80,23 @@ div.breadcrumbs {
   overflow: hidden;
 }
 
+.exportar-dados-form .form-row {
+  padding: 0.85rem 0;
+}
+
+.exportar-dados-form .form-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.exportar-dados-form select {
+  margin-top: 0.5rem;
+  margin-left: 1.6rem;
+  min-width: 320px;
+}
+
 .button,
 input[type="submit"],
 input[type="button"],

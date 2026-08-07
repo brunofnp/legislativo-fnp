@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; Exportar dados de engajamento
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="module">
+    <p>
+      Exporta dados de cadastro e de interação com a plataforma (comentários, participações,
+      denúncias feitas, notificações) pra alimentar o banco externo de pontuação de engajamento.
+      Exclusivo do Root -- diferente da exportação de LGPD, que cada usuário faz só dos próprios
+      dados em <code>/perfil/</code>.
+    </p>
+
+    {% if erro %}
+      <p class="errornote">{{ erro }}</p>
+    {% endif %}
+
+    <form method="post" class="exportar-dados-form">
+      {% csrf_token %}
+
+      <fieldset class="module aligned">
+        <div class="form-row">
+          <label>
+            <input type="radio" name="modo" value="massa" checked />
+            Exportar todos os usuários (em massa) -- {{ usuarios.count }} cadastro{{ usuarios.count|pluralize }}
+          </label>
+        </div>
+        <div class="form-row">
+          <label for="id_usuario_id">
+            <input type="radio" name="modo" value="usuario" />
+            Exportar um usuário específico:
+          </label>
+          <select name="usuario_id" id="id_usuario_id">
+            <option value="">Selecione um usuário...</option>
+            {% for usuario in usuarios %}
+              <option value="{{ usuario.pk }}">{{ usuario.get_full_name|default:usuario.email }} ({{ usuario.email }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </fieldset>
+
+      <div class="submit-row">
+        <input type="submit" value="Exportar (baixar JSON)" class="default" />
+      </div>
+    </form>
+  </div>
+{% endblock %}

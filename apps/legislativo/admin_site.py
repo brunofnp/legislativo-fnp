@@ -44,6 +44,16 @@ class FNPAdminSite(admin.AdminSite):
         )
         return super().index(request, extra_context)
 
+    def get_urls(self):
+        from django.urls import path
+
+        from apps.usuarios.admin_views import exportar_dados_view
+
+        urls_customizadas = [
+            path('exportar-dados/', self.admin_view(exportar_dados_view), name='exportar_dados'),
+        ]
+        return urls_customizadas + super().get_urls()
+
 
 class FNPAdminConfig(AdminConfig):
     default_site = 'apps.legislativo.admin_site.FNPAdminSite'

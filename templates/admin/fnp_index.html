@@ -36,6 +36,9 @@
     <a class="fnp-quick-link" href="{% url 'admin:comentarios_denunciacomentario_changelist' %}">Denúncias</a>
     <a class="fnp-quick-link" href="{% url 'admin:usuarios_usuario_changelist' %}">Usuários</a>
     <a class="fnp-quick-link" href="{% url 'admin:comentarios_participacao_changelist' %}">Participações</a>
+    {% if request.user.is_superuser %}
+      <a class="fnp-quick-link" href="{% url 'admin:exportar_dados' %}">Exportar dados de engajamento</a>
+    {% endif %}
   </div>
 
   <div class="fnp-panels">
