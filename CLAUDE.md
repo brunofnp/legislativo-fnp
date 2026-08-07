@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 — **Header/Ajuda contextual/tour de onboarding novos, ainda só em `next`, não visualmente testados num navegador de verdade (ver "Header com ícones sempre visíveis..." no Estado Atual) — revisar antes de promover pra produção.** Sessão anterior no mesmo dia: `next` foi promovido pra `main`/produção (git-level, `main` local em ff-only com `next`, sem divergência; push feito tanto pro `origin` quanto pro `production`). Isso leva pra produção tudo represado desde a última sincronização: upgrade Django 4.2→5.2 LTS, django-allauth 0.60→65.19, toda a auditoria de segurança, e a rodada desta sessão (restrição de cadastro Google a @fnp.org.br, exportação de engajamento pro Root, filtro de tema sticky, username `nome.sobrenome`, fix de CSP que bloqueava o login Google, redução do volume do `sync-camara`). **Deploy nos containers do droplet confirmado e saudável** (rebuild via SSH, migrations aplicadas, site respondendo 200 por fora, `sync-camara` com `--paginas 1` confirmado rodando) — só falta o teste manual do login Google em produção pelo navegador. Detalhes em "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento", "Promoção completa next → main → produção" e "Deploy de produção confirmado", todos no Estado Atual.
+> Última atualização: 2026-08-07 — **`next`, `main` e produção sincronizados em `4298291`, deploy no droplet confirmado saudável (sem migration pendente).** Sessão cobriu, em ordem: upgrade Django 4.2→5.2 LTS + django-allauth 0.60→65.19, auditoria de segurança completa, restrição de cadastro Google a @fnp.org.br, exportação de dados de engajamento consolidada e exclusiva do Root (LGPD self-service removida), fix de CSP que bloqueava o login Google, header com ícones sempre visíveis + "Ajuda desta página" + tour de onboarding (novos), e uma rodada de acabamento fino a partir de feedback visual do usuário (header do Admin, tamanho dos modais, contorno de foco, fonte da sidebar). **Falta confirmação visual final do usuário** sobre essa última rodada de acabamento — ver topo de "Pendências e próximos passos". Detalhes de cada etapa nas seções datadas 2026-08-07 do Estado Atual, a mais recente sendo "Acabamento do header/Ajuda/tour + correções pós-uso".
 
 ---
 
@@ -823,10 +823,64 @@ A pedido do usuário, a partir de capturas de tela de outro sistema da FNP
   acesso a esse ambiente aqui; vale uma conferida cuidadosa antes de
   considerar pronto (é a maior mudança de UI de uma vez só nesta sessão).
 
+### Acabamento do header/Ajuda/tour + correções pós-uso (2026-08-07, mesmo dia)
+
+Usuário testou o que subiu na rodada anterior e voltou com 5 ajustes
+finos, todos fechados e já promovidos pra produção (`main`/`production`
+em `4298291`, deploy no droplet confirmado saudável, sem migration —
+só CSS/JS/templates):
+
+- **Header do Admin**: casinha ("Ver o site") saiu do canto direito e
+  foi pro lado do título "Painel Root — Legislativo FNP" (`#branding`
+  virou flex row, `gap: 0.75rem`); esse título encolheu pro mesmo
+  tamanho de "Painel Geral" (`1.1rem`, era bem maior por padrão do
+  Django). Botão de Ajuda (um `<button>`) tinha acabamento diferente dos
+  ícones vizinhos (todos `<a>`) porque `.fnp-icon-btn` não resetava
+  `border`/`background`/`padding` nativos do navegador — corrigido.
+- **Tour mais compacto + botão de voltar ao topo**: painel do tour
+  reduzido (era 480px com bastante espaço sobrando pro pouco texto),
+  mais o `.back-to-top-btn` novo (canto inferior direito, aparece com
+  `scrollY > 500px`, scroll suave, respeita `prefers-reduced-motion`).
+- **Contorno de foco distorcia o avatar do perfil**: a regra global
+  `a:focus-visible` forçava `border-radius: 2px` em qualquer elemento
+  focado — inofensivo pra botão/input normal, mas `.user-menu-trigger`
+  (pill de `999px`, avatar+nome no topbar) virava quase um retângulo reto
+  quando focado, criando um "anel" torto em cima do avatar redondo.
+  Removido o valor fixo — contorno agora acompanha o raio natural de
+  cada elemento (Chrome/Firefox/Safari já fazem isso sozinhos sem
+  precisar forçar).
+- **Modais de Ajuda/tour "esbeltos" demais**: a compactação do item
+  anterior deixou os dois estreitos demais pro texto (quebrava em 3
+  linhas, silhueta de coluna alta) — usuário pediu mais horizontal.
+  Ajuda voltou pra `540px` (era 480px), tour foi pra `460px` (era 380px,
+  reduzido demais na rodada anterior).
+- **Fonte da sidebar do site público pequena demais**: estava em
+  `0.78rem` de propósito, porque "Exportar meus dados" não cabia numa
+  fonte maior — esse item saiu da sidebar quando a exportação virou
+  exclusiva do Root (ver "Exportar dados de engajamento — correção"
+  acima), então não há mais rótulo comprido o bastante pra justificar
+  fonte menor. Foi pra `0.9rem`, igual `.fnp-nav-link` do Admin; ícones
+  e rótulo de seção ajustados proporcionalmente.
+
+`check` e 44 testes limpos a cada mudança; CI verde (`gh run watch`) nos
+dois repositórios antes de cada promoção pra produção. Ainda **não
+confirmado visualmente num navegador** se essas 5 correções resolveram
+por completo — usuário reportou os problemas a partir de captura de
+tela, mas não confirmou o resultado final depois do último deploy.
+
+**Novo hábito combinado com o usuário**: a frase "Por hoje é só" é
+gatilho explícito pra atualizar este arquivo e subir pra `next` (nunca
+`main`/produção junto — essa promoção continua exigindo autorização à
+parte a cada vez).
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Confirmar visualmente no navegador se os 5 ajustes finos acima
+  ficaram bons** (header do Admin, tour, contorno de foco, largura dos
+  modais, fonte da sidebar) — já em produção, mas sem confirmação visual
+  final do usuário ainda.
 - **Testar login Google em produção no navegador** (conta @fnp.org.br) —
   o deploy já está confirmado saudável do lado servidor, só falta esse
   teste manual.
