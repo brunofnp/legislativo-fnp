@@ -44,55 +44,112 @@
 }
 
 /* "Ver o site"/"Alterar senha"/"Sair" nasciam como texto sublinhado
-   separado por "/" -- nada indicava que eram clicáveis. Viram pill
-   buttons, no mesmo padrão visual do resto da plataforma (ex.:
-   .topbar-logout do site público: link vermelho pro "Sair"). */
+   separado por "/" -- nada indicava que eram clicáveis. Header vira o
+   mesmo padrão do topbar do site público: avatar + nome, botões de
+   ícone (casinha pro site público, chave pra trocar senha) e "Sair"
+   como link de texto vermelho, sem moldura de botão. */
 #user-tools {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
+  /* Django define #user-tools inteiro com uppercase + fonte minúscula
+     (pensado pro header escuro padrão do Django) e uma borda inferior
+     nos links/botão -- neutralizado aqui, cada elemento define seu
+     próprio tamanho de fonte. */
+  text-transform: none;
+  font-size: inherit;
+}
+
+#user-tools a,
+#logout-form button {
+  border-bottom: none;
+}
+
+.fnp-user-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.fnp-user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fnp-user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--header-color);
+  white-space: nowrap;
+  margin-right: 0.4rem;
 }
 
 .fnp-user-tools {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
-.fnp-user-btn {
+.fnp-icon-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.4;
-  cursor: pointer;
-  transition: background-color .15s ease, border-color .15s ease;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.6rem;
+  transition: background-color .15s ease;
 }
 
-#user-tools .fnp-user-btn:link,
-#user-tools .fnp-user-btn:visited {
-  color: var(--primary);
+/* Django define #header a:link/a:visited (cor) e #header a:focus/a:hover
+   (sublinhado) com especificidade maior que uma classe simples -- sem
+   repetir os pseudo-seletores com o prefixo #user-tools, o ícone fica
+   com a cor/sublinhado padrão do Django em vez dos nossos. */
+#user-tools .fnp-icon-btn:link,
+#user-tools .fnp-icon-btn:visited {
+  color: var(--header-color);
   text-decoration: none;
 }
 
-.fnp-user-btn:hover {
+#user-tools .fnp-icon-btn:focus,
+#user-tools .fnp-icon-btn:hover {
+  text-decoration: none;
   background: #f1f5f9;
-  border-color: var(--primary);
 }
 
-.fnp-user-btn-logout {
-  border-color: #fecaca;
+.fnp-icon-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.fnp-logout-link {
+  border: none;
+  background: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Django define #logout-form button (cor) com especificidade maior que
+   uma classe simples -- mesmo motivo do bloco acima. */
+#logout-form .fnp-logout-link {
   color: #dc2626;
 }
 
-.fnp-user-btn-logout:hover {
+#logout-form .fnp-logout-link:hover {
   background: #fef2f2;
-  border-color: #dc2626;
 }
 
 #branding h1,

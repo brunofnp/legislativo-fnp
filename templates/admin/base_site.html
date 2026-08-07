@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n static %}
+{% load i18n static admin_icons %}
 
 {% block dark-mode-vars %}{% endblock %}
 
@@ -17,23 +17,40 @@
 </h1>
 {% endblock %}
 
+{% block welcome-msg %}
+  <span class="fnp-user-avatar">
+    {% if user.get_avatar_url %}
+      <img src="{{ user.get_avatar_url }}" alt="" class="fnp-user-avatar-img" />
+    {% else %}
+      {{ user.get_display_name|default:user.get_username|first|upper }}
+    {% endif %}
+  </span>
+  <span class="fnp-user-name">{{ user.get_display_name|default:user.get_username }}</span>
+{% endblock %}
+
 {% block userlinks %}
   <div class="fnp-user-tools">
     {% if site_url %}
-      <a href="{{ site_url }}" class="fnp-user-btn">{% translate 'View site' %}</a>
+      <a href="{{ site_url }}" class="fnp-icon-btn" aria-label="{% translate 'View site' %}" title="{% translate 'View site' %}">
+        {% icon 'home' %}
+      </a>
     {% endif %}
     {% if user.is_active and user.is_staff %}
       {% url 'django-admindocs-docroot' as docsroot %}
       {% if docsroot %}
-        <a href="{{ docsroot }}" class="fnp-user-btn">{% translate 'Documentation' %}</a>
+        <a href="{{ docsroot }}" class="fnp-icon-btn" aria-label="{% translate 'Documentation' %}" title="{% translate 'Documentation' %}">
+          {% icon 'file-text' %}
+        </a>
       {% endif %}
     {% endif %}
     {% if user.has_usable_password %}
-      <a href="{% url 'admin:password_change' %}" class="fnp-user-btn">{% translate 'Change password' %}</a>
+      <a href="{% url 'admin:password_change' %}" class="fnp-icon-btn" aria-label="{% translate 'Change password' %}" title="{% translate 'Change password' %}">
+        {% icon 'key' %}
+      </a>
     {% endif %}
     <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
       {% csrf_token %}
-      <button type="submit" class="fnp-user-btn fnp-user-btn-logout">{% translate 'Log out' %}</button>
+      <button type="submit" class="fnp-logout-link">{% translate 'Log out' %}</button>
     </form>
   </div>
 {% endblock %}
