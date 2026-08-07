@@ -85,7 +85,14 @@ CONTENT_SECURITY_POLICY = {
         'img-src': [SELF, 'data:', 'https:'],  # https: cobre foto de perfil do Google (googleusercontent.com, vários subdomínios)
         'connect-src': [SELF],
         'frame-src': _csp_frame_src,
-        'form-action': [SELF],
+        # 'self' sozinho quebrava o login Google: a tela de confirmação do
+        # allauth faz POST pra cá (same-origin, ok) mas a RESPOSTA é um
+        # redirect 302 pro accounts.google.com -- o Chrome valida form-action
+        # de novo contra o destino final do redirect (não só o submit
+        # inicial), então sem isso aqui o navegador bloqueia silenciosamente
+        # a navegação (erro só aparece no Console: "violates ... form-action
+        # 'self'"). Ver CLAUDE.md, achado em 2026-08-07.
+        'form-action': [SELF, 'https://accounts.google.com'],
         'frame-ancestors': ["'none'"],
         'base-uri': [SELF],
         'object-src': ["'none'"],

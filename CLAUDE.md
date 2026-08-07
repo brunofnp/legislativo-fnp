@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Login Google local com problema não resolvido, aguardando diagnóstico do usuário. Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
+> Última atualização: 2026-08-07 (rodada de UX/UI a partir de capturas de tela anotadas — filtro sticky na home, badge "sem pauta" com cor própria, título da proposição como hyperlink pra fonte oficial, "Ver mais" nos comentários, rodapé fixo no fim da página em telas allauth —, cadastro novo via Google restrito a e-mail @fnp.org.br, e exportação de dados de engajamento exclusiva do Root; ver "Rodada de UX/UI + restrição de cadastro Google + exportação de engajamento" no Estado Atual. Bug real encontrado e corrigido no login Google local: CSP `form-action: 'self'` (da auditoria de segurança) bloqueava o redirect final pro Google — `form-action` agora inclui `https://accounts.google.com`. Sessão anterior, 2026-08-06: itens Alto/Médio da auditoria de segurança fechados — rate limit de login, 2FA obrigatório pra staff (depois desativado a pedido do usuário), CSP, lockfile+pip-audit, CAPTCHA, limite de upload; upgrade Django 4.2→5.2 LTS e django-allauth 0.60→65.19 — ver "Auditoria de segurança e upgrade Django/allauth" no Estado Atual)
 
 ---
 
@@ -587,23 +587,34 @@ só dos próprios dados, continua intacta). `check`, `makemigrations
 pra conferir ausência de erro de template (não visualmente — sem acesso a
 navegador neste ambiente).
 
-**Login Google local não funcionava** (usuário reportou: clica em
-"Continuar" na tela de confirmação e nada acontece, sem navegar) —
-diagnosticado até onde deu sem navegador: a URL de OAuth construída pelo
-Django está correta (`client_id` real, `redirect_uri`
-`http://127.0.0.1:8000/contas/google/login/callback/` batendo com o
-cadastrado no Google Cloud Console), sem `SocialApp` duplicado no banco
-que pudesse conflitar. Causa provável está do lado do navegador
-(extensão bloqueando redirect, cache/cookie), não do código — **aguardando
-o usuário checar a aba Network/Console do DevTools ao clicar em
-"Continuar"** pra achar a causa raiz.
+**Bug real encontrado e corrigido: login Google local não funcionava**
+(usuário reportou: clica em "Continuar" na tela de confirmação e nada
+acontece, sem navegar). A URL de OAuth construída pelo Django estava
+correta (`client_id` real, `redirect_uri` batendo com o cadastrado no
+Google Cloud Console) e o servidor respondia `302 Found` certinho — o
+Console do navegador (checado pelo usuário a pedido) mostrou a causa
+real: `Sending form data to '<URL>' violates ... "form-action 'self'".
+The request has been blocked.` A CSP adicionada na auditoria de
+segurança (`CONTENT_SECURITY_POLICY`, 2026-08-06) tinha `form-action:
+[SELF]` — o Chrome valida `form-action` não só contra o destino imediato
+do POST (que é same-origin, `/contas/google/login/`), mas também contra
+o destino final de um eventual redirect 302 dessa resposta; como o
+destino final é `accounts.google.com` (origem diferente), o navegador
+bloqueava a navegação silenciosamente (sem erro visível fora do
+Console). Fix em `setup/settings.py`: `form-action` passou a incluir
+`https://accounts.google.com` explicitamente. `check` e 41 testes
+continuam limpos; confirmado via `Client` que o header
+`Content-Security-Policy` da resposta agora inclui o domínio do Google
+em `form-action` — **falta só o usuário reconfirmar no navegador que o
+login completa até o fim** (a etapa de digitar a senha/escolher a conta
+Google em si não dá pra automatizar).
 
 ### Pendências e próximos passos
 
-- **Login Google local não funciona, causa raiz ainda não identificada**
-  (ver seção acima) — lado Django já verificado correto; falta o usuário
-  reportar o que aparece no DevTools (Network/Console) ao clicar em
-  "Continuar" pra fechar o diagnóstico.
+- **Reconfirmar no navegador que o login Google local completa até o
+  fim** depois do fix de CSP acima (ver seção "Rodada de UX/UI..." —
+  já validado que o redirect não é mais bloqueado, falta só o usuário
+  passar pela tela de escolha de conta/senha do Google de verdade).
 - **Testar login com Google de verdade em produção** depois do upgrade do
   allauth (0.60→65.19) — só o login por e-mail foi verificado
   automaticamente; o fluxo OAuth real precisa de navegador/conta Google.
