@@ -43,6 +43,12 @@
   border-bottom: 1px solid var(--hairline-color);
 }
 
+#branding {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* "Ver o site"/"Alterar senha"/"Sair" nasciam como texto sublinhado
    separado por "/" -- nada indicava que eram clicáveis. Header vira o
    mesmo padrão do topbar do site público: avatar + nome, botões de
@@ -109,20 +115,30 @@
   height: 2.1rem;
   border-radius: 0.6rem;
   transition: background-color .15s ease;
+  /* Reset explícito -- "Ajuda desta página" é <button>, os outros são
+     <a>; sem isso o <button> herda borda/fundo nativo do navegador e
+     destoa visualmente dos ícones vizinhos. */
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
 }
 
 /* Django define #header a:link/a:visited (cor) e #header a:focus/a:hover
    (sublinhado) com especificidade maior que uma classe simples -- sem
-   repetir os pseudo-seletores com o prefixo #user-tools, o ícone fica
-   com a cor/sublinhado padrão do Django em vez dos nossos. */
-#user-tools .fnp-icon-btn:link,
-#user-tools .fnp-icon-btn:visited {
+   repetir os pseudo-seletores com o prefixo #header (cobre tanto
+   #branding quanto #user-tools, os dois filhos de #header), o ícone
+   fica com a cor/sublinhado padrão do Django em vez dos nossos. */
+#header .fnp-icon-btn:link,
+#header .fnp-icon-btn:visited {
   color: var(--header-color);
   text-decoration: none;
 }
 
-#user-tools .fnp-icon-btn:focus,
-#user-tools .fnp-icon-btn:hover {
+#header .fnp-icon-btn:focus,
+#header .fnp-icon-btn:hover {
   text-decoration: none;
   background: #f1f5f9;
 }
@@ -130,6 +146,10 @@
 .fnp-icon-btn svg {
   width: 1.15rem;
   height: 1.15rem;
+}
+
+.fnp-branding-home {
+  flex-shrink: 0;
 }
 
 .fnp-logout-link {
@@ -349,6 +369,11 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  /* Mesmo tamanho do título "Painel Geral" no topbar do site público
+     (.app-topbar-title) -- Django deixa esse h1 bem maior por padrão,
+     destoando do resto da identidade visual da plataforma. */
+  font-size: 1.1rem;
+  margin: 0;
   /* Django usa --accent (azul médio) especificamente para o link do título,
      mais específico que --header-branding-color — força a mesma cor escura
      do resto do cabeçalho para não destoar. */
