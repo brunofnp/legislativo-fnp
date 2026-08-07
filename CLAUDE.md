@@ -684,13 +684,20 @@ agora usa `console.EmailBackend` automaticamente. `check` e 45 testes
 - Reverificar se o bug do Python 3.14 (`copy.copy()` em `RequestContext`)
   documentado acima ainda ocorre agora que o projeto está no Django 5.2 —
   não testado ainda, `.venv/` local continua em 3.12 por segurança.
-- **Política do `sync-camara` ainda não decidida**: hoje ele descobre e cria
-  proposições novas sozinho via busca por palavra-chave, sem qualquer
-  curadoria — o mesmo problema que causou a limpeza acima pode se repetir
-  a cada 30min. Decidir (revisão explícita, é mudança na diretriz de
-  Ingestão): manter como descoberta livre + fila de revisão manual no
-  Admin, restringir a só atualizar proposições já existentes (sem criar
-  novas), ou afinar as keywords.
+- **O problema do `sync-camara` se repetiu, decisão parcial tomada em
+  2026-08-07**: produção estava com 171 proposições (era 104), 70 sem
+  curadoria (`interlocutores` vazio) — confirmado via SSH que são todas
+  reais e sem duplicata (só 2 vetos vieram sem ementa, `VETO 46/2023` e
+  `VETO 8/2026`, lacuna à parte na API da Câmara pra vetos, não corrigida).
+  Decisão do usuário: manter a descoberta automática (não construir fila de
+  revisão manual nem restringir a só atualizar as já existentes por
+  enquanto), só reduzir o volume por ciclo — `--paginas 1` (era o default
+  2) no comando do `sync-camara` em `docker-compose.yml`, ainda **não
+  deployado em produção** (só no `next`). As 70 já existentes em produção
+  **não foram apagadas** — decisão de limpá-las ficou pra depois de aplicar
+  o corte de página, já que apagar antes seria inútil (o próprio
+  `sync-camara` as recriaria no próximo ciclo, casando por `titulo` via
+  `update_or_create`). Retomar decisão de limpeza depois do deploy.
 - Conferir/chown o volume de `media/` no droplet antes do primeiro upload de
   foto de perfil em produção (mesmo risco de permissão do `staticfiles/`,
   nunca testado)

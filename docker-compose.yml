@@ -18,7 +18,12 @@ services:
 
   sync-camara:
     image: legislativo-fnp:latest  # mesma imagem do serviço legislativo (build faz cache, não builda 2x)
-    command: python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --watch 1800
+    # --paginas 1 (era o default 2) -- cada keyword é uma busca de texto livre
+    # na API da Câmara (casa contra a proposição inteira, não só o título),
+    # então gera muita proposição nova sem curadoria a cada ciclo de 30min;
+    # 1 página (100 resultados) por keyword corta o volume pela metade sem
+    # mudar quais termos são buscados. Ver CLAUDE.md, decisão em 2026-08-07.
+    command: python manage.py sync_camara --keywords "municípios,municipal,prefeituras,FPM" --paginas 1 --watch 1800
     env_file: .env
     restart: unless-stopped
     depends_on:
