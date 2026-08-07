@@ -23,6 +23,13 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  /* flex column: o rodapé (irmão do <main>/<header> em templates/allauth/
+     layouts/base.html, que não usa a estrutura #app-shell/.app-main do
+     base.html) só fica colado no fim da página se o body distribuir a
+     altura -- sem isso, páginas allauth com pouco conteúdo (ex.: tela de
+     logout/confirmação do Google) deixam o rodapé flutuando no meio. */
+  display: flex;
+  flex-direction: column;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
   overscroll-behavior-y: none;
 }
@@ -171,10 +178,10 @@ body {
 
 .stat-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   color: var(--text-muted, #6b7280);
   margin-bottom: 0.75rem;
 }
@@ -208,11 +215,18 @@ body {
 }
 
 .search-panel {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--bg-surface, #fff);
   border-radius: 1.5rem;
   padding: 1.5rem;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
   margin-bottom: 2rem;
+  /* Acompanha o cabeçalho (topbar/site-header) ao rolar -- --header-height
+     é medido em JS (initStickyHeaderOffset em main.js) porque a altura do
+     cabeçalho varia por breakpoint e pelo tamanho de fonte configurável
+     pelo usuário; o fallback cobre o instante antes do JS rodar. */
+  position: sticky;
+  top: var(--header-height, 4.5rem);
+  z-index: 14;
 }
 
 .search-form {
@@ -689,7 +703,12 @@ body {
 .tag-normal { background: linear-gradient(135deg, #f8fafc, #f1f5f9); color: #475569; border: 1px solid #cbd5e1; }
 .tag-urgente{ background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; font-weight: 700; letter-spacing: .05em; animation: pulse 2s infinite; }
 .tag-aprovada{ background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; letter-spacing: .05em; }
-.badge-pauta  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+/* badge-pauta tinha uma cor fixa (vermelha) pra "PAUTA" e "SEM PAUTA" --
+   "sem pauta" (situação neutra, maioria dos casos) ficava com a mesma cor
+   de alerta de "pauta" (situação que pede ação). -on/-off distinguem as
+   duas situações. */
+.badge-pauta-on  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.badge-pauta-off { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 .badge-parada { background: #fefce8; color: #a16207; border: 1px solid #fef08a; font-size: 10px; }
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
@@ -861,6 +880,27 @@ body {
 
 .auth-divider span {
   padding: 0 0.85rem;
+}
+
+.google-hint {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+  background: var(--bg-surface-alt, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 0.85rem;
+}
+
+.google-hint a {
+  color: #1a4b8f;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.google-hint a:hover {
+  text-decoration: underline;
 }
 
 .google-btn {
@@ -1085,6 +1125,26 @@ body {
   font-size: clamp(1.9rem, 2.2vw, 2.75rem);
 }
 
+.detail-title-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.detail-title-link:hover {
+  text-decoration: underline;
+}
+
+.detail-title-link-icon {
+  width: 0.65em;
+  height: 0.65em;
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-muted, #6b7280);
+}
+
 .detail-meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -1186,6 +1246,34 @@ body {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+.comments-ver-mais {
+  display: block;
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: #193657;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.comments-ver-mais:hover {
+  background: #f1f5f9;
+}
+
+[data-theme="dark"] .comments-ver-mais {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .comments-ver-mais:hover {
+  background: var(--bg-surface-alt);
 }
 
 .forum-block .forum-header {

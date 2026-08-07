@@ -11,7 +11,16 @@
           {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
           {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
         </div>
-        <h1>{{ proposicao.titulo }}</h1>
+        <h1>
+          {% if proposicao.link %}
+            <a href="{{ proposicao.link }}" target="_blank" rel="noopener" class="detail-title-link" title="Consultar na fonte oficial ({{ proposicao.get_casa_display }})">
+              {{ proposicao.titulo }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="detail-title-link-icon"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>
+            </a>
+          {% else %}
+            {{ proposicao.titulo }}
+          {% endif %}
+        </h1>
         {% if proposicao.macrotema or proposicao.temas.all %}
           <div class="card-tags-row">
             {% if proposicao.macrotema %}
@@ -126,7 +135,7 @@
           {% if comentarios %}
             <ul class="comments" id="lista-comentarios">
               {% for comentario in comentarios %}
-                <li class="comment-card">
+                <li class="comment-card {% if forloop.counter0 >= 5 %}comment-extra hidden{% endif %}">
                   {% with avatar_url=comentario.autor.get_avatar_url %}
                     {% if avatar_url %}
                       <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
@@ -187,6 +196,11 @@
                 </li>
               {% endfor %}
             </ul>
+            {% if comentarios|length > 5 %}
+              <button type="button" class="comments-ver-mais" id="comments-ver-mais" data-restantes="{{ comentarios|length|add:'-5' }}">
+                Ver mais comentários ({{ comentarios|length|add:'-5' }})
+              </button>
+            {% endif %}
           {% else %}
             <p>Ainda não há comentários. Seja o primeiro a comentar nesta proposição.</p>
           {% endif %}

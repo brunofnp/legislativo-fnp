@@ -165,6 +165,24 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initFontSize();
 
+  function initStickyHeaderOffset() {
+    const header = document.querySelector('.app-topbar') || document.querySelector('.site-header');
+    if (!header) return;
+
+    function updateOffset() {
+      document.documentElement.style.setProperty('--header-height', header.offsetHeight + 'px');
+    }
+
+    updateOffset();
+    if (window.ResizeObserver) {
+      new ResizeObserver(updateOffset).observe(header);
+    } else {
+      window.addEventListener('resize', updateOffset);
+    }
+  }
+
+  initStickyHeaderOffset();
+
   function initDropdown(triggerId, dropdownId) {
     const trigger = document.getElementById(triggerId);
     const dropdown = document.getElementById(dropdownId);
@@ -246,6 +264,18 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initForumReply();
+
+  function initComentariosVerMais() {
+    const btn = document.getElementById('comments-ver-mais');
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.comment-extra').forEach(item => item.classList.remove('hidden'));
+      btn.classList.add('hidden');
+    });
+  }
+
+  initComentariosVerMais();
 
   function setToast(message) {
     if (!toast) return;

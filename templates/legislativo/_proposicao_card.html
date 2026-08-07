@@ -37,24 +37,24 @@
   <p class="card-excerpt line-clamp-2">{{ proposicao.ementa_resumida|default:'Sem resumo disponível.' }}</p>
 
   <div class="card-meta-inline">
-    <span class="meta-item">
+    <span class="meta-item" title="Casa legislativa">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg>
       {{ proposicao.casa|title }}
     </span>
     <span class="meta-sep" aria-hidden="true">·</span>
-    <span class="meta-item">
+    <span class="meta-item" title="Status da tramitação (fonte oficial)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       {{ proposicao.status_tramitacao|default:'Status indisponível'|truncatechars:30 }}
     </span>
     <span class="meta-sep" aria-hidden="true">·</span>
-    <span class="meta-item">
+    <span class="meta-item" title="Nível de atenção sugerido pela FNP">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
       {% if proposicao.urgente %}Atenção imediata{% else %}Monitorar{% endif %}
     </span>
   </div>
 
   <div class="card-footer">
-    <span class="badge-pauta">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
+    <span class="badge-pauta {% if proposicao.pauta %}badge-pauta-on{% else %}badge-pauta-off{% endif %}">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
     <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:8 }}</span>
   </div>
 </article>
