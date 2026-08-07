@@ -55,17 +55,19 @@ RECAPTCHA_PUBLIC_KEY = os.getenv('RECAPTCHA_PUBLIC_KEY', '')
 RECAPTCHA_PRIVATE_KEY = os.getenv('RECAPTCHA_PRIVATE_KEY', '')
 RECAPTCHA_HABILITADO = bool(RECAPTCHA_PUBLIC_KEY and RECAPTCHA_PRIVATE_KEY)
 
-# Content-Security-Policy (django-csp). style-src precisa de 'unsafe-inline'
-# porque vários templates ainda usam atributo style="..." inline (achado
-# no levantamento, não corrigido agora -- é um cleanup maior, ver
-# Pendências) -- então a proteção de XSS via CSS/estilo fica mais fraca
-# por enquanto. script-src fica estrito (só 'self' + nonce automático):
-# o único <script> inline do projeto (detecção de tema/fonte antes da
-# primeira renderização, em base.html) usa {{ CSP_NONCE }}; o onclick
-# que existia em admin/usuarios/usuario/submit_line.html foi movido pra
-# um JS externo (mesmo padrão do admin_quick_actions.js) especificamente
-# pra não precisar de 'unsafe-inline' em script.
-from csp.constants import NONCE, SELF, UNSAFE_INLINE  # noqa: E402
+# Content-Security-Policy (django-csp). style-src fica estrito (sem
+# 'unsafe-inline') -- os únicos atributos style="..." inline do projeto
+# (achados num levantamento, ver CLAUDE.md) foram removidos: os
+# redundantes viraram nada, os com valor real viraram classe CSS
+# (.auth-card-wide), e a cor dinâmica de macrotema (cadastrada por
+# registro no Admin, não dá pra virar classe fixa) passou a ser setada
+# via JS (element.style, não bloqueado pelo CSP -- só o atributo style=""
+# em HTML é). script-src também fica estrito (só 'self' + nonce
+# automático): o único <script> inline do projeto (detecção de tema/fonte
+# antes da primeira renderização, em base.html) usa {{ CSP_NONCE }}; o
+# onclick que existia em admin/usuarios/usuario/submit_line.html foi
+# movido pra um JS externo (mesmo padrão do admin_quick_actions.js).
+from csp.constants import NONCE, SELF  # noqa: E402
 
 _csp_script_src = [SELF, NONCE]
 _csp_frame_src = ["'none'"]
@@ -80,7 +82,7 @@ CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': [SELF],
         'script-src': _csp_script_src,
-        'style-src': [SELF, UNSAFE_INLINE, 'https://fonts.googleapis.com'],
+        'style-src': [SELF, 'https://fonts.googleapis.com'],
         'font-src': [SELF, 'https://fonts.gstatic.com'],
         'img-src': [SELF, 'data:', 'https:'],  # https: cobre foto de perfil do Google (googleusercontent.com, vários subdomínios)
         'connect-src': [SELF],

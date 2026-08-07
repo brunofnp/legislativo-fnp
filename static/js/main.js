@@ -1,6 +1,21 @@
 window.addEventListener('DOMContentLoaded', function () {
   const toast = document.getElementById('realtime-toast');
 
+  // Cor do chip de macrotema é dinâmica (cadastrada por registro no Admin),
+  // então não dá pra virar classe CSS fixa -- setar via element.style (JS)
+  // em vez de atributo style="" no HTML evita precisar de 'unsafe-inline'
+  // no style-src do CSP (CSP não restringe mudança de estilo via CSSOM).
+  function initMacrotemaColors(root) {
+    (root || document).querySelectorAll('[data-cor-macrotema]').forEach(chip => {
+      const cor = chip.dataset.corMacrotema;
+      if (!cor) return;
+      chip.style.setProperty('color', cor);
+      chip.style.setProperty('border-color', cor);
+    });
+  }
+
+  initMacrotemaColors();
+
   function initTemaDropdowns() {
     const dropdowns = document.querySelectorAll('.tema-dropdown');
     if (!dropdowns.length) return;
@@ -312,6 +327,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const container = document.getElementById(containerByKey[key]);
       if (container && sections[key] !== undefined) {
         container.innerHTML = sections[key];
+        initMacrotemaColors(container);
       }
     });
   }

@@ -725,6 +725,33 @@ rodando com `--paginas 1` de fato. **Login Google em produção ainda não
 testado no navegador de verdade** (só o lado servidor foi confirmado) —
 próximo passo do usuário.
 
+### CSP `style-src` sem `'unsafe-inline'` (2026-08-07)
+
+Item que estava nas pendências desde a auditoria de segurança de
+2026-08-06, fechado ainda no mesmo dia a pedido do usuário ("das
+pendências o que podemos implementar?"). Levantamento mostrou só 6
+ocorrências de `style="..."` em todo o projeto, em 2 padrões: (1) 4
+`style="margin: 0;"` redundantes (`.auth-card` não tem margin pra
+sobrescrever — só deletados) mais 1 com largura customizada de verdade
+(`politica_privacidade.html`, virou classe `.auth-card-wide`); (2) 2
+chips de cor de macrotema (`style="color: X; border-color: X;"`,
+`_proposicao_card.html` e `proposicao_detail.html`) — cor é cadastrada
+por registro no Admin, não dá pra virar classe CSS fixa. Resolvido com
+`data-cor-macrotema="{{ cor }}"` + `initMacrotemaColors()` em `main.js`
+setando via `element.style.setProperty(...)` (CSP não restringe mudança
+de estilo via CSSOM/JavaScript, só o atributo `style=""` em HTML) —
+hookado tanto no load inicial quanto depois do live-update de cards via
+SSE/polling (`applyCards()`). `UNSAFE_INLINE` removido do import e do
+`style-src` em `settings.py`. **Gap residual, não corrigido**: duas
+páginas nativas do allauth não sobrescritas por templates deste projeto
+(`account/email_change.html`, `account/phone_change.html`) têm
+`style="display: none"` próprio — mas nenhuma das duas é linkada em
+lugar nenhum da UI (sem gestão de múltiplos e-mails nem 2FA por telefone
+expostos), risco insignificante. `check` e 44 testes limpos; confirmado
+via `Client` que o header `Content-Security-Policy` da resposta não tem
+mais `'unsafe-inline'` em `style-src`, e que o chip de macrotema
+renderiza `data-cor-macrotema` com o valor certo.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
@@ -754,9 +781,6 @@ próximo passo do usuário.
   comentário/participação têm limite efetivo até 3x mais permissivo do
   que o configurado. Trocar por Redis é reabrir a diretriz "só trocar se
   crescer pra múltiplos workers" — decisão ainda não tomada.
-- `style-src` do CSP com `'unsafe-inline'` — vários templates usam
-  `style="..."` inline; remover exige um cleanup maior (mover pra classes
-  CSS), não feito.
 - `deploy/nginx-legislativo.conf` atualizado (limite de upload 6MB) ainda
   não copiado pro droplet — `cp` manual + certbot de novo (reinstalar
   sobrescreve o bloco SSL, já aconteceu antes).

@@ -24,7 +24,7 @@
         {% if proposicao.macrotema or proposicao.temas.all %}
           <div class="card-tags-row">
             {% if proposicao.macrotema %}
-              <span class="chip chip-tema" style="color: {{ proposicao.macrotema.cor }}; border-color: {{ proposicao.macrotema.cor }};">{{ proposicao.macrotema.nome }}</span>
+              <span class="chip chip-tema" data-cor-macrotema="{{ proposicao.macrotema.cor }}">{{ proposicao.macrotema.nome }}</span>
             {% else %}
               {% for tema in proposicao.temas.all %}
                 <span class="chip chip-tema">{{ tema.nome }}</span>

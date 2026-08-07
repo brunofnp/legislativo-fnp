@@ -787,6 +787,13 @@ body {
   box-shadow: 0 25px 55px rgba(15, 23, 42, 0.1);
 }
 
+/* Política de Privacidade tem texto longo -- 420px deixava a maior parte
+   da tela em branco (mesmo raciocínio do .perfil-card). */
+.auth-card-wide {
+  width: 100%;
+  max-width: 720px;
+}
+
 /* Meu perfil reaproveita .auth-card (login/cadastro), mas tem mais campos
    (foto, nome/sobrenome, município/UF, setor, cargo, telefone) -- 420px
    deixava a maior parte da tela em branco. */
