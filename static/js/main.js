@@ -361,6 +361,25 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initTour();
 
+  function initBackToTop() {
+    const btn = document.getElementById('back-to-top-btn');
+    if (!btn) return;
+
+    function checarScroll() {
+      btn.classList.toggle('visible', window.scrollY > 500);
+    }
+
+    window.addEventListener('scroll', checarScroll, { passive: true });
+    checarScroll();
+
+    btn.addEventListener('click', () => {
+      const reduzMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduzMovimento ? 'auto' : 'smooth' });
+    });
+  }
+
+  initBackToTop();
+
   function initForumReply() {
     const parentInput = document.getElementById('id_parent');
     const textoInput = document.getElementById('id_texto');
