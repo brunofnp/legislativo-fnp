@@ -978,16 +978,32 @@ Trabalho organizado em bugs primeiro, depois features, per item:
   ícone de alerta, lista clara de consequências, botão "Cancelar" ao lado
   do de confirmar (antes só existia o botão de exclusão).
 - **Troca de senha (senha atual + nova + confirmar)** — checado e já
-  funciona por padrão: `allauth.account.forms.ChangePasswordForm`
-  (usado por `/contas/senha/alterar/`, já linkado na sidebar) sempre
-  pede `oldpassword` + `password1` + `password2` — nenhuma mudança
-  necessária, item já estava coberto antes desta sessão.
+  funciona por padrão pra quem já tem senha local:
+  `allauth.account.forms.ChangePasswordForm` (usado por
+  `/contas/senha/alterar/`, já linkado na sidebar) sempre pede
+  `oldpassword` + `password1` + `password2`. **Correção no mesmo dia**:
+  o usuário testou com uma conta que só loga via Google (sem senha local)
+  e viu a tela "Definir senha" (só nova+confirmar, sem "senha atual") —
+  comportamento nativo do allauth pra esse caso (não tem senha atual pra
+  confirmar), mas o usuário pediu uma camada extra: exigir confirmação
+  por e-mail antes de deixar a sessão criar a primeira senha local sozinha
+  (evita que uma sessão sequestrada vire uma porta dos fundos permanente
+  de login por senha). `account_set_password` (`/contas/password/set/`)
+  foi sobrescrita (`apps/usuarios/views.py::definir_senha_social`,
+  registrada em `setup/urls.py` antes do `include('allauth.urls')`, mesmo
+  nome de URL) — em vez de mostrar o formulário de senha direto, manda um
+  e-mail via `ResetPasswordForm` do próprio allauth (reaproveita o fluxo
+  já testado de "Esqueci minha senha", token com expiração) e só define a
+  senha quando a pessoa clica no link recebido. Conta que já tem senha
+  local continua indo direto pra "Alterar senha", sem esse passo extra.
 
-`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 58
-testes (era 44, +14 novos cobrindo cada bug/feature acima) limpos.
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 61
+testes (era 44, +17 novos cobrindo cada bug/feature acima) limpos.
 Smoke test via `Client` (não só `RequestFactory`) confirmando 200 em
 home com/sem filtro, fórum com resposta aninhada de verdade, Favoritos,
-Participações, Solicitar Exclusão e `/admin/` pro Root. **Sem acesso a
+Participações, Solicitar Exclusão, `/admin/` pro Root e o fluxo completo
+de `/contas/password/set/` (e-mail de fato enviado via `console.EmailBackend`
+em dev). **Sem acesso a
 navegador neste ambiente** — nada disso foi conferido visualmente
 (cards clicáveis, colapso das seções ao filtrar, preview em tempo real
 da busca, layout do fórum); vale uma rodada de conferência visual antes

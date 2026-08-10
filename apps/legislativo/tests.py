@@ -689,6 +689,58 @@ class ComentarioLikeTest(TestCase):
         self.assertIn(proposicao, list(sections['em_alta']))
 
 
+class DefinirSenhaSocialTest(TestCase):
+    """Conta sem senha local (login só via Google) não pode criar uma senha
+    direto a partir da sessão -- precisa confirmar pelo e-mail cadastrado,
+    reaproveitando o fluxo de "Esqueci minha senha" do allauth."""
+
+    def test_usuario_sem_senha_ve_tela_de_confirmacao_por_email(self):
+        from apps.usuarios.views import definir_senha_social
+
+        usuario = Usuario.objects.create(username='soogoogle', email='soogoogle@fnp.org.br')
+        usuario.set_unusable_password()
+        usuario.save()
+        self.assertFalse(usuario.has_usable_password())
+
+        request = _request_with_session('/contas/password/set/')
+        request.user = usuario
+        response = definir_senha_social(request)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('ainda não tem uma senha', content)
+
+    def test_post_envia_email_de_confirmacao(self):
+        from django.core import mail
+
+        from apps.usuarios.views import definir_senha_social
+
+        usuario = Usuario.objects.create(username='soogoogle2', email='soogoogle2@fnp.org.br')
+        usuario.set_unusable_password()
+        usuario.save()
+        request = _post_request_with_session('/contas/password/set/')
+        request.user = usuario
+        response = definir_senha_social(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Confira seu e-mail', response.content.decode('utf-8'))
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_usuario_com_senha_e_redirecionado_pra_alterar_senha(self):
+        from apps.usuarios.views import definir_senha_social
+
+        usuario = Usuario.objects.create(username='comsenha', email='comsenha@fnp.org.br')
+        usuario.set_password('umasenhaqualquer123')
+        usuario.save()
+
+        request = _request_with_session('/contas/password/set/')
+        request.user = usuario
+        response = definir_senha_social(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('password/change', response.url)
+
+
 class UsuarioPublicoTest(TestCase):
     def test_pagina_publica_mostra_proposicoes_comentadas(self):
         proposicao = Proposicao.objects.create(titulo='PL do fulano', casa='camara')
