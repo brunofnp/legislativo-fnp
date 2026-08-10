@@ -52,6 +52,35 @@ class Comentario(models.Model):
         return f'Comentário de {self.autor or "Anônimo"} em {self.proposicao}'
 
 
+class ComentarioLike(models.Model):
+    """Curtida de um usuário num comentário do fórum -- soma na contagem
+    exibida e entra como peso no ranking "Em alta" da home (ver
+    apps.legislativo.views.get_home_sections)."""
+
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        related_name='likes',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comentario_likes',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Curtida de comentário'
+        verbose_name_plural = 'Curtidas de comentário'
+        ordering = ['-criado_em']
+        constraints = [
+            models.UniqueConstraint(fields=['comentario', 'usuario'], name='like_unico_por_usuario'),
+        ]
+
+    def __str__(self):
+        return f'{self.usuario} curtiu o comentário #{self.comentario_id}'
+
+
 class PalavraProibida(models.Model):
     """Lista editável via Admin (Root/Administrador FNP) — nunca hardcoded no
     código. Comentário que contiver alguma palavra ativa aqui é reprovado

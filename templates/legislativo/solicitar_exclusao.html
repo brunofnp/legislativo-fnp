@@ -10,20 +10,28 @@
     </div>
   </section>
 
-  <div class="auth-card">
+  <div class="auth-card auth-card-wide exclusao-card">
     {% if enviado %}
-      <div class="toast success">
-        Solicitação registrada. A equipe da FNP vai processar a exclusão da sua conta e dos seus dados em breve.
-      </div>
+      <span class="exclusao-icone exclusao-icone-sucesso" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </span>
+      <h2 class="exclusao-titulo">Solicitação registrada</h2>
+      <p class="exclusao-texto">A equipe da FNP vai processar a exclusão da sua conta e dos seus dados em breve. Você pode continuar usando a plataforma normalmente até lá.</p>
       <a href="{% url 'legislativo:home' %}" class="fbtn auth-submit">Voltar ao início</a>
     {% else %}
-      <p>
-        Ao confirmar, sua conta e seus dados pessoais serão marcados para exclusão pela equipe da FNP.
-        Comentários já publicados no fórum permanecem, mas deixam de ficar associados ao seu nome.
-        Essa ação não pode ser desfeita por você depois de concluída pela equipe.
-      </p>
-      <form method="post" class="auth-form">
+      <span class="exclusao-icone exclusao-icone-alerta" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+      </span>
+      <h2 class="exclusao-titulo">Tem certeza que deseja excluir sua conta?</h2>
+      <p class="exclusao-texto">Ao confirmar, sua solicitação é enviada para a equipe da FNP, que revisa e processa a exclusão manualmente. O que muda:</p>
+      <ul class="exclusao-lista">
+        <li>Sua conta e seus dados pessoais são marcados para exclusão.</li>
+        <li>Comentários já publicados no fórum permanecem, mas deixam de ficar associados ao seu nome.</li>
+        <li>Essa ação não pode ser desfeita por você depois de concluída pela equipe.</li>
+      </ul>
+      <form method="post" class="exclusao-acoes">
         {% csrf_token %}
+        <a href="{% url 'legislativo:perfil' %}" class="fbtn exclusao-cancelar-btn">Cancelar</a>
         <button type="submit" class="fbtn auth-submit perfil-conta-link-danger-btn">Confirmar solicitação de exclusão</button>
       </form>
     {% endif %}

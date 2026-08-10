@@ -3,7 +3,7 @@ import time
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Max, Q
+from django.db.models import BooleanField, Count, Exists, F, Max, OuterRef, Prefetch, Q, Value
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -14,11 +14,12 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.comentarios.models import Comentario, DenunciaComentario, Notificacao, Participacao
+from apps.comentarios.models import Comentario, ComentarioLike, DenunciaComentario, Notificacao
 from apps.comentarios.moderacao import classificar_comentario
-from apps.proposicoes.models import Proposicao, Tema
+from apps.proposicoes.models import Macrotema, Proposicao, Tema
+from apps.usuarios.models import Usuario
 
-from .forms import ComentarioForm, ParticipacaoForm, PerfilDadosForm, PerfilForm
+from .forms import ComentarioForm, PerfilDadosForm, PerfilForm
 from .throttling import rate_limited
 
 FAVORITOS_SESSION_KEY = 'favoritos'
@@ -60,10 +61,31 @@ def registrar_visualizacao(request, proposicao):
     request.session[RECENTES_SESSION_KEY] = recentes[:RECENTES_MAX]
 
 
-def get_filtered_proposicoes(query, tema_slug):
+FILTROS_ESTATISTICA = {
+    'pauta': {'pauta': True},
+    'urgentes': {'urgente': True},
+    'alta_prioridade': {'prioridade_fnp': 'alta'},
+    'com_relator': {'interlocutores__icontains': 'relator'},
+}
+
+FILTRO_LABELS = {
+    'pauta': 'Na pauta',
+    'urgentes': 'Urgentes',
+    'alta_prioridade': 'Alta prioridade',
+    'com_relator': 'Com relator',
+}
+
+
+def get_filtered_proposicoes(query, tema_slug, filtro=None):
     proposicoes = Proposicao.objects.select_related('macrotema').prefetch_related('temas').all()
     if tema_slug:
-        proposicoes = proposicoes.filter(temas__slug=tema_slug)
+        # tema_slug pode ser o slug de um Tema (subcategoria) ou de um
+        # Macrotema (classificação editorial ampla) -- o chip exibido no
+        # card/detalhe mostra o macrotema quando existe, então o link do
+        # chip precisa casar com qualquer um dos dois.
+        proposicoes = proposicoes.filter(Q(temas__slug=tema_slug) | Q(macrotema__slug=tema_slug))
+    if filtro in FILTROS_ESTATISTICA:
+        proposicoes = proposicoes.filter(**FILTROS_ESTATISTICA[filtro])
     if query:
         proposicoes = proposicoes.filter(
             Q(titulo__icontains=query)
@@ -81,11 +103,11 @@ def get_filtered_proposicoes(query, tema_slug):
 PROPOSICOES_POR_PAGINA = 24
 
 
-def get_home_sections(query, tema_slug, page_number=1):
+def get_home_sections(query, tema_slug, page_number=1, filtro=None):
     """Querysets das 3 seções da home que são globais (não dependem da sessão
     de quem acessa) — compartilhado entre HomeView e api_proposicoes_cards
     para o live-update via SSE não duplicar a lógica de filtro/ranking."""
-    filtered = get_filtered_proposicoes(query, tema_slug)
+    filtered = get_filtered_proposicoes(query, tema_slug, filtro)
     ordenadas = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')
     page_obj = Paginator(ordenadas, PROPOSICOES_POR_PAGINA).get_page(page_number)
 
@@ -97,10 +119,11 @@ def get_home_sections(query, tema_slug, page_number=1):
         base.annotate(
             comentarios_count=Count(
                 'comentarios', distinct=True, filter=Q(comentarios__status_moderacao='aprovado')
-            )
+            ),
+            likes_count=Count('comentarios__likes', distinct=True),
         )
-        .annotate(relevancia=F('visualizacoes') + F('comentarios_count') * 5)
-        .filter(Q(visualizacoes__gt=0) | Q(comentarios_count__gt=0))
+        .annotate(relevancia=F('visualizacoes') + F('comentarios_count') * 5 + F('likes_count') * 2)
+        .filter(Q(visualizacoes__gt=0) | Q(comentarios_count__gt=0) | Q(likes_count__gt=0))
         .order_by('-relevancia')[:4]
     )
 
@@ -119,11 +142,16 @@ class HomeView(View):
     def get(self, request):
         query = request.GET.get('q', '').strip()
         tema_slug = request.GET.get('tema', '').strip()
+        filtro = request.GET.get('filtro', '').strip()
         page_number = request.GET.get('page', 1)
         temas = Tema.objects.order_by('nome')
         active_tema_obj = temas.filter(slug=tema_slug).first() if tema_slug else None
+        if tema_slug and not active_tema_obj:
+            # O chip de macrotema (mostrado no card/detalhe quando existe) também
+            # linka pra cá -- o slug pode ser de um Macrotema, não de um Tema.
+            active_tema_obj = Macrotema.objects.filter(slug=tema_slug).first()
 
-        sections = get_home_sections(query, tema_slug, page_number)
+        sections = get_home_sections(query, tema_slug, page_number, filtro)
         stats = compute_counts(sections['filtered'])
         page_obj = sections['page_obj']
         urgentes = sections['urgentes']
@@ -139,6 +167,21 @@ class HomeView(View):
         if not areas_interesse:
             areas_interesse = Tema.objects.annotate(num=Count('proposicoes')).filter(num__gt=0).order_by('-num')[:8]
 
+        # Qualquer filtro ativo (tema/área de interesse, busca ou card de
+        # estatística) vira uma única lista consolidada em "Todas as
+        # proposições", no topo -- em vez de deixar Urgentes/Em alta com
+        # cards que não respeitam o filtro (era a origem do "filtro parece
+        # quebrado": só a grade "Todas" reagia à busca/tema).
+        filtro_ativo = bool(query or tema_slug or filtro)
+        if filtro in FILTRO_LABELS:
+            filtro_label = FILTRO_LABELS[filtro]
+        elif active_tema_obj:
+            filtro_label = active_tema_obj.nome
+        elif query:
+            filtro_label = f'Busca por “{query}”'
+        else:
+            filtro_label = None
+
         return render(
             request,
             self.template_name,
@@ -152,6 +195,9 @@ class HomeView(View):
                 'temas': temas,
                 'active_tema': tema_slug,
                 'active_tema_obj': active_tema_obj,
+                'active_filtro': filtro,
+                'filtro_ativo': filtro_ativo,
+                'filtro_label': filtro_label,
                 'query': query,
                 'stats': stats,
                 'favoritos_ids': get_favoritos_ids(request),
@@ -173,7 +219,8 @@ def compute_counts(proposicoes):
 def api_proposicoes(request):
     query = request.GET.get('q', '').strip()
     tema_slug = request.GET.get('tema', '').strip()
-    proposicoes = get_filtered_proposicoes(query, tema_slug)
+    filtro = request.GET.get('filtro', '').strip()
+    proposicoes = get_filtered_proposicoes(query, tema_slug, filtro)
     return JsonResponse({'counts': compute_counts(proposicoes)})
 
 
@@ -204,8 +251,9 @@ def api_proposicoes_cards(request):
     montagem de card duplicada em JS."""
     query = request.GET.get('q', '').strip()
     tema_slug = request.GET.get('tema', '').strip()
+    filtro = request.GET.get('filtro', '').strip()
     page_number = request.GET.get('page', 1)
-    sections = get_home_sections(query, tema_slug, page_number)
+    sections = get_home_sections(query, tema_slug, page_number, filtro)
     favoritos_ids = get_favoritos_ids(request)
 
     def render_cards(proposicoes):
@@ -257,10 +305,10 @@ SSE_POLL_INTERVAL_SECONDS = 5
 SSE_MAX_ITERATIONS = 120  # ~10 min por conexão; o EventSource do navegador reconecta sozinho
 
 
-def _sse_stream(query, tema_slug):
+def _sse_stream(query, tema_slug, filtro):
     last_snapshot = None
     for _ in range(SSE_MAX_ITERATIONS):
-        proposicoes = get_filtered_proposicoes(query, tema_slug)
+        proposicoes = get_filtered_proposicoes(query, tema_slug, filtro)
         latest = proposicoes.aggregate(Max('atualizado_em'))['atualizado_em__max']
         counts = compute_counts(proposicoes)
         snapshot = (latest, tuple(sorted(counts.items())))
@@ -279,9 +327,10 @@ def _sse_stream(query, tema_slug):
 def api_proposicao_sse(request):
     query = request.GET.get('q', '').strip()
     tema_slug = request.GET.get('tema', '').strip()
+    filtro = request.GET.get('filtro', '').strip()
 
     response = StreamingHttpResponse(
-        _sse_stream(query, tema_slug),
+        _sse_stream(query, tema_slug, filtro),
         content_type='text/event-stream',
     )
     response['Cache-Control'] = 'no-cache'
@@ -322,6 +371,20 @@ def denunciar_comentario(request, pk):
     return redirect('legislativo:proposicao_detail', pk=comentario.proposicao_id)
 
 
+@login_required
+@require_POST
+def curtir_comentario(request, pk):
+    comentario = get_object_or_404(Comentario, pk=pk)
+    like, criado = ComentarioLike.objects.get_or_create(comentario=comentario, usuario=request.user)
+    if not criado:
+        like.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=comentario.proposicao_id)
+
+
 class FavoritosListView(View):
     template_name = 'legislativo/favoritos_list.html'
 
@@ -339,6 +402,7 @@ class FavoritosListView(View):
                 'proposicoes': proposicoes,
                 'favoritos_ids': favoritos_ids,
                 'page_title': 'Favoritos',
+                'mostrar_sidebar': True,
             },
         )
 
@@ -361,12 +425,31 @@ def marcar_notificacoes_lidas(request):
     return redirect('legislativo:home')
 
 
+NIVEIS_RESPOSTA_PREFETCH = 4  # respostas mais profundas que isso ainda funcionam, só sem prefetch (N+1)
+
+
 class ProposicaoDetailView(View):
     template_name = 'legislativo/proposicao_detail.html'
 
-    def _forum_context(self, proposicao):
+    def _forum_context(self, proposicao, usuario):
         aprovados = proposicao.comentarios.filter(status_moderacao='aprovado')
-        comentarios = aprovados.filter(parent__isnull=True).select_related('autor').prefetch_related('respostas__autor')
+        if usuario.is_authenticated:
+            curtido_por_mim = Exists(ComentarioLike.objects.filter(comentario=OuterRef('pk'), usuario=usuario))
+        else:
+            curtido_por_mim = Value(False, output_field=BooleanField())
+
+        def com_anotacoes(queryset):
+            return queryset.annotate(likes_count=Count('likes', distinct=True), curtido_por_mim=curtido_por_mim)
+
+        respostas_qs = com_anotacoes(Comentario.objects.filter(status_moderacao='aprovado').select_related('autor'))
+        prefetches = []
+        caminho = 'respostas'
+        for _ in range(NIVEIS_RESPOSTA_PREFETCH):
+            prefetches.append(Prefetch(caminho, queryset=respostas_qs))
+            caminho += '__respostas'
+        comentarios = com_anotacoes(
+            aprovados.filter(parent__isnull=True).select_related('autor')
+        ).prefetch_related(*prefetches)
         return {
             'comentarios': comentarios,
             'comentarios_count': aprovados.count(),
@@ -383,7 +466,6 @@ class ProposicaoDetailView(View):
         proposicao = get_object_or_404(Proposicao, pk=pk)
         registrar_visualizacao(request, proposicao)
         comentario_form = ComentarioForm(initial={'parent': None})
-        participacao_form = ParticipacaoForm(initial={'proposicao': proposicao.titulo, 'tipo': 'sugestao'})
         return render(
             request,
             self.template_name,
@@ -392,45 +474,33 @@ class ProposicaoDetailView(View):
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
-                'participacao_form': participacao_form,
                 **self._breadcrumb(),
-                **self._forum_context(proposicao),
+                **self._forum_context(proposicao, request.user),
             },
         )
 
     def post(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
-        form_type = request.POST.get('form_type')
         comentario_form = ComentarioForm(initial={'parent': None})
-        participacao_form = ParticipacaoForm(initial={'proposicao': proposicao.titulo, 'tipo': 'sugestao'})
         success_message = None
 
-        if form_type == 'comentario':
-            if rate_limited('comentario', request, limit=5, window_seconds=300):
-                success_message = 'Você enviou comentários rápido demais. Aguarde alguns minutos e tente novamente.'
-            else:
-                comentario_form = ComentarioForm(request.POST)
-                if comentario_form.is_valid():
-                    comentario = comentario_form.save(commit=False)
-                    comentario.proposicao = proposicao
-                    if request.user.is_authenticated:
-                        comentario.autor = request.user
-                    comentario.status_moderacao = classificar_comentario(comentario.texto)
-                    comentario.save()
-                    if comentario.status_moderacao == 'aprovado':
-                        if comentario.autor_id:
-                            notificar_participantes_da_discussao(proposicao, comentario)
-                        return redirect('legislativo:proposicao_detail', pk=pk)
-                    success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
-                    comentario_form = ComentarioForm(initial={'parent': None})
+        if rate_limited('comentario', request, limit=5, window_seconds=300):
+            success_message = 'Você enviou comentários rápido demais. Aguarde alguns minutos e tente novamente.'
         else:
-            if rate_limited('participacao', request, limit=3, window_seconds=600):
-                success_message = 'Você enviou participações rápido demais. Aguarde alguns minutos e tente novamente.'
-            else:
-                participacao_form = ParticipacaoForm(request.POST)
-                if participacao_form.is_valid():
-                    participacao_form.save()
-                    success_message = 'Sua contribuição foi registrada com sucesso.'
+            comentario_form = ComentarioForm(request.POST)
+            if comentario_form.is_valid():
+                comentario = comentario_form.save(commit=False)
+                comentario.proposicao = proposicao
+                if request.user.is_authenticated:
+                    comentario.autor = request.user
+                comentario.status_moderacao = classificar_comentario(comentario.texto)
+                comentario.save()
+                if comentario.status_moderacao == 'aprovado':
+                    if comentario.autor_id:
+                        notificar_participantes_da_discussao(proposicao, comentario)
+                    return redirect('legislativo:proposicao_detail', pk=pk)
+                success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
+                comentario_form = ComentarioForm(initial={'parent': None})
 
         return render(
             request,
@@ -440,20 +510,64 @@ class ProposicaoDetailView(View):
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
                 'favoritos_ids': get_favoritos_ids(request),
-                'participacao_form': participacao_form,
                 'success_message': success_message,
                 **self._breadcrumb(),
-                **self._forum_context(proposicao),
+                **self._forum_context(proposicao, request.user),
             },
         )
 
 
 class ParticipacaoListView(View):
+    """A página Participações mostra o engajamento de fato do usuário logado no fórum
+    (proposições em que comentou) -- o formulário avulso "Enviar participação"
+    foi removido da página da proposição a pedido do usuário (Participacao
+    segue existindo pra dado histórico/exportação via Admin)."""
+
     template_name = 'legislativo/participacao_list.html'
 
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request):
-        participacoes = Participacao.objects.all()[:100]
-        return render(request, self.template_name, {'participacoes': participacoes, 'page_title': 'Participações'})
+        proposicoes = (
+            Proposicao.objects.select_related('macrotema')
+            .prefetch_related('temas')
+            .filter(comentarios__autor=request.user, comentarios__status_moderacao='aprovado')
+            .distinct()
+            .order_by('-comentarios__criado_em')
+        )
+        return render(
+            request,
+            self.template_name,
+            {
+                'proposicoes': proposicoes,
+                'favoritos_ids': get_favoritos_ids(request),
+                'page_title': 'Participações',
+                'mostrar_sidebar': True,
+            },
+        )
+
+
+def usuario_publico(request, pk):
+    usuario = get_object_or_404(Usuario.objects.select_related('perfil__municipio'), pk=pk)
+    proposicoes = (
+        Proposicao.objects.select_related('macrotema')
+        .prefetch_related('temas')
+        .filter(comentarios__autor=usuario, comentarios__status_moderacao='aprovado')
+        .distinct()
+        .order_by('-comentarios__criado_em')
+    )
+    return render(
+        request,
+        'legislativo/usuario_publico.html',
+        {
+            'usuario_perfil': usuario,
+            'proposicoes': proposicoes,
+            'favoritos_ids': get_favoritos_ids(request),
+            'page_title': usuario.get_display_name(),
+        },
+    )
 
 
 @login_required
@@ -481,12 +595,12 @@ def solicitar_exclusao(request):
         return render(
             request,
             'legislativo/solicitar_exclusao.html',
-            {'page_title': 'Solicitar exclusão da conta', 'enviado': True},
+            {'page_title': 'Solicitar exclusão da conta', 'enviado': True, 'mostrar_sidebar': True},
         )
     return render(
         request,
         'legislativo/solicitar_exclusao.html',
-        {'page_title': 'Solicitar exclusão da conta', 'perfil': perfil},
+        {'page_title': 'Solicitar exclusão da conta', 'perfil': perfil, 'mostrar_sidebar': True},
     )
 
 

@@ -38,6 +38,12 @@
         </div>
       </div>
 
+      <label class="field-label">E-mail de acesso</label>
+      {{ form.email }}
+      {% if form.email.errors %}
+        <ul class="field-error">{% for erro in form.email.errors %}<li>{{ erro }}</li>{% endfor %}</ul>
+      {% endif %}
+
       <div class="form-row form-row-uf">
         <div class="form-field">
           <label class="field-label">Município</label>
@@ -64,7 +70,5 @@
       {{ dados_form.telefone }}
       <button type="submit" class="fbtn auth-submit">Salvar</button>
     </form>
-
-    <p class="auth-footer">E-mail de acesso: {{ user.email }}</p>
   </div>
 {% endblock %}

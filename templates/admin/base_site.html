@@ -9,6 +9,9 @@
 {% endblock %}
 
 {% block branding %}
+<a href="{% url 'legislativo:perfil' %}" class="fnp-icon-btn fnp-branding-back" aria-label="Voltar para o meu perfil" title="Voltar para o meu perfil">
+  {% icon 'arrow-left' %}
+</a>
 <h1 id="site-name">
   <a href="{% url 'admin:index' %}">
     <img src="{% static 'img/logo-FNP.png' %}" alt="" class="admin-brand-logo" />

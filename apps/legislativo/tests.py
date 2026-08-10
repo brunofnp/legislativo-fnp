@@ -12,7 +12,7 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from apps.comentarios.models import Comentario, PalavraProibida
+from apps.comentarios.models import Comentario, ComentarioLike, PalavraProibida
 from apps.comentarios.moderacao import classificar_comentario, contem_palavra_proibida
 from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema
 from apps.usuarios.middleware import CadastroPendenteMiddleware, MFAObrigatorioStaffMiddleware
@@ -22,10 +22,15 @@ from .throttling import rate_limited
 from .views import (
     PROPOSICOES_POR_PAGINA,
     HomeView,
+    ParticipacaoListView,
     PerfilView,
+    ProposicaoDetailView,
+    curtir_comentario,
     denunciar_comentario,
+    get_filtered_proposicoes,
     get_home_sections,
     solicitar_exclusao,
+    usuario_publico,
 )
 
 
@@ -497,3 +502,206 @@ class PaginacaoHomeTest(TestCase):
 
         self.assertEqual(sections['page_obj'].paginator.num_pages, 2)
         self.assertEqual(len(sections['proposicoes']), PROPOSICOES_POR_PAGINA)
+
+
+class AcessoAdminViaGrupoTest(TestCase):
+    """Adicionar alguém a Administrador FNP/Root pelo widget de grupos do
+    Admin precisa conceder is_staff sozinho -- sem isso a pessoa nem
+    conseguia logar em /admin/, e a sidebar do site nunca mostrava o link
+    "Painel Admin" (que checava só is_superuser antes desta correção)."""
+
+    def test_adicionar_ao_grupo_administrador_fnp_concede_staff(self):
+        call_command('setup_roles')
+        usuario = Usuario.objects.create(username='novoadm', email='novoadm@fnp.org.br')
+        self.assertFalse(usuario.is_staff)
+
+        grupo = Group.objects.get(name='Administrador FNP')
+        usuario.groups.add(grupo)
+
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.is_staff)
+
+    def test_usuario_comum_sem_grupo_admin_nao_ganha_staff(self):
+        usuario = Usuario.objects.create(username='comumx', email='comumx@fnp.org.br')
+        self.assertFalse(usuario.is_staff)
+
+
+class HomeFiltroEstatisticaTest(TestCase):
+    def setUp(self):
+        self.pauta = Proposicao.objects.create(titulo='PL na pauta', casa='camara', pauta=True)
+        Proposicao.objects.create(titulo='PL fora da pauta', casa='camara', pauta=False)
+
+    def test_filtro_pauta_retorna_so_proposicoes_na_pauta(self):
+        proposicoes = get_filtered_proposicoes('', '', filtro='pauta')
+        self.assertEqual(list(proposicoes), [self.pauta])
+
+    def test_home_view_marca_filtro_ativo_no_contexto(self):
+        request = _request_with_session(reverse('legislativo:home') + '?filtro=pauta')
+        response = HomeView.as_view()(request)
+        content = response.content.decode('utf-8')
+        self.assertIn('Na pauta (1)', content)
+        self.assertIn('Limpar filtro', content)
+        # Com filtro ativo, as seções fixas (Urgentes/Em alta) somem da página.
+        self.assertNotIn('id="cards-urgentes"', content)
+
+
+class HomeFiltroPorMacrotemaTest(TestCase):
+    def test_tema_slug_casa_com_macrotema_tambem(self):
+        macrotema = Macrotema.objects.create(nome='Meio Ambiente', slug='meio-ambiente', cor='#15803d')
+        proposicao = Proposicao.objects.create(titulo='PL ambiental', casa='camara', macrotema=macrotema)
+        Proposicao.objects.create(titulo='PL qualquer', casa='camara')
+
+        proposicoes = get_filtered_proposicoes('', 'meio-ambiente')
+        self.assertEqual(list(proposicoes), [proposicao])
+
+
+class RespostaAninhadaTest(TestCase):
+    """O model já suportava profundidade ilimitada via parent -- o que
+    faltava era o template renderizar recursivamente e permitir responder
+    a uma resposta (não só a comentários de primeiro nível)."""
+
+    def test_resposta_de_resposta_aparece_na_pagina(self):
+        proposicao = Proposicao.objects.create(titulo='PL teste aninhamento', casa='camara')
+        autor = Usuario.objects.create(username='autoresq', email='autoresq@fnp.org.br')
+        raiz = Comentario.objects.create(
+            proposicao=proposicao, texto='comentário raiz', autor=autor, status_moderacao='aprovado',
+        )
+        resposta1 = Comentario.objects.create(
+            proposicao=proposicao, texto='primeira resposta', autor=autor, parent=raiz, status_moderacao='aprovado',
+        )
+        Comentario.objects.create(
+            proposicao=proposicao, texto='resposta da resposta', autor=autor, parent=resposta1,
+            status_moderacao='aprovado',
+        )
+
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = autor
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('primeira resposta', content)
+        self.assertIn('resposta da resposta', content)
+        # "Responder" precisa existir também dentro do bloco aninhado, não só
+        # no comentário raiz -- checa que aparece mais de uma vez.
+        self.assertGreater(content.count('data-parent-id="'), 1)
+
+
+class EnviarParticipacaoRemovidaTest(TestCase):
+    def test_pagina_da_proposicao_nao_tem_mais_o_formulario_avulso(self):
+        proposicao = Proposicao.objects.create(titulo='PL sem participação avulsa', casa='camara')
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = Usuario.objects.create(username='semparticip', email='semparticip@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+        self.assertNotIn('Enviar participação', content)
+
+
+class ParticipacoesComoEngajamentoTest(TestCase):
+    """"Participações" mostra só as proposições em que o próprio usuário
+    logado comentou -- não é mais uma lista pública de Participacao."""
+
+    def test_requer_login(self):
+        request = _request_with_session(reverse('legislativo:participacao_list'))
+        from django.contrib.auth.models import AnonymousUser
+
+        request.user = AnonymousUser()
+        response = ParticipacaoListView.as_view()(request)
+        self.assertEqual(response.status_code, 302)
+
+    def test_mostra_so_proposicoes_do_proprio_usuario(self):
+        proposicao_minha = Proposicao.objects.create(titulo='PL que comentei', casa='camara')
+        proposicao_outro = Proposicao.objects.create(titulo='PL de outra pessoa', casa='camara')
+        eu = Usuario.objects.create(username='euparticipo', email='euparticipo@fnp.org.br')
+        outro = Usuario.objects.create(username='outroparticipa', email='outroparticipa@fnp.org.br')
+        Comentario.objects.create(proposicao=proposicao_minha, texto='comentei', autor=eu, status_moderacao='aprovado')
+        Comentario.objects.create(proposicao=proposicao_outro, texto='comentou', autor=outro, status_moderacao='aprovado')
+
+        request = _request_with_session(reverse('legislativo:participacao_list'))
+        request.user = eu
+        response = ParticipacaoListView.as_view()(request)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('PL que comentei', content)
+        self.assertNotIn('PL de outra pessoa', content)
+
+
+class PerfilEmailEditavelTest(TestCase):
+    def test_alterar_email_atualiza_usuario_e_email_address_do_allauth(self):
+        from allauth.account.models import EmailAddress
+
+        usuario = Usuario.objects.create(username='trocaemail', email='antigo@fnp.org.br', first_name='Troca')
+        request = _post_request_with_session(
+            reverse('legislativo:perfil'),
+            {'first_name': 'Troca', 'last_name': '', 'email': 'novo@fnp.org.br'},
+        )
+        request.user = usuario
+        response = PerfilView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.email, 'novo@fnp.org.br')
+        self.assertTrue(EmailAddress.objects.filter(user=usuario, email='novo@fnp.org.br', verified=False).exists())
+
+    def test_nao_permite_email_ja_usado_por_outro_usuario(self):
+        Usuario.objects.create(username='dono', email='ocupado@fnp.org.br')
+        usuario = Usuario.objects.create(username='querendo', email='livre@fnp.org.br', first_name='Q')
+        request = _post_request_with_session(
+            reverse('legislativo:perfil'),
+            {'first_name': 'Q', 'last_name': '', 'email': 'ocupado@fnp.org.br'},
+        )
+        request.user = usuario
+        PerfilView.as_view()(request)
+
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.email, 'livre@fnp.org.br')  # não mudou
+
+
+class ComentarioLikeTest(TestCase):
+    def test_curtir_e_descurtir_alterna(self):
+        proposicao = Proposicao.objects.create(titulo='PL curtido', casa='camara')
+        autor = Usuario.objects.create(username='autorcurtido', email='autorcurtido@fnp.org.br')
+        curtidor = Usuario.objects.create(username='curtidor', email='curtidor@fnp.org.br')
+        comentario = Comentario.objects.create(
+            proposicao=proposicao, texto='comentário curtido', autor=autor, status_moderacao='aprovado',
+        )
+
+        request = _post_request_with_session(f'/comentario/{comentario.pk}/curtir/')
+        request.user = curtidor
+        curtir_comentario(request, pk=comentario.pk)
+        self.assertEqual(comentario.likes.count(), 1)
+
+        request2 = _post_request_with_session(f'/comentario/{comentario.pk}/curtir/')
+        request2.user = curtidor
+        curtir_comentario(request2, pk=comentario.pk)
+        self.assertEqual(comentario.likes.count(), 0)
+
+    def test_likes_entram_no_ranking_em_alta(self):
+        proposicao = Proposicao.objects.create(titulo='PL bombou de like', casa='camara')
+        autor = Usuario.objects.create(username='autorbombou', email='autorbombou@fnp.org.br')
+        comentario = Comentario.objects.create(
+            proposicao=proposicao, texto='comentário', autor=autor, status_moderacao='aprovado',
+        )
+        for i in range(3):
+            curtidor = Usuario.objects.create(username=f'curtidor{i}', email=f'curtidor{i}@fnp.org.br')
+            ComentarioLike.objects.create(comentario=comentario, usuario=curtidor)
+
+        sections = get_home_sections('', '')
+        self.assertIn(proposicao, list(sections['em_alta']))
+
+
+class UsuarioPublicoTest(TestCase):
+    def test_pagina_publica_mostra_proposicoes_comentadas(self):
+        proposicao = Proposicao.objects.create(titulo='PL do fulano', casa='camara')
+        fulano = Usuario.objects.create(username='fulano', email='fulano@fnp.org.br', first_name='Fulano')
+        Comentario.objects.create(proposicao=proposicao, texto='oi', autor=fulano, status_moderacao='aprovado')
+
+        request = _request_with_session(f'/usuario/{fulano.pk}/')
+        from django.contrib.auth.models import AnonymousUser
+
+        request.user = AnonymousUser()
+        response = usuario_publico(request, pk=fulano.pk)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('Fulano', content)
+        self.assertIn('PL do fulano', content)

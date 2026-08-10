@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ usuario_perfil.get_display_name }} | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="usuario-publico-header">
+      {% with avatar_url=usuario_perfil.get_avatar_url %}
+        {% if avatar_url %}
+          <img src="{{ avatar_url }}" alt="" class="perfil-avatar-preview usuario-publico-avatar" />
+        {% else %}
+          <span class="perfil-avatar-preview perfil-avatar-fallback usuario-publico-avatar">{{ usuario_perfil.get_display_name|first|upper }}</span>
+        {% endif %}
+      {% endwith %}
+      <div class="hero-copy">
+        <span class="eyebrow">Participante do fórum</span>
+        <h1>{{ usuario_perfil.get_display_name }}</h1>
+        {% with perfil=usuario_perfil.perfil %}
+          {% if perfil.cargo or perfil.municipio %}
+            <p>
+              {{ perfil.cargo }}{% if perfil.cargo and perfil.municipio %} — {% endif %}
+              {% if perfil.municipio %}{{ perfil.municipio.nome }}/{{ perfil.municipio.uf }}{% endif %}
+            </p>
+          {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section">
+    <h2 class="section-heading">Discussões em que participou</h2>
+    <section class="cards-grid">
+      {% if proposicoes %}
+        {% for proposicao in proposicoes %}
+          {% include 'legislativo/_proposicao_card.html' %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <p>{{ usuario_perfil.get_display_name }} ainda não comentou em nenhuma proposição.</p>
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

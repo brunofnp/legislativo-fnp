@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-07 — **`next`, `main` e produção sincronizados em `4298291`, deploy no droplet confirmado saudável (sem migration pendente).** Sessão cobriu, em ordem: upgrade Django 4.2→5.2 LTS + django-allauth 0.60→65.19, auditoria de segurança completa, restrição de cadastro Google a @fnp.org.br, exportação de dados de engajamento consolidada e exclusiva do Root (LGPD self-service removida), fix de CSP que bloqueava o login Google, header com ícones sempre visíveis + "Ajuda desta página" + tour de onboarding (novos), e uma rodada de acabamento fino a partir de feedback visual do usuário (header do Admin, tamanho dos modais, contorno de foco, fonte da sidebar). **Falta confirmação visual final do usuário** sobre essa última rodada de acabamento — ver topo de "Pendências e próximos passos". Detalhes de cada etapa nas seções datadas 2026-08-07 do Estado Atual, a mais recente sendo "Acabamento do header/Ajuda/tour + correções pós-uso".
+> Última atualização: 2026-08-10 — **`next` recebeu uma rodada grande de 23 pedidos do usuário** (home/filtros, fórum/comentários aninhados, navegação "Voltar", perfil, Favoritos/Participações, likes, acesso ao Admin via grupo) — tudo commitado só em `next`, **`main`/produção não tocados** (aguardando autorização separada, como sempre). `check`, `makemigrations --check`, `ruff` (F401/F811/F841) e 58 testes (era 44) limpos; smoke test via `Client` confirmando 200 em home (com/sem filtro), fórum com resposta aninhada, Favoritos, Participações, Solicitar Exclusão e `/admin/`. **Não testado visualmente num navegador real** — só o lado servidor foi verificado; itens que dependiam de UI (cards clicáveis, filtro em tempo real, layout do fórum) merecem uma conferida visual antes de considerar prontos. Detalhes na seção datada 2026-08-10 do Estado Atual, "Rodada de 23 pedidos (home/filtros, fórum, navegação, conta)".
 
 ---
 
@@ -873,14 +873,140 @@ gatilho explícito pra atualizar este arquivo e subir pra `next` (nunca
 `main`/produção junto — essa promoção continua exigindo autorização à
 parte a cada vez).
 
+### Rodada de 23 pedidos (home/filtros, fórum, navegação, conta) — 2026-08-10
+
+A pedido do usuário ("vamos começar mais uma semana", 11 capturas de tela
+anotadas, 23 itens numerados), tudo commitado só em `next` — **não
+promovido pra `main`/produção** (autorização à parte, como sempre).
+Trabalho organizado em bugs primeiro, depois features, per item:
+
+- **Acesso ao Admin via grupo não funcionava (bug real)** — adicionar
+  alguém ao grupo "Administrador FNP" pelo widget de grupos do
+  `UsuarioAdmin` nunca setava `is_staff`, então a pessoa continuava sem
+  conseguir logar em `/admin/`; e a sidebar do site só mostrava o link
+  "Painel Admin" pra `is_superuser`, nunca pra staff comum. Fix:
+  `sincronizar_staff_por_grupo` (novo `m2m_changed` em
+  `apps/usuarios/signals.py`) seta `is_staff=True` automaticamente ao
+  entrar em "Root"/"Administrador FNP"; `_sidebar.html` trocou
+  `user.is_superuser` por `user.is_staff` (Root continua ganhando
+  `is_staff` via `setup_roles`, então nada mudou pra ele).
+- **Notificação duplicada ao comentar** — auditoria no código não achou
+  bug de duplicação no lado servidor (`notificar_participantes_da_discussao`
+  já dedupava por `autor_id`, chamada uma única vez por request). Causa
+  mais provável: duplo-clique no botão antes do redirect da primeira
+  resposta chegar, mandando dois POSTs. Fix defensivo: botão de comentário
+  desabilita no `submit` (`initPreventDoubleSubmit` em `main.js`).
+- **Painel de Resumo deformando com o fórum** — `.detail-grid` esticava os
+  dois lados pra mesma altura (comportamento padrão de grid); `Resumo`
+  crescia junto conforme a lista de comentários crescia à direita. Fix de
+  uma linha: `align-items: start` no `.detail-grid` — resolve os 3 pedidos
+  relacionados (painel não deformar, "Ver mais" não quebrar o layout,
+  Resumo não esticar) de uma vez.
+- **Respostas aninhadas no fórum** — `Comentario.parent` já suportava
+  profundidade ilimitada no model, mas o template só renderizava 1 nível
+  e só o comentário raiz tinha botão "Responder". Novo partial recursivo
+  `templates/legislativo/_comentario.html` (se inclui pra cada resposta),
+  junto com `Prefetch` explícito de 4 níveis em `_forum_context` (mais
+  fundo que isso ainda funciona, só sem prefetch/com N+1 — perfil de uso
+  não deve chegar lá).
+- **"Enviar Participação" removida do fórum** — formulário avulso
+  (`ParticipacaoForm`) tirado da página da proposição a pedido do
+  usuário; `Participacao` (model) e sua tela no Admin continuam existindo
+  pra dado histórico/exportação de engajamento do Root, só não tem mais
+  entrada nova pela UI pública.
+- **"Participações" virou engajamento de verdade** — antes listava
+  `Participacao.objects.all()` (público, sem filtro). Agora
+  `ParticipacaoListView` exige login e mostra as proposições em que o
+  próprio usuário comentou (`Comentario.objects.filter(autor=...)`),
+  como cards clicáveis (reaproveita `_proposicao_card.html`, igual
+  Favoritos) — resolve "só minhas participações" + "cards clicáveis pra
+  proposição" de uma vez. Sidebar do perfil passou a aparecer também em
+  Favoritos e Participações (`mostrar_sidebar: True` nas duas views; o
+  item ativo/selecionado já funcionava sozinho, `_sidebar.html` já
+  comparava `request.resolver_match.url_name`).
+- **Página de perfil público de usuário** (nova) — `/usuario/<pk>/`
+  (`usuario_publico`), acessível clicando no nome/avatar de quem comentou
+  no fórum (`_comentario.html`); mostra nome, cargo/município (dados já
+  públicos no fórum) e as proposições em que a pessoa comentou. Sem
+  login exigido, mesmo princípio de "fórum é público" do resto do site —
+  não expõe e-mail/telefone.
+- **Filtro da home consolidado** — cards de estatística (Total/Na
+  pauta/Urgentes/Alta prioridade/Com relator) viraram links clicáveis
+  (`?filtro=pauta` etc., novo `get_filtered_proposicoes(..., filtro=)` +
+  `FILTROS_ESTATISTICA`/`FILTRO_LABELS` em views.py) e o número voltou a
+  usar a mesma cor escura do `.section-heading` (eram coloridos por
+  categoria, lido como decoração). Qualquer filtro ativo (tema, busca ou
+  card de estatística) agora colapsa Urgentes/Áreas de
+  interesse/Em alta/Últimos acessados e mostra só uma lista consolidada
+  em "Todas as proposições", retitulada (ex.: "Na pauta (7)") com um
+  "Limpar filtro ×" — resolve de uma vez "mover pro topo como grupo",
+  "não perder o filtro ao trocar de área de interesse" e a percepção de
+  "filtro quebrado" (Urgentes/Em alta antes nunca respeitavam tema/busca,
+  só a grade "Todas" filtrava). `tema=` na URL agora casa tanto com
+  `Tema.slug` quanto `Macrotema.slug` (chip do card/detalhe mostra o
+  macrotema quando existe, então o link do chip precisava bater com um
+  slug de Macrotema, não só de Tema). Busca ganhou preview em tempo real
+  (debounce de 250ms chamando `/api/proposicoes-cards/?q=...`, sem
+  tema/filtro — digitar sempre substitui o filtro anterior, nunca soma).
+- **Navegação "Voltar" reescrita** — trocada a heurística antiga
+  (`document.referrer` + `history.length`, que caía no fallback estático
+  pra home sempre que o referrer não era same-site ou a página tinha sido
+  recarregada via POST/redirect) por uma pilha própria em
+  `sessionStorage` (`initBackNavigation` em `main.js`): cada carregamento
+  de página empilha a URL atual (sem duplicar se for a mesma de novo, o
+  que cobre o redirect pós-comentário); "Voltar" desempilha a página
+  atual e navega pra anterior de verdade. Determinístico, não é afetado
+  por "Ver mais comentários" (interação só local, não mexe na pilha).
+  Painel Admin ganhou botão "Voltar" próprio (ícone ao lado do título,
+  `templates/admin/base_site.html`) que sempre volta pro `/perfil/` do
+  usuário, como pedido.
+- **E-mail editável no perfil** — `PerfilForm` ganhou o campo `email`
+  (antes só texto cinza fixo), com validação de unicidade e sincronização
+  do `EmailAddress` do allauth (`verified=False` depois de trocar, já que
+  é um e-mail nunca confirmado) — sem isso o allauth ficaria com um
+  registro de e-mail desatualizado em paralelo ao `Usuario.email` real.
+- **Like em comentários** (novo) — `ComentarioLike` (model, 1 curtida por
+  usuário por comentário via `UniqueConstraint`), botão de curtir em
+  `_comentario.html` (toggle via POST, `curtir_comentario` em views.py),
+  contagem soma no ranking "Em alta" da home (`relevancia` ganhou
+  `+ likes_count * 2`, mesmo princípio de peso que comentários já tinham).
+- **Solicitar exclusão de conta redesenhada** — bug real encontrado no
+  caminho: a view nunca passava `mostrar_sidebar: True`, então a página
+  caía no layout sem `.app-content` (sem `align-items: center`) e ficava
+  "grudada" no canto esquerdo em vez de centralizada — mesma causa raiz
+  em qualquer página nova que esqueça essa flag. Fix + reforço visual:
+  ícone de alerta, lista clara de consequências, botão "Cancelar" ao lado
+  do de confirmar (antes só existia o botão de exclusão).
+- **Troca de senha (senha atual + nova + confirmar)** — checado e já
+  funciona por padrão: `allauth.account.forms.ChangePasswordForm`
+  (usado por `/contas/senha/alterar/`, já linkado na sidebar) sempre
+  pede `oldpassword` + `password1` + `password2` — nenhuma mudança
+  necessária, item já estava coberto antes desta sessão.
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 58
+testes (era 44, +14 novos cobrindo cada bug/feature acima) limpos.
+Smoke test via `Client` (não só `RequestFactory`) confirmando 200 em
+home com/sem filtro, fórum com resposta aninhada de verdade, Favoritos,
+Participações, Solicitar Exclusão e `/admin/` pro Root. **Sem acesso a
+navegador neste ambiente** — nada disso foi conferido visualmente
+(cards clicáveis, colapso das seções ao filtrar, preview em tempo real
+da busca, layout do fórum); vale uma rodada de conferência visual antes
+de considerar pronto pra promover.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
-- **Confirmar visualmente no navegador se os 5 ajustes finos acima
-  ficaram bons** (header do Admin, tour, contorno de foco, largura dos
-  modais, fonte da sidebar) — já em produção, mas sem confirmação visual
-  final do usuário ainda.
+- **Conferir visualmente no navegador a rodada de 23 itens acima** — só
+  o lado servidor foi validado (testes + smoke test via `Client`); nada
+  foi visto renderizado de verdade. Prioridade: cards de estatística
+  clicáveis, colapso/consolidação do filtro da home, layout do fórum com
+  respostas aninhadas + like, botão "Voltar" em fluxos reais de
+  navegação.
+- **Confirmar visualmente no navegador se os 5 ajustes finos da rodada
+  anterior ficaram bons** (header do Admin, tour, contorno de foco,
+  largura dos modais, fonte da sidebar) — já em produção, mas sem
+  confirmação visual final do usuário ainda.
 - **Testar login Google em produção no navegador** (conta @fnp.org.br) —
   o deploy já está confirmado saudável do lado servidor, só falta esse
   teste manual.

@@ -24,10 +24,10 @@
         {% if proposicao.macrotema or proposicao.temas.all %}
           <div class="card-tags-row">
             {% if proposicao.macrotema %}
-              <span class="chip chip-tema" data-cor-macrotema="{{ proposicao.macrotema.cor }}">{{ proposicao.macrotema.nome }}</span>
+              <a href="{% url 'legislativo:home' %}?tema={{ proposicao.macrotema.slug }}" class="chip chip-tema chip-tema-link" data-cor-macrotema="{{ proposicao.macrotema.cor }}">{{ proposicao.macrotema.nome }}</a>
             {% else %}
               {% for tema in proposicao.temas.all %}
-                <span class="chip chip-tema">{{ tema.nome }}</span>
+                <a href="{% url 'legislativo:home' %}?tema={{ tema.slug }}" class="chip chip-tema chip-tema-link">{{ tema.nome }}</a>
               {% endfor %}
             {% endif %}
           </div>
@@ -135,65 +135,11 @@
           {% if comentarios %}
             <ul class="comments" id="lista-comentarios">
               {% for comentario in comentarios %}
-                <li class="comment-card {% if forloop.counter0 >= 5 %}comment-extra hidden{% endif %}">
-                  {% with avatar_url=comentario.autor.get_avatar_url %}
-                    {% if avatar_url %}
-                      <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
-                    {% else %}
-                      <span class="comment-avatar" aria-hidden="true">{{ comentario.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
-                    {% endif %}
-                  {% endwith %}
-                  <div class="comment-body">
-                    <div class="comment-author">
-                      <strong>{{ comentario.autor.get_display_name|default:'Anônimo' }}</strong>
-                      <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
-                    </div>
-                    <p>{{ comentario.texto }}</p>
-                    <div class="comment-actions-row">
-                      <button type="button" class="comment-reply-btn" data-parent-id="{{ comentario.pk }}" data-parent-nome="{{ comentario.autor.get_display_name|default:'Anônimo' }}">Responder</button>
-                      {% if request.user.is_authenticated and comentario.autor_id != request.user.id %}
-                        <form method="post" action="{% url 'legislativo:denunciar_comentario' comentario.pk %}" class="comment-denuncia-form">
-                          {% csrf_token %}
-                          <input type="hidden" name="next" value="{{ request.get_full_path }}" />
-                          <button type="submit" class="comment-denuncia-btn">Denunciar</button>
-                        </form>
-                      {% endif %}
-                    </div>
-                    {% with respostas=comentario.respostas.all %}
-                      {% if respostas %}
-                        <ul class="comments comments-nested">
-                          {% for resposta in respostas %}
-                            {% if resposta.status_moderacao == 'aprovado' %}
-                              <li class="comment-card">
-                                {% with avatar_url=resposta.autor.get_avatar_url %}
-                                  {% if avatar_url %}
-                                    <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
-                                  {% else %}
-                                    <span class="comment-avatar" aria-hidden="true">{{ resposta.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
-                                  {% endif %}
-                                {% endwith %}
-                                <div class="comment-body">
-                                  <div class="comment-author">
-                                    <strong>{{ resposta.autor.get_display_name|default:'Anônimo' }}</strong>
-                                    <span class="comment-time">{{ resposta.criado_em|timesince }} atrás</span>
-                                  </div>
-                                  <p>{{ resposta.texto }}</p>
-                                  {% if request.user.is_authenticated and resposta.autor_id != request.user.id %}
-                                    <form method="post" action="{% url 'legislativo:denunciar_comentario' resposta.pk %}" class="comment-denuncia-form">
-                                      {% csrf_token %}
-                                      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
-                                      <button type="submit" class="comment-denuncia-btn">Denunciar</button>
-                                    </form>
-                                  {% endif %}
-                                </div>
-                              </li>
-                            {% endif %}
-                          {% endfor %}
-                        </ul>
-                      {% endif %}
-                    {% endwith %}
-                  </div>
-                </li>
+                {% if forloop.counter0 >= 5 %}
+                  {% include 'legislativo/_comentario.html' with extra_class='comment-extra hidden' %}
+                {% else %}
+                  {% include 'legislativo/_comentario.html' %}
+                {% endif %}
               {% endfor %}
             </ul>
             {% if comentarios|length > 5 %}
@@ -206,7 +152,6 @@
           {% endif %}
           <form method="post" class="participation-form" id="form-comentario">
             {% csrf_token %}
-            <input type="hidden" name="form_type" value="comentario" />
             {{ comentario_form.parent }}
             <div class="comment-reply-indicator hidden" id="comment-reply-indicator">
               Respondendo a <strong id="comment-reply-nome"></strong>
@@ -215,31 +160,6 @@
             <label class="field-label" for="{{ comentario_form.texto.id_for_label }}">Comentário</label>
             {{ comentario_form.texto }}
             <button class="fbtn" type="submit">Publicar comentário</button>
-          </form>
-        </div>
-
-        <div class="panel-block">
-          <h2>Enviar participação</h2>
-          <form method="post" class="participation-form">
-            {% csrf_token %}
-            <input type="hidden" name="form_type" value="sugestao" />
-            {{ participacao_form.tipo }}
-            {{ participacao_form.proposicao }}
-            <label class="field-label">Município</label>
-            {{ participacao_form.municipio }}
-            <label class="field-label">UF</label>
-            {{ participacao_form.uf }}
-            <label class="field-label">Setor responsável</label>
-            {{ participacao_form.setor_responsavel }}
-            <label class="field-label">Cargo</label>
-            {{ participacao_form.cargo }}
-            <label class="field-label">E-mail</label>
-            {{ participacao_form.email }}
-            <label class="field-label">Telefone</label>
-            {{ participacao_form.telefone }}
-            <label class="field-label">Mensagem</label>
-            {{ participacao_form.mensagem }}
-            <button class="fbtn" type="submit">Enviar participação</button>
           </form>
         </div>
       </aside>

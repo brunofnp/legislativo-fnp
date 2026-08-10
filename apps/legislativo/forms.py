@@ -2,7 +2,7 @@ from django import forms
 from django.conf import settings
 from django.utils.text import slugify
 
-from apps.comentarios.models import Comentario, Participacao
+from apps.comentarios.models import Comentario
 from apps.usuarios.models import Municipio, Perfil, Usuario
 
 
@@ -89,15 +89,39 @@ class PerfilForm(forms.ModelForm):
 
     class Meta:
         model = Usuario
-        fields = ['first_name', 'last_name']
+        fields = ['first_name', 'last_name', 'email']
         labels = {
             'first_name': 'Nome',
             'last_name': 'Sobrenome',
+            'email': 'E-mail',
         }
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'input-wide'}),
             'last_name': forms.TextInput(attrs={'class': 'input-wide'}),
+            'email': forms.EmailInput(attrs={'class': 'input-wide'}),
         }
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        ja_existe = Usuario.objects.exclude(pk=self.instance.pk).filter(email__iexact=email).exists()
+        if ja_existe:
+            raise forms.ValidationError('Já existe uma conta cadastrada com este e-mail.')
+        return email
+
+    def save(self, commit=True):
+        usuario = super().save(commit=False)
+        email_mudou = 'email' in self.changed_data
+        if commit:
+            usuario.save()
+            if email_mudou:
+                # allauth guarda o e-mail também em EmailAddress (verificação,
+                # e-mail primário) -- sem sincronizar aqui, ficaria desatualizado
+                # mesmo com o login por e-mail já funcionando via Usuario.email.
+                from allauth.account.models import EmailAddress
+
+                EmailAddress.objects.filter(user=usuario).delete()
+                EmailAddress.objects.create(user=usuario, email=usuario.email, primary=True, verified=False)
+        return usuario
 
 
 class PerfilDadosForm(forms.ModelForm):
@@ -156,56 +180,3 @@ class ComentarioForm(forms.ModelForm):
         }
 
 
-class ParticipacaoForm(forms.ModelForm):
-    class Meta:
-        model = Participacao
-        fields = [
-            'tipo',
-            'municipio',
-            'uf',
-            'proposicao',
-            'setor_responsavel',
-            'cargo',
-            'email',
-            'telefone',
-            'mensagem',
-        ]
-        widgets = {
-            'mensagem': forms.Textarea(attrs={'rows': 4, 'class': 'input-wide'}),
-            'tipo': forms.HiddenInput(),
-            'proposicao': forms.HiddenInput(),
-            'municipio': forms.TextInput(attrs={'class': 'input-wide'}),
-            'uf': forms.TextInput(attrs={'class': 'input-wide uppercase', 'maxlength': 2}),
-            'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
-            'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
-            'email': forms.EmailInput(attrs={'class': 'input-wide'}),
-            'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
-        }
-        labels = {
-            'mensagem': 'Mensagem',
-            'uf': 'UF',
-            'setor_responsavel': 'Setor responsável',
-            'proposicao': 'Proposição',
-        }
-
-    def clean(self):
-        cleaned_data = super().clean()
-        tipo = cleaned_data.get('tipo')
-        municipio = cleaned_data.get('municipio')
-        email = cleaned_data.get('email')
-        setor_responsavel = cleaned_data.get('setor_responsavel')
-        mensagem = cleaned_data.get('mensagem')
-
-        if not municipio:
-            raise forms.ValidationError('Município é obrigatório.')
-        if not setor_responsavel:
-            raise forms.ValidationError('Setor responsável é obrigatório.')
-        if not email:
-            raise forms.ValidationError('E-mail é obrigatório.')
-
-        if tipo == Participacao.Tipo.SUGESTAO or tipo == Participacao.Tipo.INDICACAO or tipo == Participacao.Tipo.DUVIDA:
-            if not cleaned_data.get('proposicao'):
-                raise forms.ValidationError('Proposição é obrigatória para esta participação.')
-            if not mensagem:
-                raise forms.ValidationError('Explique seu motivo ou dúvida.')
-        return cleaned_data

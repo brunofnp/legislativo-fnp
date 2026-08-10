@@ -1,0 +1,54 @@
+<li class="comment-card {{ extra_class }}">
+  {% with avatar_url=comentario.autor.get_avatar_url %}
+    {% if avatar_url %}
+      <img src="{{ avatar_url }}" alt="" class="comment-avatar comment-avatar-img" />
+    {% else %}
+      <span class="comment-avatar" aria-hidden="true">{{ comentario.autor.get_display_name|default:'Anônimo'|first|upper }}</span>
+    {% endif %}
+  {% endwith %}
+  <div class="comment-body">
+    <div class="comment-author">
+      {% if comentario.autor_id %}
+        <a href="{% url 'legislativo:usuario_publico' comentario.autor_id %}" class="comment-author-link">{{ comentario.autor.get_display_name }}</a>
+      {% else %}
+        <strong>Anônimo</strong>
+      {% endif %}
+      <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
+    </div>
+    <p>{{ comentario.texto }}</p>
+    <div class="comment-actions-row">
+      {% if request.user.is_authenticated %}
+        <form method="post" action="{% url 'legislativo:curtir_comentario' comentario.pk %}" class="comment-like-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+          <button type="submit" class="comment-like-btn {% if comentario.curtido_por_mim %}active{% endif %}" aria-pressed="{% if comentario.curtido_por_mim %}true{% else %}false{% endif %}">
+            <svg viewBox="0 0 24 24" fill="{% if comentario.curtido_por_mim %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+            {% if comentario.likes_count %}{{ comentario.likes_count }}{% endif %}
+          </button>
+        </form>
+      {% elif comentario.likes_count %}
+        <span class="comment-like-count-readonly">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+          {{ comentario.likes_count }}
+        </span>
+      {% endif %}
+      <button type="button" class="comment-reply-btn" data-parent-id="{{ comentario.pk }}" data-parent-nome="{{ comentario.autor.get_display_name|default:'Anônimo' }}">Responder</button>
+      {% if request.user.is_authenticated and comentario.autor_id != request.user.id %}
+        <form method="post" action="{% url 'legislativo:denunciar_comentario' comentario.pk %}" class="comment-denuncia-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+          <button type="submit" class="comment-denuncia-btn">Denunciar</button>
+        </form>
+      {% endif %}
+    </div>
+    {% with respostas=comentario.respostas.all %}
+      {% if respostas %}
+        <ul class="comments comments-nested">
+          {% for resposta in respostas %}
+            {% include 'legislativo/_comentario.html' with comentario=resposta extra_class='' %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+  </div>
+</li>

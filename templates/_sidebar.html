@@ -26,7 +26,7 @@
       <span>Participações</span>
     </a>
 
-    {% if user.is_superuser %}
+    {% if user.is_staff %}
       <p class="sidebar-section-label">Administração</p>
       <a href="/admin/" class="sidebar-link" data-label="Painel Admin">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 9 9 10 5.2-1 9-5 9-10V6z"/></svg>

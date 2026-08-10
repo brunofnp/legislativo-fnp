@@ -11,26 +11,26 @@
     </div>
 
     <div class="stats-grid">
-      <article class="stat-card">
+      <a href="{% url 'legislativo:home' %}" class="stat-card {% if not active_filtro %}active{% endif %}">
         <span class="stat-label">Total</span>
         <span class="stat-num" id="stats-total">{{ stats.total }}</span>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a href="?filtro=pauta{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="stat-card {% if active_filtro == 'pauta' %}active{% endif %}">
         <span class="stat-label">Na pauta</span>
         <span class="stat-num" id="stats-pauta">{{ stats.pauta }}</span>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a href="?filtro=urgentes{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="stat-card {% if active_filtro == 'urgentes' %}active{% endif %}">
         <span class="stat-label">Urgentes</span>
         <span class="stat-num" id="stats-urgentes">{{ stats.urgentes }}</span>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a href="?filtro=alta_prioridade{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="stat-card {% if active_filtro == 'alta_prioridade' %}active{% endif %}">
         <span class="stat-label">Alta prioridade</span>
         <span class="stat-num" id="stats-alta">{{ stats.alta_prioridade }}</span>
-      </article>
-      <article class="stat-card">
+      </a>
+      <a href="?filtro=com_relator{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="stat-card {% if active_filtro == 'com_relator' %}active{% endif %}">
         <span class="stat-label">Com relator</span>
         <span class="stat-num" id="stats-relator">{{ stats.com_relator }}</span>
-      </article>
+      </a>
     </div>
   </section>
 
@@ -68,62 +68,71 @@
     </details>
   </div>
 
-  {% if urgentes %}
-    <section class="home-section">
-      <h2 class="section-heading">Urgentes</h2>
-      <div class="cards-grid" id="cards-urgentes">
-        {% include 'legislativo/_cards_grid.html' with proposicoes=urgentes %}
-      </div>
-    </section>
-  {% endif %}
-
-  {% if areas_interesse %}
-    <section class="home-section">
-      <h2 class="section-heading">Áreas de interesse</h2>
-      <details class="tema-dropdown interest-dropdown" id="interesse-dropdown">
-        <summary class="tema-dropdown-trigger">
-          <span class="tema-dropdown-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          </span>
-          <span class="tema-dropdown-label">Buscar área de interesse</span>
-          <span class="tema-dropdown-chevron" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          </span>
-        </summary>
-        <div class="tema-dropdown-panel">
-          <input type="text" class="tema-dropdown-search" id="interesse-dropdown-search" placeholder="Buscar tema..." autocomplete="off" />
-          <div class="tema-dropdown-list">
-            {% for tema in areas_interesse %}
-              <a href="?tema={{ tema.slug }}" class="tema-option {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
-            {% endfor %}
-          </div>
+  {% if not filtro_ativo %}
+    {% if urgentes %}
+      <section class="home-section">
+        <h2 class="section-heading">Urgentes</h2>
+        <div class="cards-grid" id="cards-urgentes">
+          {% include 'legislativo/_cards_grid.html' with proposicoes=urgentes %}
         </div>
-      </details>
-    </section>
-  {% endif %}
+      </section>
+    {% endif %}
 
-  {% if em_alta %}
-    <section class="home-section">
-      <h2 class="section-heading">Em alta</h2>
-      <div class="cards-grid" id="cards-em-alta">
-        {% include 'legislativo/_cards_grid.html' with proposicoes=em_alta %}
-      </div>
-    </section>
-  {% endif %}
+    {% if areas_interesse %}
+      <section class="home-section">
+        <h2 class="section-heading">Áreas de interesse</h2>
+        <details class="tema-dropdown interest-dropdown" id="interesse-dropdown">
+          <summary class="tema-dropdown-trigger">
+            <span class="tema-dropdown-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </span>
+            <span class="tema-dropdown-label">Buscar área de interesse</span>
+            <span class="tema-dropdown-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
+          </summary>
+          <div class="tema-dropdown-panel">
+            <input type="text" class="tema-dropdown-search" id="interesse-dropdown-search" placeholder="Buscar tema..." autocomplete="off" />
+            <div class="tema-dropdown-list">
+              {% for tema in areas_interesse %}
+                <a href="?tema={{ tema.slug }}" class="tema-option {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
+              {% endfor %}
+            </div>
+          </div>
+        </details>
+      </section>
+    {% endif %}
 
-  {% if recentes %}
-    <section class="home-section">
-      <h2 class="section-heading">Últimos acessados</h2>
-      <div class="cards-grid">
-        {% for proposicao in recentes %}
-          {% include 'legislativo/_proposicao_card.html' %}
-        {% endfor %}
-      </div>
-    </section>
+    {% if em_alta %}
+      <section class="home-section">
+        <h2 class="section-heading">Em alta</h2>
+        <div class="cards-grid" id="cards-em-alta">
+          {% include 'legislativo/_cards_grid.html' with proposicoes=em_alta %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if recentes %}
+      <section class="home-section">
+        <h2 class="section-heading">Últimos acessados</h2>
+        <div class="cards-grid">
+          {% for proposicao in recentes %}
+            {% include 'legislativo/_proposicao_card.html' %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
   {% endif %}
 
   <section class="home-section">
-    <h2 class="section-heading">Todas as proposições</h2>
+    <h2 class="section-heading">
+      {% if filtro_ativo %}
+        {{ filtro_label|default:'Resultado do filtro' }} ({{ stats.total }})
+        <a href="{% url 'legislativo:home' %}" class="filtro-limpar-link">Limpar filtro ×</a>
+      {% else %}
+        Todas as proposições
+      {% endif %}
+    </h2>
     <section class="cards-grid" id="cards-todas">
       {% include 'legislativo/_cards_grid.html' %}
     </section>
@@ -131,11 +140,11 @@
     {% if page_obj.paginator.num_pages > 1 %}
       <nav class="pagination" aria-label="Paginação de proposições">
         {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="pagination-link">‹ Anterior</a>
+          <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}{% if active_filtro %}&filtro={{ active_filtro }}{% endif %}" class="pagination-link">‹ Anterior</a>
         {% endif %}
         <span class="pagination-status">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}" class="pagination-link">Próxima ›</a>
+          <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if active_tema %}&tema={{ active_tema }}{% endif %}{% if active_filtro %}&filtro={{ active_filtro }}{% endif %}" class="pagination-link">Próxima ›</a>
         {% endif %}
       </nav>
     {% endif %}

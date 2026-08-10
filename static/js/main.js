@@ -59,6 +59,10 @@ window.addEventListener('DOMContentLoaded', function () {
     if (!input || !box) return;
 
     let debounceTimer;
+    // Digitar na busca vale como um filtro novo e independente -- substitui
+    // (não soma a) qualquer tema/card de estatística já ativo na URL, daí
+    // as chamadas abaixo usarem só `q`, nunca tema/filtro da página atual.
+    const cardsGridExiste = !!document.getElementById('cards-todas');
 
     function hide() {
       box.classList.add('hidden');
@@ -80,6 +84,26 @@ window.addEventListener('DOMContentLoaded', function () {
         .catch(() => hide());
     }
 
+    function fetchLivePreview(term) {
+      if (!cardsGridExiste) return;
+      fetch(`/api/proposicoes-cards/?q=${encodeURIComponent(term)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (input.value.trim() !== term) return;
+          applyCounts(data);
+          applyCards(data.sections);
+        })
+        .catch(() => {});
+    }
+
+    input.addEventListener('focus', () => {
+      // Limpa o filtro anterior (tema/card de estatística) assim que o
+      // usuário começa a digitar uma busca nova -- ver comentário acima.
+      if (input.value.trim().length >= 2) {
+        fetchLivePreview(input.value.trim());
+      }
+    });
+
     input.addEventListener('input', () => {
       const term = input.value.trim();
       clearTimeout(debounceTimer);
@@ -87,7 +111,10 @@ window.addEventListener('DOMContentLoaded', function () {
         hide();
         return;
       }
-      debounceTimer = setTimeout(() => fetchSuggestions(term), 250);
+      debounceTimer = setTimeout(() => {
+        fetchSuggestions(term);
+        fetchLivePreview(term);
+      }, 250);
     });
 
     input.addEventListener('keydown', event => {
@@ -128,20 +155,56 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initAppShell();
 
-  function initBackLinks() {
+  function initBackNavigation() {
+    // "Voltar" usava document.referrer + history.length -- heurística que
+    // quebrava com facilidade (POST/redirect ao comentar cria uma entrada
+    // extra no histórico, link direto/notificação sem referrer same-site
+    // etc.), o que fazia o botão cair no fallback estático (sempre a home)
+    // em vez de voltar pra página anterior de verdade. Uma pilha própria em
+    // sessionStorage, empilhada a cada carregamento de página, é
+    // determinística: "Ver mais comentários" não mexe nela (é só JS local,
+    // sem navegação) e um recarregamento da mesma URL (ex.: após publicar
+    // um comentário) não empilha duplicata.
+    const STACK_KEY = 'fnp-nav-stack';
+    const paginaAtual = window.location.pathname + window.location.search;
+
+    let pilha;
+    try {
+      pilha = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
+    } catch (error) {
+      pilha = [];
+    }
+    if (pilha[pilha.length - 1] !== paginaAtual) {
+      pilha.push(paginaAtual);
+    }
+    if (pilha.length > 20) pilha = pilha.slice(-20);
+    sessionStorage.setItem(STACK_KEY, JSON.stringify(pilha));
+
     const links = document.querySelectorAll('[data-back]');
     if (!links.length) return;
-    const cameFromSameSite = document.referrer && document.referrer.startsWith(location.origin);
-    if (!(window.history.length > 1 && cameFromSameSite)) return;
+
     links.forEach(link => {
       link.addEventListener('click', event => {
-        event.preventDefault();
-        window.history.back();
+        let atual;
+        try {
+          atual = JSON.parse(sessionStorage.getItem(STACK_KEY) || '[]');
+        } catch (error) {
+          atual = [];
+        }
+        atual.pop(); // remove a própria página atual do topo
+        const destino = atual.pop(); // página anterior de fato
+        if (destino) {
+          sessionStorage.setItem(STACK_KEY, JSON.stringify(atual));
+          event.preventDefault();
+          window.location.href = destino;
+        }
+        // Pilha vazia (sessão nova, link direto/notificação): mantém o
+        // href estático já presente no link (fallback pra home).
       });
     });
   }
 
-  initBackLinks();
+  initBackNavigation();
 
   function initThemeToggle() {
     const btn = document.getElementById('theme-toggle-btn');
@@ -408,6 +471,23 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   initForumReply();
+
+  function initPreventDoubleSubmit() {
+    // Sem isso, um duplo-clique no botão (ou conexão lenta) manda dois POSTs
+    // antes do redirect da primeira resposta chegar -- cria dois comentários
+    // e, junto, uma notificação duplicada pra cada participante da discussão.
+    const form = document.getElementById('form-comentario');
+    if (!form) return;
+    form.addEventListener('submit', () => {
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+      }
+    });
+  }
+
+  initPreventDoubleSubmit();
 
   function initComentariosVerMais() {
     const btn = document.getElementById('comments-ver-mais');

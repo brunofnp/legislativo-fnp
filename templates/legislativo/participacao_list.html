@@ -1,22 +1,25 @@
 {% extends 'base.html' %}
 
-{% block title %}Participações | Legislativo FNP{% endblock %}
+{% block title %}Participações | Painel Legislativo FNP{% endblock %}
 
 {% block content %}
-  <section class="hero">
-    <h1>Participações</h1>
-    <p>Últimas participações enviadas pela sociedade.</p>
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Painel Legislativo</span>
+      <h1>Suas participações</h1>
+      <p>Proposições em que você comentou ou participou da discussão.</p>
+    </div>
   </section>
 
   <section class="cards-grid">
-    {% for item in participacoes %}
-      <article class="card">
-        <p class="text-sm text-gray-500">{{ item.get_tipo_display }} • {{ item.criado_em|date:'d/m/Y H:i' }}</p>
-        <h2 class="text-lg font-semibold text-gray-900">{{ item.municipio }} — {{ item.proposicao }}</h2>
-        <p class="text-sm text-gray-700 mt-2">{{ item.mensagem|default:'Sem mensagem adicional.' }}</p>
-      </article>
-    {% empty %}
-      <p>Sem participações registradas.</p>
-    {% endfor %}
+    {% if proposicoes %}
+      {% for proposicao in proposicoes %}
+        {% include 'legislativo/_proposicao_card.html' %}
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p>Você ainda não participou de nenhuma discussão. Comente em uma proposição para aparecer aqui.</p>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}
