@@ -1172,6 +1172,29 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
     então qualquer credencial exposta em sessão de terminal/chat (de
     qualquer role, não só `doadmin`) merece rotação — cuidado ao colar
     comandos com senha visível daqui pra frente.
+  - **Client Secret do Google OAuth também rotacionado de fato** (o
+    usuário voltou atrás da decisão inicial de aceitar o risco) — novo
+    secret gerado via "+ Add secret" no Google Cloud Console (o cliente
+    OAuth `legislativo-fnp` usa o modelo novo do Google com múltiplos
+    secrets simultâneos, dá pra trocar sem downtime), `GOOGLE_CLIENT_SECRET`
+    atualizado no `.env` de produção, container recriado
+    (`docker compose up -d --force-recreate legislativo`, sem rebuild —
+    só variável de ambiente) sem erro no log. **Login Google testado e
+    confirmado funcionando em produção de verdade** (conta
+    `@fnp.org.br`, via painel `/admin/usuarios/usuario/`) — fecha
+    também o item separado "testar login Google em produção" que
+    estava pendente. **Falta só**: voltar no Google Cloud Console e
+    desativar/excluir o secret antigo (criado 2026-08-04) pra fechar a
+    exposição por completo — enquanto ele continuar "Ativadas", ainda é
+    uma credencial válida em paralelo à nova.
+- **Ajuste de UX no Admin, mesma sessão**: botões de ação rápida por
+  linha (`UsuarioAdmin.acoes_rapidas` — "Aprovar exclusão"/"Manter
+  conta" etc.) apareciam empilhados verticalmente em vez de lado a lado
+  — eram `<button>` soltos separados só por um espaço de texto, que
+  quebra linha como texto normal quando o espaço aperta. Fix: os botões
+  agora renderizam dentro de um `<div class="fnp-quick-actions">` com
+  `display: flex; gap: 0.35rem` (`apps/usuarios/admin.py` +
+  `admin-custom.css`), lado a lado sempre.
 
 ### Pendências e próximos passos
 
@@ -1182,6 +1205,10 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
   robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
   cadastro por e-mail/senha em produção.
+- **Desativar/excluir o Client Secret antigo do Google OAuth** no Google
+  Cloud Console (o criado em 2026-08-04) — o novo já está em produção e
+  validado, mas o antigo continua uma credencial ativa em paralelo até
+  ser desligado por lá.
 - **Confirmar restante dos itens de infraestrutura** (fora do que já foi
   checado em 2026-08-11: SSH key-only ✅, `ufw` ✅, `PermitRootLogin yes`
   ainda ligado mas baixa prioridade, atualizações de SO + Docker
@@ -1198,9 +1225,6 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   anterior ficaram bons** (header do Admin, tour, contorno de foco,
   largura dos modais, fonte da sidebar) — já em produção, mas sem
   confirmação visual final do usuário ainda.
-- **Testar login Google em produção no navegador** (conta @fnp.org.br) —
-  o deploy já está confirmado saudável do lado servidor, só falta esse
-  teste manual.
 - **Decidir o que fazer com as 70 proposições não-curadas já em
   produção** (`interlocutores` vazio) — o `--paginas 1` já está no ar,
   então agora dá pra limpar sem risco de recriação imediata no próximo
@@ -1240,9 +1264,13 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
 - Falta preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `.env` do
   servidor de produção (não é o mesmo `.env` local) e adicionar e-mails
   de teste na tela de consentimento OAuth até o app sair do modo
-  "teste" — item funcional separado do risco de exposição acima, ainda
-  em aberto (relacionado ao item "Testar login Google em produção" na
-  lista de mais urgentes).
+  "teste" — item funcional separado do risco de exposição acima. Nota:
+  o login Google em produção já foi testado e confirmado funcionando
+  em 2026-08-11 (ver seção datada acima), então o `.env` do servidor já
+  tem `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` preenchidos de fato —
+  falta só adicionar e-mails de teste na tela de consentimento se
+  alguém novo (fora quem já testou) precisar logar via Google antes do
+  app sair do modo "teste".
 - Comentários "pendente" de antes da moderação automática continuam
   precisando de revisão manual (ação em massa no Admin).
 - Integração com o Senado (hoje só Câmara via `sync_camara`).
