@@ -447,6 +447,12 @@ a.button {
 /* Botões de ação rápida por linha (UsuarioAdmin.acoes_rapidas) -- aprovar/
    rejeitar cadastro e exclusão sem precisar marcar checkbox + escolher no
    dropdown de ação em massa (que continua existindo pra seleção múltipla). */
+.fnp-quick-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+}
+
 .fnp-quick-action {
   border: none;
   border-radius: 0.5rem;

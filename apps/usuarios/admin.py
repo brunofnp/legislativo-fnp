@@ -7,7 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Exists, OuterRef
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.html import format_html_join
+from django.utils.html import format_html, format_html_join
 
 from .models import Municipio, Perfil, Usuario
 
@@ -133,11 +133,14 @@ class UsuarioAdmin(UserAdmin):
             botoes.append(('rejeitar_exclusoes', 'Manter conta', 'ok'))
         if not botoes:
             return '—'
-        return format_html_join(
-            ' ',
-            '<button type="button" class="fnp-quick-action fnp-quick-action--{}" '
-            'data-fnp-action="{}" data-fnp-pk="{}">{}</button>',
-            ((estilo, acao, obj.pk, label) for acao, label, estilo in botoes),
+        return format_html(
+            '<div class="fnp-quick-actions">{}</div>',
+            format_html_join(
+                '',
+                '<button type="button" class="fnp-quick-action fnp-quick-action--{}" '
+                'data-fnp-action="{}" data-fnp-pk="{}">{}</button>',
+                ((estilo, acao, obj.pk, label) for acao, label, estilo in botoes),
+            ),
         )
 
     @admin.action(description='Aprovar cadastros selecionados')
