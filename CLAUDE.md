@@ -1150,24 +1150,19 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
     existe). Não aplicado ainda — upgrade do Docker e reboot da máquina
     derrubam produção brevemente, precisa de janela de manutenção
     combinada, não uma correção no meio de uma sessão de checklist.
-  - **Achado real e mais sério: o cluster Postgres `fnp-database` é
-    compartilhado com outros sistemas da FNP** (roles `fnp_financeiro`,
+  - **O cluster Postgres `fnp-database` é compartilhado de propósito
+    entre todos os sistemas da FNP** (roles `fnp_financeiro`,
     `admin_sistema`, `ifem_app`, `nucleo_carga`, `nucleo_ro`, vistos no
-    painel da DigitalOcean). Checado via
-    `has_database_privilege('legislativo', datname, 'CONNECT')`: a role
-    `legislativo` conseguia conectar em `defaultdb`, `homolog` **e
-    `fnp_sistema`** (provável banco do sistema financeiro), além do
-    `legislativo_fnp` (o único que deveria). `REVOKE CONNECT ... FROM
-    legislativo` rodado nos três, mas **sem efeito** — Postgres concede
-    `CONNECT` a `PUBLIC` por padrão em toda database nova, e todo role
-    herda isso automaticamente; revogar só do `legislativo` não muda nada
-    enquanto `PUBLIC` continuar com a permissão. Corrigir de verdade exige
-    `REVOKE CONNECT ... FROM PUBLIC` nesses bancos, o que **afeta todos os
-    roles do cluster**, não só o nosso — risco de derrubar acesso de
-    outro sistema (financeiro/IFEM) se ele dependia do grant implícito via
-    `PUBLIC` em vez de uma concessão própria. **Pausado a pedido do
-    usuário** para confirmar com quem administra os outros sistemas antes
-    de mexer em uma permissão cluster-wide — ver Pendências.
+    painel da DigitalOcean) — **confirmado pelo usuário que é
+    arquitetura intencional, não achado de segurança**: os sistemas da
+    FNP devem conversar entre si. Checado via
+    `has_database_privilege('legislativo', datname, 'CONNECT')` que a
+    role `legislativo` conecta em `defaultdb`/`homolog`/`fnp_sistema`
+    além do próprio `legislativo_fnp` — isso é esperado, não corrigido
+    (tentativa de `REVOKE CONNECT FROM legislativo` rodada antes dessa
+    confirmação não teve efeito de qualquer forma, por causa do
+    `CONNECT` que o Postgres concede a `PUBLIC` por padrão em toda
+    database nova). **Não é mais pendência.**
   - **Senha do `doadmin` apareceu em texto puro no terminal colado no
     chat desta sessão** (a mesma que tinha acabado de ser rotacionada por
     causa de uma exposição anterior por captura de tela). Precisa ser
@@ -1182,17 +1177,6 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
   robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
   cadastro por e-mail/senha em produção.
-- **Restringir a role `legislativo` a só `legislativo_fnp`, sem afetar
-  outros sistemas** — achado confirmado em 2026-08-11 (ver seção datada
-  acima): ela conecta hoje em `defaultdb`/`homolog`/`fnp_sistema` também,
-  por causa do `CONNECT` que o Postgres concede a `PUBLIC` por padrão em
-  toda database nova. Corrigir exige `REVOKE CONNECT ... FROM PUBLIC`
-  nesses bancos — **cluster-wide, afeta `fnp_financeiro`/`admin_sistema`/
-  outros roles também**, não só o nosso. Pausado a pedido do usuário até
-  confirmar com quem administra os sistemas financeiro/IFEM que
-  dependem desse mesmo cluster, pra não quebrar o acesso deles sem
-  querer (nenhum tem concessão própria confirmada, podem estar
-  dependendo do `PUBLIC` implícito).
 - **Rotacionar a senha do `doadmin` outra vez** — apareceu em texto puro
   numa mensagem desta sessão de chat (a mesma senha que tinha acabado de
   ser trocada por causa de uma exposição anterior por captura de tela).
