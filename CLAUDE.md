@@ -1165,8 +1165,13 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
     database nova). **Não é mais pendência.**
   - **Senha do `doadmin` apareceu em texto puro no terminal colado no
     chat desta sessão** (a mesma que tinha acabado de ser rotacionada por
-    causa de uma exposição anterior por captura de tela). Precisa ser
-    rotacionada de novo — ver Pendências.
+    causa de uma exposição anterior por captura de tela) — **rotacionada
+    de novo e validada** (`SELECT current_user;` retornando `doadmin`)
+    ainda na mesma sessão, sem colar a senha nova no chat desta vez.
+    Lição registrada: cluster compartilhado com outros sistemas da FNP,
+    então qualquer credencial exposta em sessão de terminal/chat (de
+    qualquer role, não só `doadmin`) merece rotação — cuidado ao colar
+    comandos com senha visível daqui pra frente.
 
 ### Pendências e próximos passos
 
@@ -1177,9 +1182,6 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
   robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
   cadastro por e-mail/senha em produção.
-- **Rotacionar a senha do `doadmin` outra vez** — apareceu em texto puro
-  numa mensagem desta sessão de chat (a mesma senha que tinha acabado de
-  ser trocada por causa de uma exposição anterior por captura de tela).
 - **Confirmar restante dos itens de infraestrutura** (fora do que já foi
   checado em 2026-08-11: SSH key-only ✅, `ufw` ✅, `PermitRootLogin yes`
   ainda ligado mas baixa prioridade, atualizações de SO + Docker
