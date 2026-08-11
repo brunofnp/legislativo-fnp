@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, achados corrigidos e commitados só em `next` (`main`/produção não tocados, autorização separada como sempre). 1 achado crítico (fusão de conta social sem verificação de e-mail) e 8 riscos corrigidos: parent de comentário escopado à proposição, coluna "E-mail confirmado" no Admin, log de auditoria em aprovação/rejeição de cadastro, senha mínima de 10 caracteres, `SESSION_COOKIE_AGE` explícito (7 dias), rate limit em denúncia de comentário, e o IP do rate limit corrigido pra ler `X-Forwarded-For` (antes sempre via o IP do Nginx). `check`, `check --deploy`, `makemigrations --check`, `ruff` e 73 testes (era 58, +15 novos) limpos. Detalhes na seção datada 2026-08-11 do Estado Atual, "Auditoria de segurança (pentest de 48 itens)". **Mesmo dia, via SSH conduzido pelo usuário**: senha do `doadmin` do `fnp-database` rotacionada e validada — pendência de segurança fechada; confirmado que a produção usa a role dedicada `legislativo` (não `doadmin`) no `DATABASE_URL`, então a rotação não exigiu mudança no `.env` nem restart de container. Em seguida, **promoção completa `next` → `main` (autorizada explicitamente pelo usuário)**: a rodada de 23 pedidos, o e-mail de confirmação antes de senha em conta só-Google e a auditoria de segurança do dia foram todos pra `main`/`origin`/`production` de uma vez (fast-forward, sem divergência) — `check`, `makemigrations --check` e 73 testes revalidados antes do push, CI verde nos dois repositórios. Deploy real no droplet confirmado pelo usuário via SSH: `git pull` trouxe o código novo (build não veio do cache, diferente do incidente de 2026-08-07), migration `comentarios.0007_comentariolike` aplicada, Gunicorn subiu sem erro, `curl` confirmando `200 OK` em produção.
+> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, 1 achado crítico e 8 riscos corrigidos, 73 testes limpos. **Mesmo dia**: senha do `doadmin` rotacionada e validada (pendência fechada, produção usa a role `legislativo`, não afetada); **promoção completa `next` → `main` → produção autorizada explicitamente pelo usuário** (CI verde, deploy confirmado via SSH, migration `comentarios.0007_comentariolike` aplicada); checklist de segurança pós-deploy iniciado (verificação de infra por SSH — SSH/fail2ban, firewall, atualizações de SO, restrição da role `legislativo`), **ainda em andamento**. Detalhes nas seções datadas 2026-08-11 do Estado Atual: "Auditoria de segurança (pentest de 48 itens)" e "Rotação do `doadmin`, promoção `next` → `main` → produção e início da verificação de infra por SSH".
 
 ---
 
@@ -1091,6 +1091,55 @@ cookies seguros/clickjacking já configurados desde a auditoria de
 2026-08-06, container roda non-root com porta presa em `127.0.0.1`,
 upload de foto usa `ImageField` (valida estrutura real via Pillow, não só
 extensão) com limite de 5MB, `sync_camara` não é endpoint HTTP.
+
+### Rotação do `doadmin`, promoção `next` → `main` → produção e início da verificação de infra por SSH (2026-08-11, mesmo dia)
+
+Continuação da mesma sessão da auditoria de pentest acima, agora com o
+usuário conduzindo comandos por SSH no droplet `fnp-web` (sem acesso
+direto do Claude Code, como sempre — só os comandos passados aqui).
+
+- **Senha do `doadmin` do `fnp-database` rotacionada e validada.** Duas
+  tentativas iniciais de `psql` falharam autenticação (senha ainda não
+  propagada ou erro de copy/paste do painel da DigitalOcean), a terceira
+  conectou com sucesso. Fecha a pendência que vinha desde uma sessão
+  anterior (senha exposta numa captura de tela). Verificado no caminho
+  que o `DATABASE_URL` de produção usa a role dedicada `legislativo`
+  (banco `legislativo_fnp`), não `doadmin` — a rotação não exigiu
+  nenhuma mudança no `.env` do servidor nem restart de container. A
+  tentativa de testar a role `legislativo` contra um banco `homolog`
+  falhou autenticação, mas a pendência era só sobre o `doadmin`; a
+  investigação de `legislativo`/`homolog` foi deixada de lado a pedido
+  do usuário.
+- **Promoção completa `next` → `main`, autorizada explicitamente pelo
+  usuário** ("vamos subir para a next e para a produção"). Antes do
+  push: `check`, `makemigrations --check` e os 73 testes revalidados
+  localmente (limpos). `main` estava 3 commits atrás de `next` e era
+  fast-forward puro (sem divergência) — levou de uma vez a rodada de 23
+  pedidos (2026-08-10), a exigência de confirmação por e-mail antes de
+  senha em conta só-Google, e a auditoria de segurança do pentest de 48
+  itens (2026-08-11). Push pra `origin` e `production`; CI verde nos
+  dois repositórios (`gh run watch`).
+- **Deploy real confirmado no droplet via SSH** — `git pull origin main`
+  (o clone do droplet só tem o remoto `origin`, apontando pro
+  `dadosfnp/legislativo-fnp`), `docker compose build && docker compose
+  up -d`. Build não veio do cache na camada `COPY . .` (diferente do
+  incidente de 2026-08-07, onde um build rodou silenciosamente com
+  código antigo) — sinal de que o `git pull` de fato trouxe código novo
+  antes do build. `docker compose logs legislativo` (nome do serviço
+  neste `docker-compose.yml`, não `web`) confirmou
+  `Applying comentarios.0007_comentariolike... OK`, coleta de estáticos
+  e Gunicorn subindo sem traceback; `curl -sI
+  https://legislativo.fnp.org.br/` → `200 OK` com os headers de
+  segurança esperados (CSP, HSTS, `X-Frame-Options: DENY`, cookie
+  `Secure`).
+- **Checklist de segurança pós-deploy iniciado** (a pedido do usuário,
+  aproveitando o SSH já aberto) — retomando os itens que a auditoria de
+  pentest tinha marcado "não verificável daqui" por falta de acesso à
+  infraestrutura: SSH só por chave + fail2ban, `ufw`/Cloud Firewall,
+  atualizações de SO pendentes, e (próximo item, ainda não iniciado) se
+  a role `legislativo` está de fato restrita só ao próprio database.
+  Comandos passados ao usuário, resultado **ainda não recebido** nesta
+  sessão — continuar a partir daqui.
 
 ### Pendências e próximos passos
 
