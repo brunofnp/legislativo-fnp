@@ -1278,6 +1278,15 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   app sair do modo "teste".
 - Comentários "pendente" de antes da moderação automática continuam
   precisando de revisão manual (ação em massa no Admin).
+- **Container `legislativo` aparece `(unhealthy)` no `docker compose ps`**
+  mesmo respondendo `200 OK` de verdade (visto em 2026-08-11 num deploy
+  onde o `curl` bateu um `502` nos primeiros ~2s após o container subir,
+  antes do Gunicorn terminar de bindar — resolvido sozinho, foi só
+  corrida). O Nginx não depende do healthcheck do Docker pra rotear (só
+  aponta pra porta fixa), então não afeta usuário final hoje, mas o
+  healthcheck em si parece mal configurado (porta/timeout/condição
+  errada) — vale investigar o `HEALTHCHECK` do `Dockerfile`/
+  `docker-compose.yml` em algum momento, baixa prioridade.
 - Integração com o Senado (hoje só Câmara via `sync_camara`).
 - Redesign visual incremental a partir de referências que o usuário vai
   mandando aos poucos (sidebar/topbar do site público e do Admin já
