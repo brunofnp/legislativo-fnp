@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-10 — **`next` recebeu uma rodada grande de 23 pedidos do usuário** (home/filtros, fórum/comentários aninhados, navegação "Voltar", perfil, Favoritos/Participações, likes, acesso ao Admin via grupo) — tudo commitado só em `next`, **`main`/produção não tocados** (aguardando autorização separada, como sempre). `check`, `makemigrations --check`, `ruff` (F401/F811/F841) e 58 testes (era 44) limpos; smoke test via `Client` confirmando 200 em home (com/sem filtro), fórum com resposta aninhada, Favoritos, Participações, Solicitar Exclusão e `/admin/`. **Não testado visualmente num navegador real** — só o lado servidor foi verificado; itens que dependiam de UI (cards clicáveis, filtro em tempo real, layout do fórum) merecem uma conferida visual antes de considerar prontos. Detalhes na seção datada 2026-08-10 do Estado Atual, "Rodada de 23 pedidos (home/filtros, fórum, navegação, conta)".
+> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, achados corrigidos e commitados só em `next` (`main`/produção não tocados, autorização separada como sempre). 1 achado crítico (fusão de conta social sem verificação de e-mail) e 8 riscos corrigidos: parent de comentário escopado à proposição, coluna "E-mail confirmado" no Admin, log de auditoria em aprovação/rejeição de cadastro, senha mínima de 10 caracteres, `SESSION_COOKIE_AGE` explícito (7 dias), rate limit em denúncia de comentário, e o IP do rate limit corrigido pra ler `X-Forwarded-For` (antes sempre via o IP do Nginx). `check`, `check --deploy`, `makemigrations --check`, `ruff` e 73 testes (era 58, +15 novos) limpos. Detalhes na seção datada 2026-08-11 do Estado Atual, "Auditoria de segurança (pentest de 48 itens)".
 
 ---
 
@@ -1009,10 +1009,107 @@ navegador neste ambiente** — nada disso foi conferido visualmente
 da busca, layout do fórum); vale uma rodada de conferência visual antes
 de considerar pronto pra promover.
 
+### Auditoria de segurança (pentest de 48 itens) — 2026-08-11
+
+A pedido do usuário ("aja como pentester sênior... varredura de segurança
+completa"), rodada em 3 fases: relatório primeiro (48 itens, categorias
+A-L), aprovação do usuário, depois correção. Achados por leitura de código
+(sem acesso a SSH/painel da Digital Ocean — itens de infraestrutura pura
+ficaram marcados "não verificável daqui").
+
+**Achado crítico corrigido (rebaixado de severidade após investigar o
+mecanismo de verdade)**: `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT`
+(fusão de login Google com conta local existente do mesmo e-mail) parecia,
+à primeira vista, permitir que alguém se cadastrasse com o e-mail de outra
+pessoa (sem confirmar posse) e "roubasse" a conta quando a vítima real
+entrasse via Google depois. Investigando o código-fonte do allauth
+(`socialaccount/internal/flows/email_authentication.py::wipe_password`),
+descobri que o próprio allauth já mitiga esse cenário exato: se o e-mail
+da conta local não estava verificado, a senha do atacante é apagada
+automaticamente no momento da fusão. O risco residual real (não o que o
+relatório da Fase 1 descreveu) é só a janela entre o cadastro fraudulento
+ser aprovado pela equipe e a vítima de fato logar via Google — que pode
+nunca acontecer, se a pessoa só usa e-mail/senha. Fix: coluna nova
+"E-mail confirmado" em `UsuarioAdmin` (`EmailAddress.verified`, via
+`Exists`/`OuterRef` no `get_queryset`), visível na mesma listagem onde
+Root já aprova/rejeita cadastro — dá o sinal que faltava pra recusar um
+cadastro suspeito sem exigir SMTP configurado (`ACCOUNT_EMAIL_VERIFICATION
+='mandatory'` seria o fix "de livro-texto", mas travaria todo cadastro
+por e-mail/senha em produção até o `EMAIL_BACKEND` real estar configurado
+lá — não fiz essa troca agora, ver Pendências).
+
+**Riscos corrigidos:**
+
+- **Comentário podia ser encaixado como resposta em outra proposição** —
+  `ComentarioForm` expunha `parent` sem restringir o queryset à proposição
+  atual; um POST manual conseguia colar uma "resposta" na árvore de
+  comentários de uma proposição diferente da que o formulário pertencia
+  (achado só por leitura de código, não reportado por ninguém). Fix:
+  `ComentarioForm.__init__` agora recebe `proposicao=` e restringe
+  `self.fields['parent'].queryset` a comentários dela só.
+- **Nenhum registro de quem aprovou/rejeitou um cadastro ou exclusão** —
+  `aprovar_cadastros`/`rejeitar_cadastros`/`rejeitar_exclusoes` usam
+  `.update()` em massa, que nunca passa pelo `LogEntry` automático do
+  Django Admin (só `save_model` de edição individual passa). Fix: helper
+  `UsuarioAdmin._registrar_log()` grava um `LogEntry` explícito (autor,
+  objeto, mensagem) em toda ação de aprovação/rejeição, em massa ou
+  individual (`response_change`).
+- **Senha mínima só o default do Django (8 caracteres, sem outra
+  exigência)** — `MinimumLengthValidator` ganhou `min_length=10`
+  explícito. Não adicionei regra de "precisa ter maiúscula/símbolo": é a
+  orientação atual do NIST/OWASP (comprimento > regras de complexidade,
+  que na prática só geram senha previsível tipo "Senha123!").
+- **Sessão sem expiração explícita** — caía no default do Django (2
+  semanas). `SESSION_COOKIE_AGE = 60 * 60 * 24 * 7` (7 dias) agora
+  explícito em `settings.py`.
+- **Denúncia de comentário sem rate limit** — só `@login_required` +
+  `UniqueConstraint` (não dá pra denunciar o mesmo comentário 2x)
+  limitavam abuso; agora também `rate_limited('denuncia', ..., limit=10,
+  window_seconds=600)`, mesmo padrão de `comentario`/`participacao`.
+- **Rate limit dos formulários públicos praticamente sem componente de
+  IP** — `throttling.py` usava `REMOTE_ADDR`, mas o Gunicorn só é
+  alcançado via Nginx (porta do container presa em `127.0.0.1`, ver
+  `docker-compose.yml`) sem nada traduzindo `X-Forwarded-For` — na
+  prática `REMOTE_ADDR` era sempre o IP do próprio Nginx pra qualquer
+  visitante, e o rate limit sobrava só na sessão (reset trivial limpando
+  cookies). Fix: `_client_ip()` novo lê `X-Forwarded-For` (o **último**
+  valor da lista — o que o Nginx de fato viu e anexou via
+  `$proxy_add_x_forwarded_for`, não um valor que o próprio cliente possa
+  ter forjado antes dele), com fallback pra `REMOTE_ADDR` em dev local
+  (sem Nginx na frente).
+
+`check`, `check --deploy` (simulando produção), `makemigrations --check`,
+`ruff --select F401,F811,F841` e 73 testes (era 58, +15 novos cobrindo
+cada fix) limpos. Smoke test via `Client` confirmando a coluna nova no
+Admin e o fórum renderizando normal com o `ComentarioForm` escopado.
+
+**Itens do relatório de 48 que já estavam ✅ e não precisaram de mudança**
+(cobertos em detalhe na resposta da Fase 1, não repetidos aqui): sem SQL
+bruto/`\|safe`/`mark_safe` em conteúdo de usuário em todo o projeto,
+`.env` nunca commitado (checado o histórico inteiro do git), CSP/HSTS/
+cookies seguros/clickjacking já configurados desde a auditoria de
+2026-08-06, container roda non-root com porta presa em `127.0.0.1`,
+upload de foto usa `ImageField` (valida estrutura real via Pillow, não só
+extensão) com limite de 5MB, `sync_camara` não é endpoint HTTP.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** —
+  passou de pendência menor pra pré-requisito de segurança: sem isso, não
+  dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
+  robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
+  cadastro por e-mail/senha em produção.
+- **Rotacionar a senha do `doadmin`** do cluster Postgres — já pendente
+  de sessão anterior (exposta numa captura de tela), auditoria de
+  segurança reforça a prioridade.
+- **Confirmar itens de infraestrutura que não dá pra verificar por aqui**
+  (sem SSH/painel da Digital Ocean): role `legislativo` restrita só ao
+  próprio database (sem acesso a `ifem`/`fnp_sistema`/`nucleo_dados`),
+  `fnp-database` só aceita conexão do `fnp-web` via Trusted Sources, SSH
+  só por chave + fail2ban (ou equivalente), Cloud Firewall/ufw
+  restringindo portas públicas, atualizações de SO pendentes aplicadas.
 - **Conferir visualmente no navegador a rodada de 23 itens acima** — só
   o lado servidor foi validado (testes + smoke test via `Client`); nada
   foi visto renderizado de verdade. Prioridade: cards de estatística

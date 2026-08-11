@@ -182,12 +182,18 @@ DATABASES = {
     'default': dj_database_url.parse(os.getenv('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'))
 }
 
+# MinimumLengthValidator com min_length explícito (10, era o default de 8) --
+# comprimento maior é a recomendação atual do NIST/OWASP em vez de regras de
+# "complexidade" (exigir maiúscula/número/símbolo), que na prática levam a
+# senhas previsíveis tipo "Senha123!" sem ganho real de segurança. Auditoria
+# de segurança, 2026-08-11.
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 10},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -196,6 +202,12 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Default do Django é 2 semanas (sessão "eterna" na prática) -- 7 dias é um
+# meio-termo razoável pra um app com área administrativa sensível, sem forçar
+# login toda hora pro uso comum do fórum público. Auditoria de segurança,
+# 2026-08-11.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7
 
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'

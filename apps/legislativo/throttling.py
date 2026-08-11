@@ -7,14 +7,29 @@ compartilhado (ex.: Redis) resolve sem mudar esta função."""
 from django.core.cache import cache
 
 
+def _client_ip(request):
+    """Em produção o Gunicorn só é alcançado via Nginx (porta do container
+    presa em 127.0.0.1, ver docker-compose.yml) -- sem ler X-Forwarded-For,
+    REMOTE_ADDR é sempre o IP do próprio Nginx pra qualquer visitante,
+    zerando na prática o componente de IP do rate limit (auditoria de
+    segurança, 2026-08-11). Nginx é o único ponto de entrada confiável
+    (deploy/nginx-legislativo.conf: proxy_set_header X-Forwarded-For
+    $proxy_add_x_forwarded_for), então o valor confiável é sempre o ÚLTIMO
+    da lista (o que o próprio Nginx anexou) -- um cliente malicioso pode
+    mandar um X-Forwarded-For falso, mas só entra ANTES do valor real que o
+    Nginx acrescenta, nunca depois."""
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[-1].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
 def _client_identifier(request):
-    """Sessão + IP, não só IP: atrás do Nginx em produção, várias pessoas
-    podem aparecer com o mesmo IP se X-Forwarded-For não estiver configurado,
-    então a sessão evita que uma trave a outra."""
+    """Sessão + IP, não só IP: uma sessão evita que um IP compartilhado
+    (rede corporativa/CGNAT) trave todo mundo atrás dele por um só abusar."""
     if not request.session.session_key:
         request.session.save()
-    ip = request.META.get('REMOTE_ADDR', '')
-    return f'{request.session.session_key}:{ip}'
+    return f'{request.session.session_key}:{_client_ip(request)}'
 
 
 def rate_limited(key_prefix, request, limit, window_seconds):

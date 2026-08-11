@@ -2,6 +2,7 @@ import io
 import json
 import tempfile
 
+from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.cache import cache
@@ -18,7 +19,8 @@ from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Proposicao
 from apps.usuarios.middleware import CadastroPendenteMiddleware, MFAObrigatorioStaffMiddleware
 from apps.usuarios.models import Perfil, Usuario
 
-from .throttling import rate_limited
+from .forms import ComentarioForm
+from .throttling import _client_ip, rate_limited
 from .views import (
     PROPOSICOES_POR_PAGINA,
     HomeView,
@@ -757,3 +759,170 @@ class UsuarioPublicoTest(TestCase):
         content = response.content.decode('utf-8')
         self.assertIn('Fulano', content)
         self.assertIn('PL do fulano', content)
+
+
+class ComentarioParentEscopadoTest(TestCase):
+    """Auditoria de segurança 2026-08-11: 'parent' (campo escondido do form
+    de comentário) não podia apontar pra um comentário de outra proposição --
+    sem isso, um POST manual conseguia encaixar uma resposta na árvore de
+    comentários de uma proposição diferente da que o formulário pertence."""
+
+    def setUp(self):
+        self.autor = Usuario.objects.create(username='autorparent', email='autorparent@fnp.org.br')
+        self.proposicao_a = Proposicao.objects.create(titulo='PL A', casa='camara')
+        self.proposicao_b = Proposicao.objects.create(titulo='PL B', casa='camara')
+        self.comentario_raiz_b = Comentario.objects.create(
+            proposicao=self.proposicao_b, texto='raiz em B', autor=self.autor, status_moderacao='aprovado',
+        )
+
+    def test_parent_de_outra_proposicao_e_rejeitado(self):
+        form = ComentarioForm(
+            data={'texto': 'tentando responder em B a partir de A', 'parent': self.comentario_raiz_b.pk},
+            proposicao=self.proposicao_a,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('parent', form.errors)
+
+    def test_parent_da_mesma_proposicao_e_aceito(self):
+        comentario_raiz_a = Comentario.objects.create(
+            proposicao=self.proposicao_a, texto='raiz em A', autor=self.autor, status_moderacao='aprovado',
+        )
+        form = ComentarioForm(
+            data={'texto': 'resposta legítima em A', 'parent': comentario_raiz_a.pk},
+            proposicao=self.proposicao_a,
+        )
+        self.assertTrue(form.is_valid())
+
+    def test_post_view_com_parent_de_outra_proposicao_nao_salva_comentario(self):
+        request = _post_request_with_session(
+            f'/proposicao/{self.proposicao_a.pk}/',
+            {'texto': 'ataque via view', 'parent': self.comentario_raiz_b.pk},
+        )
+        request.user = self.autor
+        ProposicaoDetailView.as_view()(request, pk=self.proposicao_a.pk)
+
+        self.assertFalse(Comentario.objects.filter(texto='ataque via view').exists())
+
+
+class EmailConfirmadoNoAdminTest(TestCase):
+    """A coluna 'E-mail confirmado' do UsuarioAdmin dá ao Root o sinal que
+    faltava pra recusar um cadastro suspeito antes de aprovar, já que o
+    cadastro por e-mail/senha não exige confirmação pra navegar."""
+
+    def test_email_nao_confirmado_aparece_como_false(self):
+        from allauth.account.models import EmailAddress
+
+        from apps.usuarios.admin import UsuarioAdmin
+
+        usuario = Usuario.objects.create(username='naoconfirmado', email='naoconfirmado@fnp.org.br')
+        EmailAddress.objects.create(user=usuario, email=usuario.email, verified=False, primary=True)
+
+        admin_instance = UsuarioAdmin(Usuario, admin.site)
+        request = _request_with_session('/admin/usuarios/usuario/')
+        obj = admin_instance.get_queryset(request).get(pk=usuario.pk)
+
+        self.assertFalse(admin_instance.email_confirmado(obj))
+
+    def test_email_confirmado_aparece_como_true(self):
+        from allauth.account.models import EmailAddress
+
+        from apps.usuarios.admin import UsuarioAdmin
+
+        usuario = Usuario.objects.create(username='confirmado', email='confirmado@fnp.org.br')
+        EmailAddress.objects.create(user=usuario, email=usuario.email, verified=True, primary=True)
+
+        admin_instance = UsuarioAdmin(Usuario, admin.site)
+        request = _request_with_session('/admin/usuarios/usuario/')
+        obj = admin_instance.get_queryset(request).get(pk=usuario.pk)
+
+        self.assertTrue(admin_instance.email_confirmado(obj))
+
+
+class AuditoriaAprovacaoCadastroTest(TestCase):
+    """Ações em massa de aprovar/rejeitar cadastro usavam .update() direto,
+    que nunca passa pelo LogEntry automático do Django Admin -- não ficava
+    registrado quem aprovou/rejeitou. Corrigido registrando explicitamente."""
+
+    def test_aprovar_cadastros_registra_log_entry(self):
+        from django.contrib.admin.models import LogEntry
+
+        from apps.usuarios.admin import UsuarioAdmin
+
+        root = Usuario.objects.create(username='rootauditoria', email='rootauditoria@fnp.org.br', is_superuser=True)
+        alvo = Usuario.objects.create(username='alvoauditoria', email='alvoauditoria@fnp.org.br')
+
+        from django.contrib.messages.storage.fallback import FallbackStorage
+
+        request = _post_request_with_session('/admin/usuarios/usuario/')
+        request.user = root
+        request._messages = FallbackStorage(request)
+        admin_instance = UsuarioAdmin(Usuario, admin.site)
+        admin_instance.aprovar_cadastros(request, Usuario.objects.filter(pk=alvo.pk))
+
+        entrada = LogEntry.objects.get(object_id=str(alvo.pk))
+        self.assertEqual(entrada.user_id, root.pk)
+        self.assertIn('aprovado', entrada.change_message.lower())
+
+
+class SenhaMinimaTest(TestCase):
+    def test_senha_curta_e_rejeitada(self):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
+            validate_password('curta123')  # 8 caracteres, abaixo do novo mínimo de 10
+
+    def test_senha_com_dez_caracteres_e_aceita(self):
+        from django.contrib.auth.password_validation import validate_password
+
+        validate_password('umasenhagrande123')
+
+
+class SessionCookieAgeTest(TestCase):
+    def test_sessao_nao_e_eterna(self):
+        from django.conf import settings
+
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 60 * 60 * 24 * 7)
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class DenunciaRateLimitTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.proposicao = Proposicao.objects.create(titulo='PL denunciado muito', casa='camara')
+        self.autor = Usuario.objects.create(username='autordenunciado', email='autordenunciado@fnp.org.br')
+        self.denunciante = Usuario.objects.create(username='denuncianteativo', email='denuncianteativo@fnp.org.br')
+        self.denunciante.perfil.status_aprovacao = Perfil.APROVADO
+        self.denunciante.perfil.save()
+
+    def test_bloqueia_apos_dez_denuncias_na_janela(self):
+        # Client mantém o cookie de sessão entre chamadas (como um navegador
+        # de verdade) -- com RequestFactory cru, cada chamada gerava uma
+        # sessão nova, e o rate limit (sessão+IP) nunca acumulava contagem.
+        self.client.force_login(self.denunciante)
+        comentarios = [
+            Comentario.objects.create(
+                proposicao=self.proposicao, texto=f'comentário {i}', autor=self.autor, status_moderacao='aprovado',
+            )
+            for i in range(11)
+        ]
+        for comentario in comentarios:
+            self.client.post(f'/comentario/{comentario.pk}/denunciar/')
+
+        total_denuncias = sum(c.denuncias.count() for c in comentarios)
+        self.assertEqual(total_denuncias, 10)  # a 11ª foi bloqueada pelo rate limit
+
+
+class ClientIpTest(TestCase):
+    """Atrás do Nginx, REMOTE_ADDR é sempre o IP do próprio Nginx -- o rate
+    limit precisa ler X-Forwarded-For (o último valor da lista, que é o que
+    o Nginx efetivamente viu, não um valor que o próprio cliente possa ter
+    forjado antes dele)."""
+
+    def test_usa_ultimo_valor_de_x_forwarded_for(self):
+        request = RequestFactory().get('/', HTTP_X_FORWARDED_FOR='1.2.3.4, 10.0.0.5')
+        self.assertEqual(_client_ip(request), '10.0.0.5')
+
+    def test_sem_header_usa_remote_addr(self):
+        request = RequestFactory().get('/', REMOTE_ADDR='203.0.113.9')
+        self.assertEqual(_client_ip(request), '203.0.113.9')

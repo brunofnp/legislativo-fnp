@@ -358,12 +358,13 @@ def toggle_favorito(request, pk):
 @require_POST
 def denunciar_comentario(request, pk):
     comentario = get_object_or_404(Comentario, pk=pk)
-    _, criada = DenunciaComentario.objects.get_or_create(comentario=comentario, denunciante=request.user)
+    if not rate_limited('denuncia', request, limit=10, window_seconds=600):
+        _, criada = DenunciaComentario.objects.get_or_create(comentario=comentario, denunciante=request.user)
 
-    if criada and comentario.status_moderacao == 'aprovado':
-        if comentario.denuncias.count() >= Comentario.DENUNCIAS_PARA_OCULTAR:
-            comentario.status_moderacao = 'pendente'
-            comentario.save(update_fields=['status_moderacao'])
+        if criada and comentario.status_moderacao == 'aprovado':
+            if comentario.denuncias.count() >= Comentario.DENUNCIAS_PARA_OCULTAR:
+                comentario.status_moderacao = 'pendente'
+                comentario.save(update_fields=['status_moderacao'])
 
     next_url = request.POST.get('next', '')
     if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
@@ -465,7 +466,7 @@ class ProposicaoDetailView(View):
     def get(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
         registrar_visualizacao(request, proposicao)
-        comentario_form = ComentarioForm(initial={'parent': None})
+        comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
         return render(
             request,
             self.template_name,
@@ -481,13 +482,13 @@ class ProposicaoDetailView(View):
 
     def post(self, request, pk):
         proposicao = get_object_or_404(Proposicao, pk=pk)
-        comentario_form = ComentarioForm(initial={'parent': None})
+        comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
         success_message = None
 
         if rate_limited('comentario', request, limit=5, window_seconds=300):
             success_message = 'Você enviou comentários rápido demais. Aguarde alguns minutos e tente novamente.'
         else:
-            comentario_form = ComentarioForm(request.POST)
+            comentario_form = ComentarioForm(request.POST, proposicao=proposicao)
             if comentario_form.is_valid():
                 comentario = comentario_form.save(commit=False)
                 comentario.proposicao = proposicao
@@ -500,7 +501,7 @@ class ProposicaoDetailView(View):
                         notificar_participantes_da_discussao(proposicao, comentario)
                     return redirect('legislativo:proposicao_detail', pk=pk)
                 success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
-                comentario_form = ComentarioForm(initial={'parent': None})
+                comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
 
         return render(
             request,

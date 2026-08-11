@@ -179,4 +179,16 @@ class ComentarioForm(forms.ModelForm):
             'texto': 'Comentário',
         }
 
+    def __init__(self, *args, proposicao=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Sem restringir o queryset aqui, "parent" (campo escondido, setado
+        # via JS ao clicar em "Responder") aceitava o pk de um comentário de
+        # QUALQUER proposição -- um POST manual conseguia encaixar uma
+        # resposta na árvore de comentários de uma proposição diferente da
+        # que o formulário realmente pertence (auditoria de segurança,
+        # 2026-08-11). Sem proposição informada, nenhum parent é aceito.
+        self.fields['parent'].queryset = (
+            Comentario.objects.filter(proposicao=proposicao) if proposicao else Comentario.objects.none()
+        )
+
 
