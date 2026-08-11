@@ -1252,16 +1252,27 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   comentário/participação têm limite efetivo até 3x mais permissivo do
   que o configurado. Trocar por Redis é reabrir a diretriz "só trocar se
   crescer pra múltiplos workers" — decisão ainda não tomada.
-- `deploy/nginx-legislativo.conf` atualizado (limite de upload 6MB) ainda
-  não copiado pro droplet — `cp` manual + certbot de novo (reinstalar
-  sobrescreve o bloco SSL, já aconteceu antes).
+- ~~`deploy/nginx-legislativo.conf` com limite de upload 6MB não copiado
+  pro droplet~~ — **resolvido em 2026-08-11, sem repetir o incidente de
+  2026-08-05**: em vez de `cp` do arquivo inteiro (que apaga o bloco SSL
+  do certbot), só a linha `client_max_body_size 6M;` foi inserida à mão
+  no arquivo já em produção (`/etc/nginx/sites-enabled/legislativo.conf`),
+  validada com `nginx -t` antes do `reload`. No caminho, achado e
+  removido um arquivo `legislativo.conf.save` (sobra de uma edição
+  anterior do `nano`, não um symlink como os configs de verdade) que
+  também declarava `server_name legislativo.fnp.org.br` e causava um
+  aviso de "conflicting server name" — não afetava outros sistemas do
+  droplet (`fnp`, `ifem`, `fnp-homolog`), só duplicava o nosso.
 - Droplet `fnp-web` sem backup próprio (só o `fnp-database` tem).
 - Reverificar se o bug do Python 3.14 (`copy.copy()` em `RequestContext`)
   ainda ocorre agora que o projeto está no Django 5.2 — não testado,
   `.venv/` local continua em 3.12 por segurança.
-- Conferir/chown o volume de `media/` no droplet antes do primeiro upload
-  de foto de perfil em produção (mesmo risco de permissão que o
-  `staticfiles/` teve, nunca testado).
+- ~~Conferir/chown o volume de `media/` no droplet~~ — **resolvido em
+  2026-08-11**: estava `root:root`, mesmo risco de permissão que o
+  `staticfiles/` teve em 2026-08-05. `chown -R 1000:1000` aplicado
+  (aparece como dono `phillippi` no host — coincidência de UID 1000 com
+  o usuário de deploy do IFEM, não é erro; o container roda como
+  `appuser` também UID 1000, e Linux checa por número, não por nome).
 - ~~Client Secret do Google OAuth exposto numa captura de tela em sessão
   anterior~~ — **decisão do usuário em 2026-08-11: não rotacionar**
   (risco aceito, baixo — app ainda em modo "teste" no Google Cloud
