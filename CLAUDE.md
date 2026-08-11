@@ -1237,10 +1237,41 @@ ver seção anterior), **6 com nuance**:
 `check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 75
 testes (era 73, +2) limpos.
 
+### Cloud Firewall confirmado, Sentry ativado e achado real via Sentry (2026-08-11, mesma sessão)
+
+Continuação dos itens "azuis" do checklist pós-revarredura (dependiam de
+painel/conta externa, não código):
+
+- **Cloud Firewall da DigitalOcean confirmado** (`FirewallSistemaFNP`,
+  aplicado ao `fnp-web`) — inbound só libera 22/80/443 pra `All
+  IPv4`/`All IPv6`, mesma política do `ufw` local. Sem achado.
+- **Sentry ativado de verdade** — conta criada, projeto Django, DSN
+  colado no `.env` de produção, container recriado. Validado com
+  `sentry_sdk.capture_message()` via `manage.py shell` (sem precisar
+  quebrar nada de propósito) — evento apareceu no painel em segundos.
+  **No processo, o Sentry já pegou um erro real rodando em produção**:
+  `DisallowedHost: Invalid HTTP_HOST header: 'localhost:8004'`, 3
+  eventos — era o próprio healthcheck do Docker (`curl
+  http://localhost:8004/`, sem header `Host` correto) sendo rejeitado
+  pelo Django, e a causa raiz do "container unhealthy" registrado horas
+  antes na mesma sessão (ver correção acima). `EMAIL_BACKEND` real (o
+  terceiro item azul) ficou pra depois, a pedido do usuário.
+- **Novo incidente de exposição de segredo**: um print do `.env` de
+  produção no `nano` mostrou `SECRET_KEY`, a senha da role `legislativo`
+  no `DATABASE_URL` e o `GOOGLE_CLIENT_SECRET` em texto puro nesta
+  sessão de chat. Usuário optou por terminar o Sentry primeiro e tratar
+  a rotação depois — **ainda não rotacionados**, ver Pendências.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Rotacionar `SECRET_KEY`, senha da role `legislativo` e
+  `GOOGLE_CLIENT_SECRET`** — os três apareceram em texto puro num print
+  do `.env` de produção nesta sessão de chat (2026-08-11). `SECRET_KEY`
+  é o mais barato de trocar (invalida sessões ativas, sem downtime
+  real); os outros dois seguem o mesmo roteiro já usado hoje pro
+  `doadmin` e pro Google Client Secret anterior.
 - **Decidir se o mérito interno da proposição deveria ser público** —
   `posicionamento_fnp` continua fazendo sentido público, mas
   `acoes_incidencia`/`riscos_oportunidades` (estratégia de lobby)
@@ -1295,9 +1326,11 @@ testes (era 73, +2) limpos.
 
 **Seguem em aberto (sem mudança nesta sessão):**
 
-- Contas externas que faltam ser criadas pra ativar o que já está
-  implementado (tudo desligado até lá, zero risco): `SENTRY_DSN`
-  (sentry.io), `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY`
+- ~~`SENTRY_DSN` sem conta criada~~ — **resolvido em 2026-08-11**, ver
+  seção datada acima.
+- Conta externa que falta ser criada pra ativar o que já está
+  implementado (tudo desligado até lá, zero risco):
+  `RECAPTCHA_PUBLIC_KEY`/`RECAPTCHA_PRIVATE_KEY`
   (google.com/recaptcha/admin).
 - `EMAIL_BACKEND` de produção ainda não configurado com um backend real
   (SMTP/SES/etc.) via env var — `ACCOUNT_EMAIL_VERIFICATION=optional`
@@ -1346,15 +1379,15 @@ testes (era 73, +2) limpos.
   app sair do modo "teste".
 - Comentários "pendente" de antes da moderação automática continuam
   precisando de revisão manual (ação em massa no Admin).
-- **Container `legislativo` aparece `(unhealthy)` no `docker compose ps`**
-  mesmo respondendo `200 OK` de verdade (visto em 2026-08-11 num deploy
-  onde o `curl` bateu um `502` nos primeiros ~2s após o container subir,
-  antes do Gunicorn terminar de bindar — resolvido sozinho, foi só
-  corrida). O Nginx não depende do healthcheck do Docker pra rotear (só
-  aponta pra porta fixa), então não afeta usuário final hoje, mas o
-  healthcheck em si parece mal configurado (porta/timeout/condição
-  errada) — vale investigar o `HEALTHCHECK` do `Dockerfile`/
-  `docker-compose.yml` em algum momento, baixa prioridade.
+- ~~Container `legislativo` aparece `(unhealthy)` no `docker compose ps`~~
+  — **causa raiz encontrada e corrigida em 2026-08-11, direto pelo
+  Sentry** (ver seção datada abaixo): o healthcheck do
+  `docker-compose.yml` rodava `curl http://localhost:8004/`, que manda
+  `Host: localhost:8004` — o Django rejeitava com `DisallowedHost` (só
+  `legislativo.fnp.org.br` está em `ALLOWED_HOSTS`), então o healthcheck
+  falhava sempre, mesmo com o site respondendo `200 OK` de verdade via
+  Nginx (que usa o Host certo). Fix: `-H "Host: legislativo.fnp.org.br"`
+  adicionado ao `curl` do healthcheck, sem tocar em `ALLOWED_HOSTS`.
 - Integração com o Senado (hoje só Câmara via `sync_camara`).
 - Redesign visual incremental a partir de referências que o usuário vai
   mandando aos poucos (sidebar/topbar do site público e do Admin já
