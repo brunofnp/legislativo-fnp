@@ -11,7 +11,12 @@ services:
       - ./staticfiles:/app/staticfiles  # Nginx serve /static/ direto do host (deploy/nginx-legislativo.conf) — sem isso o collectstatic fica preso dentro do container
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/"]
+      # -H "Host: ..." é obrigatório -- sem isso o curl manda "Host:
+      # localhost:8004", que o Django rejeita (DisallowedHost, só
+      # legislativo.fnp.org.br está em ALLOWED_HOSTS) e o healthcheck falhava
+      # sempre, mesmo com o site respondendo 200 de verdade via Nginx (achado
+      # via Sentry, 2026-08-11).
+      test: ["CMD", "curl", "-f", "-H", "Host: legislativo.fnp.org.br", "http://localhost:8004/"]
       interval: 30s
       timeout: 5s
       retries: 3
