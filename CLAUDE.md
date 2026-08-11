@@ -1132,14 +1132,46 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   https://legislativo.fnp.org.br/` → `200 OK` com os headers de
   segurança esperados (CSP, HSTS, `X-Frame-Options: DENY`, cookie
   `Secure`).
-- **Checklist de segurança pós-deploy iniciado** (a pedido do usuário,
-  aproveitando o SSH já aberto) — retomando os itens que a auditoria de
-  pentest tinha marcado "não verificável daqui" por falta de acesso à
-  infraestrutura: SSH só por chave + fail2ban, `ufw`/Cloud Firewall,
-  atualizações de SO pendentes, e (próximo item, ainda não iniciado) se
-  a role `legislativo` está de fato restrita só ao próprio database.
-  Comandos passados ao usuário, resultado **ainda não recebido** nesta
-  sessão — continuar a partir daqui.
+- **Checklist de segurança pós-deploy** (a pedido do usuário, aproveitando
+  o SSH já aberto) — itens que a auditoria de pentest tinha marcado "não
+  verificável daqui" por falta de acesso à infraestrutura:
+  - `PasswordAuthentication no` confirmado via `sshd -T` (login só por
+    chave) — reduz bastante a gravidade de `PermitRootLogin yes` (ainda
+    não é best practice, zero rastreabilidade por usuário, mas força
+    bruta de senha não funciona; fail2ban ativo, 349 banimentos
+    históricos). Existe 1 usuário não-root no droplet (`phillippi`,
+    comentário `/etc/passwd` diz "deploy IFEM" — de outro sistema, não
+    do legislativo-fnp). Baixa prioridade, não mexido.
+  - `ufw status verbose` → só 22/80/443 liberados, nada do Postgres
+    (25060) ou Gunicorn (8004) exposto publicamente — sem achado.
+  - `apt list --upgradable` → vários pacotes desatualizados, **inclusive
+    o próprio Docker** (`docker-ce`, `containerd.io`,
+    `docker-compose-plugin`) e **reboot pendente** (`/var/run/reboot-required`
+    existe). Não aplicado ainda — upgrade do Docker e reboot da máquina
+    derrubam produção brevemente, precisa de janela de manutenção
+    combinada, não uma correção no meio de uma sessão de checklist.
+  - **Achado real e mais sério: o cluster Postgres `fnp-database` é
+    compartilhado com outros sistemas da FNP** (roles `fnp_financeiro`,
+    `admin_sistema`, `ifem_app`, `nucleo_carga`, `nucleo_ro`, vistos no
+    painel da DigitalOcean). Checado via
+    `has_database_privilege('legislativo', datname, 'CONNECT')`: a role
+    `legislativo` conseguia conectar em `defaultdb`, `homolog` **e
+    `fnp_sistema`** (provável banco do sistema financeiro), além do
+    `legislativo_fnp` (o único que deveria). `REVOKE CONNECT ... FROM
+    legislativo` rodado nos três, mas **sem efeito** — Postgres concede
+    `CONNECT` a `PUBLIC` por padrão em toda database nova, e todo role
+    herda isso automaticamente; revogar só do `legislativo` não muda nada
+    enquanto `PUBLIC` continuar com a permissão. Corrigir de verdade exige
+    `REVOKE CONNECT ... FROM PUBLIC` nesses bancos, o que **afeta todos os
+    roles do cluster**, não só o nosso — risco de derrubar acesso de
+    outro sistema (financeiro/IFEM) se ele dependia do grant implícito via
+    `PUBLIC` em vez de uma concessão própria. **Pausado a pedido do
+    usuário** para confirmar com quem administra os outros sistemas antes
+    de mexer em uma permissão cluster-wide — ver Pendências.
+  - **Senha do `doadmin` apareceu em texto puro no terminal colado no
+    chat desta sessão** (a mesma que tinha acabado de ser rotacionada por
+    causa de uma exposição anterior por captura de tela). Precisa ser
+    rotacionada de novo — ver Pendências.
 
 ### Pendências e próximos passos
 
@@ -1150,12 +1182,26 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
   robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
   cadastro por e-mail/senha em produção.
-- **Confirmar itens de infraestrutura que não dá pra verificar por aqui**
-  (sem SSH/painel da Digital Ocean): role `legislativo` restrita só ao
-  próprio database (sem acesso a `ifem`/`fnp_sistema`/`nucleo_dados`),
-  `fnp-database` só aceita conexão do `fnp-web` via Trusted Sources, SSH
-  só por chave + fail2ban (ou equivalente), Cloud Firewall/ufw
-  restringindo portas públicas, atualizações de SO pendentes aplicadas.
+- **Restringir a role `legislativo` a só `legislativo_fnp`, sem afetar
+  outros sistemas** — achado confirmado em 2026-08-11 (ver seção datada
+  acima): ela conecta hoje em `defaultdb`/`homolog`/`fnp_sistema` também,
+  por causa do `CONNECT` que o Postgres concede a `PUBLIC` por padrão em
+  toda database nova. Corrigir exige `REVOKE CONNECT ... FROM PUBLIC`
+  nesses bancos — **cluster-wide, afeta `fnp_financeiro`/`admin_sistema`/
+  outros roles também**, não só o nosso. Pausado a pedido do usuário até
+  confirmar com quem administra os sistemas financeiro/IFEM que
+  dependem desse mesmo cluster, pra não quebrar o acesso deles sem
+  querer (nenhum tem concessão própria confirmada, podem estar
+  dependendo do `PUBLIC` implícito).
+- **Rotacionar a senha do `doadmin` outra vez** — apareceu em texto puro
+  numa mensagem desta sessão de chat (a mesma senha que tinha acabado de
+  ser trocada por causa de uma exposição anterior por captura de tela).
+- **Confirmar restante dos itens de infraestrutura** (fora do que já foi
+  checado em 2026-08-11: SSH key-only ✅, `ufw` ✅, `PermitRootLogin yes`
+  ainda ligado mas baixa prioridade, atualizações de SO + Docker
+  pendentes com reboot — precisa de janela de manutenção): `fnp-database`
+  só aceita conexão do `fnp-web` via Trusted Sources (painel DO, não dá
+  pra verificar por SSH).
 - **Conferir visualmente no navegador a rodada de 23 itens acima** — só
   o lado servidor foi validado (testes + smoke test via `Client`); nada
   foi visto renderizado de verdade. Prioridade: cards de estatística
