@@ -1233,12 +1233,16 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
 - Conferir/chown o volume de `media/` no droplet antes do primeiro upload
   de foto de perfil em produção (mesmo risco de permissão que o
   `staticfiles/` teve, nunca testado).
-- Client Secret do Google OAuth também foi exposto numa captura de tela
-  em sessão anterior (risco baixo — app ainda em modo "teste" no Google
-  Cloud Console). Falta preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
-  no `.env` do servidor de produção (não é o mesmo `.env` local) e
-  adicionar e-mails de teste na tela de consentimento OAuth até o app
-  sair do modo "teste".
+- ~~Client Secret do Google OAuth exposto numa captura de tela em sessão
+  anterior~~ — **decisão do usuário em 2026-08-11: não rotacionar**
+  (risco aceito, baixo — app ainda em modo "teste" no Google Cloud
+  Console). Não é mais pendência de segurança.
+- Falta preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` no `.env` do
+  servidor de produção (não é o mesmo `.env` local) e adicionar e-mails
+  de teste na tela de consentimento OAuth até o app sair do modo
+  "teste" — item funcional separado do risco de exposição acima, ainda
+  em aberto (relacionado ao item "Testar login Google em produção" na
+  lista de mais urgentes).
 - Comentários "pendente" de antes da moderação automática continuam
   precisando de revisão manual (ação em massa no Admin).
 - Integração com o Senado (hoje só Câmara via `sync_camara`).
