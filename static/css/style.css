@@ -1578,6 +1578,26 @@ body {
   text-decoration: underline;
 }
 
+.comment-excluir-form {
+  display: inline;
+  margin: 0;
+}
+
+.comment-excluir-btn {
+  border: none;
+  background: none;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.comment-excluir-btn:hover {
+  color: #dc2626;
+  text-decoration: underline;
+}
+
 .comment-reply-indicator {
   display: flex;
   align-items: center;

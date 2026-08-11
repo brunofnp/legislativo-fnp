@@ -374,6 +374,23 @@ def denunciar_comentario(request, pk):
 
 @login_required
 @require_POST
+def excluir_comentario(request, pk):
+    """Só o próprio autor exclui, e só se ninguém respondeu ainda --
+    Comentario.parent é on_delete=CASCADE, então excluir um comentário com
+    respostas apagaria também respostas de outras pessoas junto."""
+    comentario = get_object_or_404(Comentario, pk=pk, autor=request.user)
+    proposicao_id = comentario.proposicao_id
+    if not comentario.respostas.exists():
+        comentario.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=proposicao_id)
+
+
+@login_required
+@require_POST
 def curtir_comentario(request, pk):
     comentario = get_object_or_404(Comentario, pk=pk)
     like, criado = ComentarioLike.objects.get_or_create(comentario=comentario, usuario=request.user)

@@ -9,9 +9,14 @@ from .models import Comentario, DenunciaComentario, Notificacao, PalavraProibida
 
 @admin.register(Comentario)
 class ComentarioAdmin(admin.ModelAdmin):
+    # Ordenado por proposição (não por data) de propósito -- agrupa os
+    # comentários da mesma proposição em sequência na listagem, facilita
+    # moderar/excluir todos os de uma proposição de uma vez em vez de
+    # caçá-los espalhados numa lista só por data.
     list_display = ('trecho', 'autor', 'proposicao', 'status_moderacao', 'total_denuncias', 'criado_em')
     list_editable = ('status_moderacao',)
     list_filter = ('status_moderacao', ('proposicao', admin.RelatedOnlyFieldListFilter))
+    ordering = ('proposicao__titulo', '-criado_em')
     search_fields = ('texto',)
     autocomplete_fields = ['proposicao', 'parent']
     actions = ['aprovar_selecionados', 'rejeitar_selecionados']

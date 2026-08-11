@@ -8,7 +8,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
@@ -29,6 +29,7 @@ from .views import (
     ProposicaoDetailView,
     curtir_comentario,
     denunciar_comentario,
+    excluir_comentario,
     get_filtered_proposicoes,
     get_home_sections,
     solicitar_exclusao,
@@ -689,6 +690,51 @@ class ComentarioLikeTest(TestCase):
 
         sections = get_home_sections('', '')
         self.assertIn(proposicao, list(sections['em_alta']))
+
+
+class ExcluirComentarioTest(TestCase):
+    def setUp(self):
+        self.proposicao = Proposicao.objects.create(titulo='PL excluível', casa='camara')
+        self.autor = Usuario.objects.create(username='autorexclui', email='autorexclui@fnp.org.br')
+        self.outro = Usuario.objects.create(username='outroexclui', email='outroexclui@fnp.org.br')
+
+    def test_autor_exclui_proprio_comentario_sem_respostas(self):
+        comentario = Comentario.objects.create(
+            proposicao=self.proposicao, texto='vou apagar', autor=self.autor, status_moderacao='aprovado',
+        )
+        request = _post_request_with_session(f'/comentario/{comentario.pk}/excluir/')
+        request.user = self.autor
+
+        excluir_comentario(request, pk=comentario.pk)
+
+        self.assertFalse(Comentario.objects.filter(pk=comentario.pk).exists())
+
+    def test_nao_exclui_comentario_de_outro_usuario(self):
+        comentario = Comentario.objects.create(
+            proposicao=self.proposicao, texto='não é seu', autor=self.autor, status_moderacao='aprovado',
+        )
+        request = _post_request_with_session(f'/comentario/{comentario.pk}/excluir/')
+        request.user = self.outro
+
+        with self.assertRaises(Http404):
+            excluir_comentario(request, pk=comentario.pk)
+
+        self.assertTrue(Comentario.objects.filter(pk=comentario.pk).exists())
+
+    def test_nao_exclui_comentario_com_resposta(self):
+        comentario = Comentario.objects.create(
+            proposicao=self.proposicao, texto='tem resposta', autor=self.autor, status_moderacao='aprovado',
+        )
+        Comentario.objects.create(
+            proposicao=self.proposicao, texto='respondendo', autor=self.outro,
+            parent=comentario, status_moderacao='aprovado',
+        )
+        request = _post_request_with_session(f'/comentario/{comentario.pk}/excluir/')
+        request.user = self.autor
+
+        excluir_comentario(request, pk=comentario.pk)
+
+        self.assertTrue(Comentario.objects.filter(pk=comentario.pk).exists())
 
 
 class DefinirSenhaSocialTest(TestCase):

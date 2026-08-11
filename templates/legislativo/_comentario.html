@@ -40,6 +40,13 @@
           <button type="submit" class="comment-denuncia-btn">Denunciar</button>
         </form>
       {% endif %}
+      {% if comentario.autor_id == request.user.id and not comentario.respostas.all %}
+        <form method="post" action="{% url 'legislativo:excluir_comentario' comentario.pk %}" class="comment-excluir-form" onsubmit="return confirm('Excluir este comentário? Não dá pra desfazer.');">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+          <button type="submit" class="comment-excluir-btn">Excluir</button>
+        </form>
+      {% endif %}
     </div>
     {% with respostas=comentario.respostas.all %}
       {% if respostas %}
