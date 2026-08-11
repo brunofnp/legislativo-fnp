@@ -1261,6 +1261,19 @@ painel/conta externa, não código):
   no `DATABASE_URL` e o `GOOGLE_CLIENT_SECRET` em texto puro nesta
   sessão de chat. Usuário optou por terminar o Sentry primeiro e tratar
   a rotação depois — **ainda não rotacionados**, ver Pendências.
+- **`sync-camara` voltou a poluir a base em menos de um dia**: banco
+  tinha sido limpo pra 104/104 mais cedo na mesma sessão, voltou a 165
+  (usuário percebeu no próprio Painel Geral, `TOTAL: 165`). Confirma que
+  `--paginas 1` sozinho não é suficiente — o serviço continuava criando
+  proposição sem curadoria a cada ciclo de 30min. Ação: `sync-camara`
+  parado na hora (`docker compose stop sync-camara`, efeito imediato,
+  antes mesmo do deploy em lote) e desativado por padrão no
+  `docker-compose.yml` via `profiles: ["sync-camara"]` (não sobe mais
+  com `docker compose up -d` puro; reativar com `docker compose
+  --profile sync-camara up -d sync-camara`, decisão futura sobre um
+  fluxo de atualização em tempo real com curadoria). Banco limpo de
+  novo pra 104/104 (mesmo processo de mais cedo: `sync_legado_firestore`
+  restaura os 104, depois apaga quem não está nesse conjunto).
 
 ### Pendências e próximos passos
 
@@ -1321,8 +1334,9 @@ painel/conta externa, não código):
   `Proposicao.objects.exclude(titulo__in=titulos_104).delete()`
   (uma delas tinha 12 comentários — confirmado pelo usuário que eram só
   de teste, sem perda real). Banco de produção conferido em 104/104
-  depois. `--paginas 1` do `sync-camara` continua no ar, então não deve
-  voltar a acumular sozinho — mas vale reconferir periodicamente.
+  depois. **Correção same-day**: `--paginas 1` sozinho não foi
+  suficiente — voltou a 165 em menos de um dia; `sync-camara` parado e
+  desativado por `profiles` (ver seção datada mais abaixo, mesmo dia).
 
 **Seguem em aberto (sem mudança nesta sessão):**
 
