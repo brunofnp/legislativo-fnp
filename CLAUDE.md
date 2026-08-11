@@ -1342,10 +1342,6 @@ manualmente pra aplicar a permissão nova de excluir comentário ao grupo
   aparecem pra qualquer visitante anônimo em `proposicao_detail.html`,
   sem exigir login. Achado da revarredura de segurança de 2026-08-11 —
   decisão do usuário antes de eu mexer em código (pode ser intencional).
-- ~~Conferir Cloud Firewall da DigitalOcean~~ — **resolvido em
-  2026-08-11**: `FirewallSistemaFNP` confirmado aplicado ao `fnp-web`
-  (142.93.205.222), inbound só libera 22/80/443 pra `All IPv4`/`All
-  IPv6` — mesma política do `ufw` local, as duas camadas concordam.
 - **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** —
   passou de pendência menor pra pré-requisito de segurança: sem isso, não
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
