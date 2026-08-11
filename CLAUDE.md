@@ -1275,6 +1275,40 @@ painel/conta externa, não código):
   novo pra 104/104 (mesmo processo de mais cedo: `sync_legado_firestore`
   restaura os 104, depois apaga quem não está nesse conjunto).
 
+### Excluir comentário (autor e Admin) + comentários agrupados por proposição no Admin (2026-08-11, mesma sessão)
+
+A pedido do usuário, três pedidos relacionados a moderação de comentário:
+
+- **Autor exclui o próprio comentário** — botão "Excluir" novo em
+  `_comentario.html` (mesmo estilo do "Denunciar"), só aparece se
+  `comentario.autor_id == request.user.id`. `excluir_comentario`
+  (`apps/legislativo/views.py`) só apaga de fato **se o comentário não
+  tiver resposta ainda** — `Comentario.parent` é `on_delete=CASCADE`,
+  então excluir um comentário com resposta apagaria resposta de
+  **outra pessoa** junto; se tiver resposta, o botão nem aparece no
+  template, e o POST direto (bypass manual) simplesmente não apaga nada
+  (sem mensagem de erro — `django.contrib.messages` não está plugado no
+  site público, não introduzido só por causa disso).
+- **Root/Administrador FNP excluem comentário de qualquer um pelo
+  Admin** — Root (superusuário) já podia via o botão nativo do Django
+  Admin (bypassa checagem de permissão, comportamento padrão que já
+  existia, nada mudou aí). "Administrador FNP" **não tinha** permissão
+  de `delete` em `Comentario` (só `view`/`change`) — adicionada em
+  `setup_roles.py` (`ADMINISTRADOR_PERMISSOES`). **Atenção**: como
+  `setup_roles` não roda automático no deploy, precisa rodar manual em
+  produção depois desse deploy pra quem já é "Administrador FNP" ganhar
+  o botão de excluir.
+- **Comentários agrupados por proposição no Admin** — `ComentarioAdmin`
+  ganhou `ordering = ('proposicao__titulo', '-criado_em')`; comentários
+  da mesma proposição ficam em sequência na listagem (mais recente
+  primeiro dentro de cada grupo) em vez de espalhados por data. Filtro
+  por proposição na barra lateral (já existia) continua funcionando
+  pra isolar uma proposição específica.
+
+`check`, `makemigrations --check` (sem migration nova — só views/admin/
+template/permissão), `ruff --select F401,F811,F841` e 78 testes (era 75,
++3) limpos.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
