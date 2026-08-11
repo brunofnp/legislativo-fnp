@@ -1209,12 +1209,13 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   Cloud Console (o criado em 2026-08-04) — o novo já está em produção e
   validado, mas o antigo continua uma credencial ativa em paralelo até
   ser desligado por lá.
-- **Confirmar restante dos itens de infraestrutura** (fora do que já foi
-  checado em 2026-08-11: SSH key-only ✅, `ufw` ✅, `PermitRootLogin yes`
-  ainda ligado mas baixa prioridade, atualizações de SO + Docker
-  pendentes com reboot — precisa de janela de manutenção): `fnp-database`
-  só aceita conexão do `fnp-web` via Trusted Sources (painel DO, não dá
-  pra verificar por SSH).
+- **Itens de infraestrutura já checados em 2026-08-11**: SSH key-only ✅,
+  `ufw` ✅, `PermitRootLogin yes` ainda ligado mas baixa prioridade,
+  `media/` chown ✅, limite de upload no Nginx ✅, **Trusted Sources do
+  `fnp-database` confirmado restrito** ✅ (painel DO → Network Access: só
+  2 origens — `fnp-web` e um IP fixo rotulado "Sistema-FNP", nada de
+  "Allow all"). **Só falta**: atualizações de SO + Docker pendentes com
+  reboot (precisa de janela de manutenção).
 - **Conferir visualmente no navegador a rodada de 23 itens acima** — só
   o lado servidor foi validado (testes + smoke test via `Client`); nada
   foi visto renderizado de verdade. Prioridade: cards de estatística
