@@ -23,6 +23,14 @@ services:
 
   sync-camara:
     image: legislativo-fnp:latest  # mesma imagem do serviço legislativo (build faz cache, não builda 2x)
+    # Desativado de propósito (profiles: nunca sobe com "docker compose up -d"
+    # padrão) -- mesmo com --paginas 1, seguia recriando proposição sem
+    # curadoria da FNP a cada ciclo de 30min, misturando com as 104 reais do
+    # legado (voltou a 165 numa única sessão). Banco travado só nas 104 até
+    # decisão futura sobre um fluxo de atualização em tempo real com
+    # curadoria (ver CLAUDE.md, decisão em 2026-08-11). Pra reativar:
+    # "docker compose --profile sync-camara up -d sync-camara".
+    profiles: ["sync-camara"]
     # --paginas 1 (era o default 2) -- cada keyword é uma busca de texto livre
     # na API da Câmara (casa contra a proposição inteira, não só o título),
     # então gera muita proposição nova sem curadoria a cada ciclo de 30min;
