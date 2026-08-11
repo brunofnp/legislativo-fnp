@@ -926,3 +926,44 @@ class ClientIpTest(TestCase):
     def test_sem_header_usa_remote_addr(self):
         request = RequestFactory().get('/', REMOTE_ADDR='203.0.113.9')
         self.assertEqual(_client_ip(request), '203.0.113.9')
+
+
+class TentativaLoginTest(TestCase):
+    """Auditoria de login (achado da varredura de segurança, 2026-08-11: não
+    havia log consultável de tentativa de login, só o rate-limit interno do
+    allauth, que conta mas não é consultável)."""
+
+    def setUp(self):
+        cache.clear()
+        self.usuario = Usuario.objects.create(username='comauditoria', email='comauditoria@fnp.org.br')
+        self.usuario.set_password('senhaboa123456')
+        self.usuario.save()
+        self.usuario.perfil.status_aprovacao = Perfil.APROVADO
+        self.usuario.perfil.save()
+
+    def test_login_bem_sucedido_registra_tentativa(self):
+        from apps.usuarios.models import TentativaLogin
+
+        response = self.client.post(reverse('account_login'), {
+            'login': 'comauditoria@fnp.org.br',
+            'password': 'senhaboa123456',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        tentativa = TentativaLogin.objects.get()
+        self.assertTrue(tentativa.sucesso)
+        self.assertEqual(tentativa.usuario, self.usuario)
+        self.assertEqual(tentativa.email, 'comauditoria@fnp.org.br')
+
+    def test_login_com_senha_errada_registra_falha(self):
+        from apps.usuarios.models import TentativaLogin
+
+        self.client.post(reverse('account_login'), {
+            'login': 'comauditoria@fnp.org.br',
+            'password': 'senhaerrada',
+        })
+
+        tentativa = TentativaLogin.objects.get()
+        self.assertFalse(tentativa.sucesso)
+        self.assertIsNone(tentativa.usuario)
+        self.assertEqual(tentativa.email, 'comauditoria@fnp.org.br')

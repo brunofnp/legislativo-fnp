@@ -121,3 +121,32 @@ class Perfil(models.Model):
 
     def __str__(self):
         return f'Perfil de {self.usuario}'
+
+
+class TentativaLogin(models.Model):
+    """Log de auditoria de login (sucesso/falha) -- antes só existia o
+    rate-limit interno do allauth (ACCOUNT_RATE_LIMITS), que conta tentativas
+    mas não é consultável. Ver signals.py (registrar_login_sucesso/falha)."""
+
+    usuario = models.ForeignKey(
+        Usuario,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='tentativas_login',
+    )
+    email = models.CharField(max_length=255, blank=True)
+    sucesso = models.BooleanField()
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Tentativa de login'
+        verbose_name_plural = 'Tentativas de login'
+        db_table = 'legislativo_tentativa_login'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        status = 'sucesso' if self.sucesso else 'falha'
+        quando = self.criado_em.strftime('%d/%m/%Y %H:%M')
+        return f'{self.email or self.usuario_id} — {status} em {quando}'

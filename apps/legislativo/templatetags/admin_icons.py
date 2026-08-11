@@ -67,6 +67,7 @@ _MODEL_ICONS = {
     'sites.site': 'globe',
     'usuarios.municipio': 'building',
     'usuarios.usuario': 'user',
+    'usuarios.tentativalogin': 'clock',
 }
 
 _SVG_WRAPPER = (

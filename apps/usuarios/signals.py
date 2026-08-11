@@ -1,9 +1,10 @@
 from allauth.socialaccount.signals import pre_social_login
 from django.contrib.auth.models import Group
+from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.db.models.signals import m2m_changed, post_save
 from django.dispatch import receiver
 
-from .models import Perfil, Usuario
+from .models import Perfil, TentativaLogin, Usuario
 
 USUARIO_GROUP_NAME = 'Usuário'
 
@@ -37,6 +38,42 @@ def criar_perfil(sender, instance, created, **kwargs):
     if created:
         status_inicial = Perfil.APROVADO if (instance.is_staff or instance.is_superuser) else Perfil.PENDENTE
         Perfil.objects.get_or_create(usuario=instance, defaults={'status_aprovacao': status_inicial})
+
+
+def _client_ip(request):
+    """Mesma lógica de apps.legislativo.throttling._client_ip, duplicada de
+    propósito aqui em vez de importada -- apps.legislativo depende de
+    apps.usuarios, nunca o contrário (ver Diretrizes de Engenharia em
+    CLAUDE.md), então importar de lá criaria dependência circular. Nginx é o
+    único ponto de entrada confiável em produção; o último valor de
+    X-Forwarded-For é o que ele de fato anexou."""
+    if request is None:
+        return ''
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[-1].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+@receiver(user_logged_in)
+def registrar_login_sucesso(sender, request, user, **kwargs):
+    TentativaLogin.objects.create(
+        usuario=user,
+        email=user.email,
+        sucesso=True,
+        ip=_client_ip(request) or None,
+    )
+
+
+@receiver(user_login_failed)
+def registrar_login_falha(sender, credentials, request=None, **kwargs):
+    email = credentials.get('email') or credentials.get('username', '')
+    TentativaLogin.objects.create(
+        usuario=None,
+        email=email,
+        sucesso=False,
+        ip=_client_ip(request) or None,
+    )
 
 
 @receiver(pre_social_login)

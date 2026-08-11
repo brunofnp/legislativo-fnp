@@ -9,7 +9,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
 
-from .models import Municipio, Perfil, Usuario
+from .models import Municipio, Perfil, TentativaLogin, Usuario
 
 
 class PerfilInline(admin.StackedInline):
@@ -186,3 +186,20 @@ class MunicipioAdmin(admin.ModelAdmin):
     list_display = ('nome', 'uf', 'prefeito')
     list_filter = ('uf',)
     search_fields = ('nome', 'uf', 'prefeito')
+
+
+@admin.register(TentativaLogin)
+class TentativaLoginAdmin(admin.ModelAdmin):
+    """Log de auditoria -- só leitura, nunca criado/editado à mão (ver
+    signals.registrar_login_sucesso/falha)."""
+
+    list_display = ('criado_em', 'email', 'usuario', 'sucesso', 'ip')
+    list_filter = ('sucesso',)
+    search_fields = ('email', 'ip')
+    date_hierarchy = 'criado_em'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
