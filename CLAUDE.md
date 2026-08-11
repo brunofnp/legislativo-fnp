@@ -1225,11 +1225,16 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   anterior ficaram bons** (header do Admin, tour, contorno de foco,
   largura dos modais, fonte da sidebar) — já em produção, mas sem
   confirmação visual final do usuário ainda.
-- **Decidir o que fazer com as 70 proposições não-curadas já em
-  produção** (`interlocutores` vazio) — o `--paginas 1` já está no ar,
-  então agora dá pra limpar sem risco de recriação imediata no próximo
-  ciclo do `sync-camara`. Reais, sem duplicata, só sem revisão editorial
-  da FNP.
+- ~~Decidir o que fazer com as proposições não-curadas já em produção~~ —
+  **resolvido em 2026-08-11**: `sync_legado_firestore --keep-json`
+  rodado em produção pra restaurar/corrigir os 104 registros curados
+  (nenhum "Criada", confirma que a base curada estava intacta), depois
+  as 68 proposições fora do legado apagadas via
+  `Proposicao.objects.exclude(titulo__in=titulos_104).delete()`
+  (uma delas tinha 12 comentários — confirmado pelo usuário que eram só
+  de teste, sem perda real). Banco de produção conferido em 104/104
+  depois. `--paginas 1` do `sync-camara` continua no ar, então não deve
+  voltar a acumular sozinho — mas vale reconferir periodicamente.
 
 **Seguem em aberto (sem mudança nesta sessão):**
 
