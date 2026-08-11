@@ -1196,10 +1196,60 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   `display: flex; gap: 0.35rem` (`apps/usuarios/admin.py` +
   `admin-custom.css`), lado a lado sempre.
 
+### Revarredura de segurança (48 itens de novo) + log de auditoria de login (2026-08-11, mesma sessão)
+
+A pedido do usuário ("vamos voltar a nossa varredura de segurança
+completa"), reconferido item a item dos 48 originais contra o estado atual
+do código (não só memória da sessão — grep/leitura direta de cada item).
+**41 ✅, 1 decisão consciente já tomada** (role `legislativo` cross-sistema,
+ver seção anterior), **6 com nuance**:
+
+- Item 12/16 (verificação de e-mail mandatória): mesma pendência antiga,
+  bloqueada por `EMAIL_BACKEND` real em produção — nada novo.
+- Item 39 (Admin em `/admin/` sem allowlist de IP): informacional, aceito
+  dado o resto das defesas (2FA opcional, aprovação de cadastro, rate
+  limit) — não mudado.
+- **Item 40, achado novo**: `posicionamento_fnp`/`acoes_incidencia`/
+  `riscos_oportunidades` aparecem em `proposicao_detail.html` **sem
+  exigir login** (`ProposicaoDetailView` não tem `@login_required`) —
+  qualquer visitante anônimo vê a estratégia de incidência interna da
+  FNP. Não corrigido ainda — **precisa de decisão do usuário** (é
+  intencional/transparência institucional, ou só `posicionamento_fnp`
+  deveria ser público?). Ver Pendências.
+- Item 45 (Cloud Firewall da DigitalOcean, camada separada do `ufw`
+  local): ainda não conferido no painel.
+- **Item 47, corrigido nesta sessão**: não havia log de tentativa de
+  login consultável (só o rate-limit interno do allauth, que conta mas
+  não expõe). Novo model `TentativaLogin` (`apps/usuarios/models.py`,
+  migration `0006_tentativalogin`) grava sucesso/falha via signals
+  `user_logged_in`/`user_login_failed` (`apps/usuarios/signals.py`) —
+  `usuario` (nulo em falha), `email` tentado, `ip` (mesma lógica de
+  `X-Forwarded-For` do `throttling.py`, duplicada de propósito pra não
+  inverter a dependência de camada `legislativo`→`usuarios`), `criado_em`.
+  Registrado no Admin como só-leitura (`has_add_permission`/
+  `has_change_permission` retornam `False`) — é log de auditoria, nunca
+  editado à mão. 2 testes novos via `Client` real contra
+  `reverse('account_login')` (senha certa gera sucesso com `usuario`
+  preenchido; senha errada gera falha com `usuario=None`).
+- Item 48 (Sentry desligado): mesma pendência antiga, falta só criar a
+  conta em sentry.io e preencher `SENTRY_DSN`.
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 75
+testes (era 73, +2) limpos.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Decidir se o mérito interno da proposição deveria ser público** —
+  `posicionamento_fnp` continua fazendo sentido público, mas
+  `acoes_incidencia`/`riscos_oportunidades` (estratégia de lobby)
+  aparecem pra qualquer visitante anônimo em `proposicao_detail.html`,
+  sem exigir login. Achado da revarredura de segurança de 2026-08-11 —
+  decisão do usuário antes de eu mexer em código (pode ser intencional).
+- **Conferir Cloud Firewall da DigitalOcean** (painel → Networking →
+  Firewalls) — camada separada do `ufw` local, que já foi confirmado
+  restritivo; essa ainda não foi olhada.
 - **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** —
   passou de pendência menor pra pré-requisito de segurança: sem isso, não
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
