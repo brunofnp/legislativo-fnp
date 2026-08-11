@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, 1 achado crítico e 8 riscos corrigidos, 73 testes limpos. **Mesmo dia**: senha do `doadmin` rotacionada e validada (pendência fechada, produção usa a role `legislativo`, não afetada); **promoção completa `next` → `main` → produção autorizada explicitamente pelo usuário** (CI verde, deploy confirmado via SSH, migration `comentarios.0007_comentariolike` aplicada); checklist de segurança pós-deploy rodado (SSH/fail2ban e firewall sem achado; acesso cross-sistema no Postgres confirmado como arquitetura intencional, não vulnerabilidade; atualizações de SO/Docker pendentes, precisam de janela de manutenção); `doadmin` rotacionado uma 2ª vez (exposto em texto puro no chat) e Client Secret do Google OAuth também rotacionado de fato — login Google testado e confirmado funcionando em produção. Ajuste de UX nos botões de ação rápida do Admin (lado a lado em vez de empilhados) promovido junto. Detalhes nas seções datadas 2026-08-11 do Estado Atual: "Auditoria de segurança (pentest de 48 itens)" e "Rotação do `doadmin`, promoção `next` → `main` → produção e início da verificação de infra por SSH".
+> Última atualização: 2026-08-11 — **Dia inteiro de auditoria de segurança + correções, várias rodadas promovidas até produção/droplet.** Pentest de 48 itens (1 crítico + 8 riscos corrigidos) revarrido depois do zero com acesso a SSH — 41 ✅ confirmados por leitura de código/infra, achado real novo (mérito interno público sem login, decisão do usuário pendente), Cloud Firewall e Trusted Sources conferidos sem achado, log de auditoria de login novo (`TentativaLogin`). `doadmin` rotacionado 2x, Google Client Secret rotacionado, Sentry ativado (e já pegou um erro real: healthcheck do Docker mal configurado, corrigido). Usuário/Admin ganharam exclusão de comentário; comentários agrupados por proposição no Admin. `sync-camara` desativado por padrão (`profiles`) depois de repopular a base sozinho 2x no mesmo dia — banco travado em 104/104. **Pendência nova e não tratada ainda**: `SECRET_KEY`, senha da role `legislativo` e um Client Secret do Google apareceram em texto puro num print desta sessão de chat — precisam ser rotacionados. Detalhes nas seções datadas 2026-08-11 do Estado Atual (múltiplas, em ordem cronológica) e na lista de Pendências.
 
 ---
 
@@ -1308,6 +1308,23 @@ A pedido do usuário, três pedidos relacionados a moderação de comentário:
 `check`, `makemigrations --check` (sem migration nova — só views/admin/
 template/permissão), `ruff --select F401,F811,F841` e 78 testes (era 75,
 +3) limpos.
+
+### Deploy em lote confirmado: `next` → `main` → produção → droplet (2026-08-11, fim da sessão)
+
+A pedido do usuário ("já vamos fazer o deploy de tudo"), tudo acumulado no
+dia promovido de uma vez: fix do link `?` vazio, `TentativaLogin`
+(migration `usuarios.0006_tentativalogin`), exclusão de comentário,
+agrupamento por proposição no Admin, healthcheck do Docker corrigido, e
+`sync-camara` desativado por `profiles`. `check`/`makemigrations --check`/
+78 testes revalidados antes do push; `main` era fast-forward puro (sem
+divergência); CI verde nos dois repositórios. Deploy real no droplet via
+SSH confirmado passo a passo: `git pull` trouxe o código novo, migration
+`usuarios.0006_tentativalogin` aplicada, `docker compose ps` mostrou só o
+serviço `legislativo` rodando (`sync-camara` não subiu, confirma que
+`profiles` funcionou) e, pela primeira vez, **`(healthy)` de verdade**
+(não mais preso em `unhealthy`) depois de ~30s. `setup_roles` rodado
+manualmente pra aplicar a permissão nova de excluir comentário ao grupo
+"Administrador FNP" (16 permissões, era 15). `curl` confirmando `200 OK`.
 
 ### Pendências e próximos passos
 
