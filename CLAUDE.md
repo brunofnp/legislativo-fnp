@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, achados corrigidos e commitados só em `next` (`main`/produção não tocados, autorização separada como sempre). 1 achado crítico (fusão de conta social sem verificação de e-mail) e 8 riscos corrigidos: parent de comentário escopado à proposição, coluna "E-mail confirmado" no Admin, log de auditoria em aprovação/rejeição de cadastro, senha mínima de 10 caracteres, `SESSION_COOKIE_AGE` explícito (7 dias), rate limit em denúncia de comentário, e o IP do rate limit corrigido pra ler `X-Forwarded-For` (antes sempre via o IP do Nginx). `check`, `check --deploy`, `makemigrations --check`, `ruff` e 73 testes (era 58, +15 novos) limpos. Detalhes na seção datada 2026-08-11 do Estado Atual, "Auditoria de segurança (pentest de 48 itens)".
+> Última atualização: 2026-08-11 — **Auditoria de segurança completa (pentest de 48 itens) rodada a pedido do usuário**, achados corrigidos e commitados só em `next` (`main`/produção não tocados, autorização separada como sempre). 1 achado crítico (fusão de conta social sem verificação de e-mail) e 8 riscos corrigidos: parent de comentário escopado à proposição, coluna "E-mail confirmado" no Admin, log de auditoria em aprovação/rejeição de cadastro, senha mínima de 10 caracteres, `SESSION_COOKIE_AGE` explícito (7 dias), rate limit em denúncia de comentário, e o IP do rate limit corrigido pra ler `X-Forwarded-For` (antes sempre via o IP do Nginx). `check`, `check --deploy`, `makemigrations --check`, `ruff` e 73 testes (era 58, +15 novos) limpos. Detalhes na seção datada 2026-08-11 do Estado Atual, "Auditoria de segurança (pentest de 48 itens)". **Mesmo dia, via SSH conduzido pelo usuário**: senha do `doadmin` do `fnp-database` rotacionada e validada — pendência de segurança fechada; confirmado que a produção usa a role dedicada `legislativo` (não `doadmin`) no `DATABASE_URL`, então a rotação não exigiu mudança no `.env` nem restart de container.
 
 ---
 
@@ -1101,9 +1101,6 @@ extensão) com limite de 5MB, `sync_camara` não é endpoint HTTP.
   dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
   robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
   cadastro por e-mail/senha em produção.
-- **Rotacionar a senha do `doadmin`** do cluster Postgres — já pendente
-  de sessão anterior (exposta numa captura de tela), auditoria de
-  segurança reforça a prioridade.
 - **Confirmar itens de infraestrutura que não dá pra verificar por aqui**
   (sem SSH/painel da Digital Ocean): role `legislativo` restrita só ao
   próprio database (sem acesso a `ifem`/`fnp_sistema`/`nucleo_dados`),
@@ -1155,9 +1152,6 @@ extensão) com limite de 5MB, `sync_camara` não é endpoint HTTP.
 - Conferir/chown o volume de `media/` no droplet antes do primeiro upload
   de foto de perfil em produção (mesmo risco de permissão que o
   `staticfiles/` teve, nunca testado).
-- Rotacionar a senha do `doadmin` do `fnp-database` — foi exposta numa
-  captura de tela compartilhada numa sessão anterior (não usada/
-  reproduzida, mas ficou registrada).
 - Client Secret do Google OAuth também foi exposto numa captura de tela
   em sessão anterior (risco baixo — app ainda em modo "teste" no Google
   Cloud Console). Falta preencher `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
