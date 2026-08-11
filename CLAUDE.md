@@ -1215,7 +1215,12 @@ direto do Claude Code, como sempre — só os comandos passados aqui).
   `fnp-database` confirmado restrito** ✅ (painel DO → Network Access: só
   2 origens — `fnp-web` e um IP fixo rotulado "Sistema-FNP", nada de
   "Allow all"). **Só falta**: atualizações de SO + Docker pendentes com
-  reboot (precisa de janela de manutenção).
+  reboot — **avaliado e adiado de propósito em 2026-08-11**: o droplet
+  `fnp-web` hospeda outros sistemas da FNP também (Nginx configurado
+  pra `ifem`/`fnp`/`fnp-homolog` além do `legislativo`), então um
+  reboot derruba todos juntos, não só o nosso; usuário optou por não
+  mexer agora pra não impactar os outros sistemas sem coordenar antes.
+  Precisa de uma janela combinada com quem administra os demais.
 - **Conferir visualmente no navegador a rodada de 23 itens acima** — só
   o lado servidor foi validado (testes + smoke test via `Client`); nada
   foi visto renderizado de verdade. Prioridade: cards de estatística
