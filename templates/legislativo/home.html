@@ -59,7 +59,7 @@
       <div class="tema-dropdown-panel">
         <input type="text" class="tema-dropdown-search" id="tema-dropdown-search" placeholder="Buscar tema..." autocomplete="off" />
         <div class="tema-dropdown-list">
-          <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="tema-option {% if not active_tema %}active{% endif %}">Todos os temas</a>
+          <a href="{% if query %}?q={{ query|urlencode }}{% else %}{% url 'legislativo:home' %}{% endif %}" class="tema-option {% if not active_tema %}active{% endif %}">Todos os temas</a>
           {% for tema in temas %}
             <a href="?tema={{ tema.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}" class="tema-option {% if active_tema == tema.slug %}active{% endif %}">{{ tema.nome }}</a>
           {% endfor %}
