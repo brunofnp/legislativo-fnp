@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 4 rodadas de fixes de produção no mesmo dia, tudo promovido pra produção/droplet no fim da sessão.** Playwright + Chromium headless, 4 breakpoints (360/390/414/768px). Auditoria original: 3 achados ❌ QUEBRADO (sidebar sem hambúrguer, scroll horizontal, lápis de foto invisível em touch) + 7 ⚠️, tudo corrigido (17/20 ✅). Depois, usuário reportou por captura de tela real: (1) topbar sumindo em páginas allauth — `_header.html` unificado, mais um comentário Django `{# #}` multi-linha vazando como texto visível achado no caminho; (2) overflow horizontal real na página de detalhe/fórum (grid sem `min-width:0`); (3) comentários do fórum reorganizados estilo Facebook (balão + barra de metadados, resposta aninhada sem cartão duplo); (4) cabeçalho público (usuário anônimo) sem nenhum jeito de voltar/ir pro início no mobile — corrigido com o mesmo padrão Voltar/Início do topbar autenticado. `next` → `main` → produção → droplet promovido no fim da sessão, CI verde, `curl` confirmando 200 OK em produção. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
+> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 5 rodadas de fixes de produção no mesmo dia.** Primeira leva ((1) topbar allauth, (2) overflow no fórum, (3) comentários estilo Facebook, (4) Voltar/Início no cabeçalho público) promovida pra produção/droplet no meio da sessão, CI verde, `curl` confirmando 200 OK. **Depois disso**, a partir de um mockup anotado, rodada (5): cabeçalho autenticado mobile virou 1 linha só (logo+título+ícones, ordem Aa/tema/ajuda/notificações/perfil/Sair) com campo de busca sempre visível numa segunda linha (substitui o "Buscar..." que abria modal Ctrl+K, e a busca solta no meio da home some no mobile — duplicidade de função); ícones ficaram menores que os 44px WCAG de propósito, pra caber tudo numa linha de 360-414px, sinalizado ao usuário. No caminho, 2 bugs achados via captura de tela real de produção: gaveta do menu mobile perdendo rótulos de texto e logo cortado ao recolher a sidebar no desktop, ambos por causa de `fnp-sidebar-collapsed=1` salvo de sessão anterior — corrigidos com override de especificidade. **Rodada 5 só em `next` (`442003d`), ainda não promovida** — autorização à parte, mesmo com o usuário testando via produção real no navegador. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
 
 ---
 
@@ -1631,6 +1631,76 @@ essa checagem via Nginx real já confirma o site funcionando de ponta a
 ponta, independente do rótulo interno `(health: starting)` do Docker
 ainda não ter virado `(healthy)` no momento da checagem (só uma questão
 de tempo, não bloqueia nada).
+
+### Cabeçalho mobile redesenhado (1 linha) + busca sempre visível + 2 bugs de sidebar recolhida (2026-08-13, já em produção)
+
+A pedido do usuário, já testando em produção real (`legislativo.fnp.org.br`,
+DevTools em modo device), a partir de um mockup anotado à mão: o
+cabeçalho autenticado no mobile virou **uma linha só** (logo + título +
+Aa + tema + ajuda + notificações + perfil + Sair, nessa ordem exata,
+conferida item a item depois de uma correção — a primeira tentativa
+tinha colocado avatar/sino logo depois do título, usuário corrigiu:
+"o ícone do perfil tem que vir logo à esquerda [do Sair], à esquerda
+do perfil vêm as notificações"), e o botão "Buscar..." que abria o
+modal Ctrl+K virou um **campo de busca de verdade, sempre visível**,
+numa segunda linha ocupando a largura toda — mesmo raciocínio de
+"duplicidade de função" que já tinha tirado a busca solta do meio da
+home em mobile (`.search-panel`, escondida por completo no mobile
+agora, meses depois de criada).
+
+**Trade-off assumido de propósito**: pra caber logo + título + 6
+controles numa linha de 360-414px, os ícones ficaram menores que o
+padrão de 44px (WCAG) estabelecido na auditoria de mobile mais cedo no
+mesmo dia — em torno de 32px agora, só nessa linha específica do
+cabeçalho. Sinalizado ao usuário no chat, não é um retrocesso
+silencioso.
+
+**Implementação técnica**: sem alterar nenhuma marcação existente,
+`.app-topbar-actions` vira `display:contents` no mobile (seus filhos
+passam a participar do `flex-wrap` do `.app-topbar` direto, em vez de
+ficarem presos numa segunda linha própria) e cada ícone recebe `order`
+explícito; um `::after` com `flex-basis:100%` força a quebra de linha
+antes do campo de busca novo, sem precisar de um `<div>` extra só pra
+isso. Zero mudança fora do media query mobile — desktop conferido
+pixel a pixel sem diferença.
+
+**Dois bugs reais achados no caminho** (usuário reportou por captura
+de tela comparando "antes"/"depois" da gaveta do menu mobile):
+
+- **Rótulos de texto sumiam na gaveta mobile** sempre que
+  `fnp-sidebar-collapsed=1` tinha ficado salvo no `localStorage` de uma
+  sessão anterior em tela larga no mesmo aparelho (ex.: navegador
+  redimensionado) — a auditoria de mobile de mais cedo no mesmo dia já
+  tinha corrigido a LARGURA da gaveta pra esse caso específico
+  (`.sidebar-collapsed.sidebar-mobile-open .app-sidebar`), mas não a
+  regra que esconde `.sidebar-link span`/`.sidebar-section-label`
+  (`.sidebar-collapsed .sidebar-link span { display:none }`), que
+  continuava valendo por cima. Fix: mesma técnica de especificidade (3
+  classes) pra vencer a regra de 2 classes do modo "recolhido" do
+  desktop, dessa vez sobre os rótulos.
+- **Logo cortado no meio ao recolher a sidebar no desktop** —
+  `logo-FNP.png` é um lockup só (marca "FNP" + "Frente Nacional..." por
+  extenso embutidos na mesma imagem, 187×69px, sem versão separada só
+  do ícone); com `height:2rem; width:auto`, a imagem inteira não cabe
+  na largura da sidebar recolhida (4.75rem), cortando o texto no meio
+  sem terminar em lugar nenhum limpo. Fix: `object-fit:cover` +
+  `object-position:left` recorta só os primeiros ~78px da imagem
+  original (a marca "FNP" + as 3 bolinhas de cor), medido testando
+  larguras de corte via Pillow até achar o ponto exato onde a marca
+  termina sem invadir o texto. **Mesmo bug vazava pra gaveta mobile**
+  quando o `fnp-sidebar-collapsed=1` também estava presente (a gaveta é
+  sempre largura cheia, não devia herdar o recorte do modo desktop) —
+  corrigido com a mesma técnica de especificidade das duas correções
+  acima.
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 78
+testes limpos; as mesmas 39 checagens de scroll horizontal revalidadas
+sem regressão; testado também o envio de fato do campo de busca novo
+(`?q=` chegando certo na home). Commitado e enviado pra `next`
+(`442003d`) — **ainda não promovido pra produção**, autorização à
+parte como sempre (mesmo o usuário estando testando via produção real
+no navegador, o código publicado lá continua sendo o anterior a essa
+correção até uma promoção explícita).
 
 ### Pendências e próximos passos
 
