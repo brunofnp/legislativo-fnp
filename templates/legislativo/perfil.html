@@ -20,12 +20,26 @@
       {% csrf_token %}
       <label class="field-label">Foto de perfil</label>
       <div class="perfil-avatar-row">
-        {% if usuario_avatar_url %}
-          <img src="{{ usuario_avatar_url }}" alt="" class="perfil-avatar-preview" />
-        {% else %}
-          <span class="perfil-avatar-preview perfil-avatar-fallback">{{ usuario_display_name|first|upper }}</span>
-        {% endif %}
-        <div class="perfil-avatar-widget">{{ dados_form.foto }}</div>
+        <div class="perfil-avatar-edit" id="perfil-avatar-edit">
+          {% if usuario_avatar_url %}
+            <img src="{{ usuario_avatar_url }}" alt="" class="perfil-avatar-preview" id="perfil-avatar-preview" />
+          {% else %}
+            <span class="perfil-avatar-preview perfil-avatar-fallback" id="perfil-avatar-preview">{{ usuario_display_name|first|upper }}</span>
+          {% endif %}
+          <details class="perfil-avatar-menu" id="perfil-avatar-menu">
+            <summary class="perfil-avatar-edit-btn" aria-label="Editar foto de perfil">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+            </summary>
+            <div class="perfil-avatar-menu-panel">
+              <button type="button" data-avatar-action="camera">Abrir câmera</button>
+              <button type="button" data-avatar-action="arquivo">Importar arquivo</button>
+              {% if dados_form.instance.foto %}
+                <button type="button" data-avatar-action="remover">Remover foto</button>
+              {% endif %}
+            </div>
+          </details>
+        </div>
+        <div class="perfil-avatar-widget-hidden">{{ dados_form.foto }}</div>
       </div>
       <div class="form-row">
         <div class="form-field">

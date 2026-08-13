@@ -1085,53 +1085,88 @@ body {
   font-size: 1.6rem;
 }
 
-.perfil-avatar-widget {
-  flex: 1;
-  min-width: 0;
-  padding-top: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--text-muted, #6b7280);
-  line-height: 2;
+/* Widget nativo do Django (ClearableFileInput) -- funcionalmente ainda é
+   ele quem recebe o arquivo/aciona o "Limpar", só não aparece mais: a UI
+   visível agora é o lápis + menu abaixo, que só disparam clique nele. */
+.perfil-avatar-widget-hidden {
+  display: none;
 }
 
-/* O widget de upload do Django (ClearableFileInput) renderiza um <a href>
-   cru para o arquivo atual — precisa de mais especificidade que
-   `.auth-card form a[href]` (feita para os botões grandes do allauth) para
-   não virar um botão gigante aqui. */
-.auth-card .perfil-avatar-widget a[href] {
-  display: inline;
-  width: auto;
-  padding: 0;
+.perfil-avatar-edit {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.perfil-avatar-edit-btn {
+  position: absolute;
+  right: -0.2rem;
+  bottom: -0.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #1a4b8f;
+  color: #fff;
+  border: 2px solid var(--surface, #fff);
+  cursor: pointer;
+  list-style: none;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.perfil-avatar-edit-btn::-webkit-details-marker,
+.perfil-avatar-edit-btn::marker {
+  display: none;
+  content: '';
+}
+
+.perfil-avatar-edit-btn svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.perfil-avatar-edit:hover .perfil-avatar-edit-btn,
+.perfil-avatar-edit:focus-within .perfil-avatar-edit-btn,
+.perfil-avatar-menu[open] .perfil-avatar-edit-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.perfil-avatar-menu-panel {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  padding: 0.35rem;
+}
+
+.perfil-avatar-menu-panel button {
+  border: none;
   background: none;
-  border-radius: 0;
-  color: #1a4b8f;
-  font-weight: 600;
-  font-size: inherit;
-  text-decoration: underline;
-  word-break: break-all;
-  margin-top: 0;
-}
-
-.perfil-avatar-widget input[type="checkbox"] {
-  width: auto;
-  margin-right: 0.35rem;
-  vertical-align: middle;
-}
-
-.perfil-avatar-widget label {
-  display: inline;
-  text-transform: none;
-  font-weight: 500;
-  font-size: inherit;
-  color: inherit;
-  margin: 0;
-}
-
-.perfil-avatar-widget input[type="file"] {
-  display: block;
-  max-width: 100%;
-  margin-top: 0.2rem;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.5rem;
   font-size: 0.85rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+.perfil-avatar-menu-panel button:hover {
+  background: #f1f5f9;
+}
+
+.perfil-avatar-menu-panel button[data-avatar-action="remover"] {
+  color: #b3261e;
 }
 
 /* Paginas geradas pelo allauth (logout, confirmacao social, reset de senha etc.)
@@ -2929,12 +2964,21 @@ body {
 [data-theme="dark"] .stat-card,
 [data-theme="dark"] .search-panel,
 [data-theme="dark"] .tema-dropdown-panel,
+[data-theme="dark"] .perfil-avatar-menu-panel,
 [data-theme="dark"] .detail-panel,
 [data-theme="dark"] .panel-block,
 [data-theme="dark"] .empty-state,
 [data-theme="dark"] .auth-card {
   background: var(--bg-surface);
   color: var(--text-primary);
+}
+
+[data-theme="dark"] .perfil-avatar-menu-panel button {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .perfil-avatar-menu-panel button:hover {
+  background: var(--bg-surface-alt);
 }
 
 [data-theme="dark"] .card-brief-grid > div,

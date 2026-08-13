@@ -501,6 +501,56 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initComentariosVerMais();
 
+  function initPerfilAvatarEdit() {
+    const menu = document.getElementById('perfil-avatar-menu');
+    const fileInput = document.getElementById('id_foto');
+    if (!menu || !fileInput) return;
+
+    const clearCheckbox = document.getElementById('foto-clear_id');
+
+    menu.querySelectorAll('[data-avatar-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.avatarAction;
+        if (action === 'remover') {
+          if (clearCheckbox) clearCheckbox.checked = true;
+          menu.open = false;
+          return;
+        }
+        // "capture" só é respeitado por navegadores mobile (abre a câmera
+        // direto); desktop ignora e cai no seletor de arquivo normal --
+        // degrada bem, sem precisar de getUserMedia/canvas pra capturar
+        // foto por webcam.
+        if (action === 'camera') {
+          fileInput.setAttribute('capture', 'user');
+        } else {
+          fileInput.removeAttribute('capture');
+        }
+        menu.open = false;
+        fileInput.click();
+      });
+    });
+
+    fileInput.addEventListener('change', () => {
+      const arquivo = fileInput.files && fileInput.files[0];
+      const preview = document.getElementById('perfil-avatar-preview');
+      if (!arquivo || !preview) return;
+      const url = URL.createObjectURL(arquivo);
+      if (preview.tagName === 'IMG') {
+        preview.src = url;
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = '';
+        img.className = preview.className.replace('perfil-avatar-fallback', '').trim();
+        img.id = preview.id;
+        preview.replaceWith(img);
+      }
+      if (clearCheckbox) clearCheckbox.checked = false;
+    });
+  }
+
+  initPerfilAvatarEdit();
+
   function setToast(message) {
     if (!toast) return;
     toast.textContent = message;
