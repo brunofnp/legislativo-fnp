@@ -1526,6 +1526,51 @@ passam por `_header.html` agora — não sobrou nenhuma página com cabeçalho
 duplicado. Commitado e enviado só pra `next` (`d09e20a`) — **não
 promovido pra produção**, autorização à parte como sempre.
 
+### Comentários do fórum reorganizados no mobile, estilo Facebook (2026-08-13, mesmo dia)
+
+Usuário reportou por captura de tela real (celular, comentário de
+resposta "Carlos Pereira") a data cortando na borda da tela e o texto
+quebrando palavra por palavra numa coluna estreitíssima — pediu pra usar
+a estrutura de comentário do Facebook (balão com nome+texto, barra de
+metadados/ações embaixo) como referência.
+
+- **`templates/legislativo/_comentario.html` reestruturado**: nome+texto
+  agora ficam dentro de um `.comment-bubble` (balão cinza-claro
+  arredondado); `.comment-time` saiu de dentro do cabeçalho do nome e
+  foi pra dentro de `.comment-actions-row`, junto com curtir/Responder/
+  Denunciar/Excluir — bate com o padrão do Facebook ("Nome + texto" num
+  bloco, "2 sem · Curtir · Responder" embaixo). Resposta aninhada
+  (`{% include ... with extra_class='comment-reply' %}`) ganhou classe
+  própria pra estilo diferenciado.
+- **Achado real via medição, não só inspeção visual**: um script
+  Playwright percorrendo a cadeia de elementos-pai do balão mediu que a
+  resposta aninhada tinha só **105px de largura útil** pra texto num
+  celular de 375px — soma de paddings empilhados (página → `.detail-
+  panel` 2rem cada lado → `.panel-block` 1.5rem → cartão do comentário
+  pai → indentação de `.comments-nested` → cartão do próprio comentário
+  aninhado, cada um com seu padding/avatar/gap). O maior consumidor
+  isolado era `.detail-panel` (32px cada lado, sozinho mais que todo o
+  resto somado) — não tinha nenhum ajuste de mobile antes.
+- **Fix em 3 partes**: (1) resposta aninhada (`.comment-card.comment-
+  reply`) perdeu o próprio cartão (padding/fundo/borda) — só o balão
+  carrega o visual agora, igual ao Facebook, que nunca aninha caixa
+  dentro de caixa; avatar da resposta também menor (1.7rem vs 2.1rem).
+  (2) `.detail-panel` ganhou `padding: 1.25rem` no mobile (era 2rem
+  sempre). (3) `.panel-block` ganhou `padding: 1rem` no mobile (era
+  1.5rem sempre) e `.comments-nested`/`.comment-card` ganharam
+  indentação/padding mais enxutos só na faixa mobile. Resultado: de
+  105px pra 171px de largura útil no balão da resposta (375px) — texto
+  volta a quebrar por palavra completa, não por caractere.
+- Testado visualmente (screenshot, não só medição) em 360/375/390/414px
+  anônimo e autenticado (com curtir/Denunciar/Excluir visíveis), mais
+  768px — barra de ações quebra em 2 linhas de forma limpa quando
+  necessário, sem overflow em nenhum caso.
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 78
+testes limpos; as mesmas 39 checagens de scroll horizontal (13 páginas ×
+3 breakpoints) revalidadas sem regressão. Commitado e enviado só pra
+`next` (`66bf0e0`) — não promovido.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
