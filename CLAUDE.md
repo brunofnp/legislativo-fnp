@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 5 rodadas de fixes de produção no mesmo dia.** Primeira leva ((1) topbar allauth, (2) overflow no fórum, (3) comentários estilo Facebook, (4) Voltar/Início no cabeçalho público) promovida pra produção/droplet no meio da sessão, CI verde, `curl` confirmando 200 OK. **Depois disso**, a partir de um mockup anotado, rodada (5): cabeçalho autenticado mobile virou 1 linha só (logo+título+ícones, ordem Aa/tema/ajuda/notificações/perfil/Sair) com campo de busca sempre visível numa segunda linha (substitui o "Buscar..." que abria modal Ctrl+K, e a busca solta no meio da home some no mobile — duplicidade de função); ícones ficaram menores que os 44px WCAG de propósito, pra caber tudo numa linha de 360-414px, sinalizado ao usuário. No caminho, 2 bugs achados via captura de tela real de produção: gaveta do menu mobile perdendo rótulos de texto e logo cortado ao recolher a sidebar no desktop, ambos por causa de `fnp-sidebar-collapsed=1` salvo de sessão anterior — corrigidos com override de especificidade. **Rodada 5 só em `next` (`442003d`), ainda não promovida** — autorização à parte, mesmo com o usuário testando via produção real no navegador. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
+> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 5 rodadas de fixes de produção no mesmo dia, tudo promovido pra produção/droplet até o fim da sessão.** (1) topbar sumindo em páginas allauth, (2) overflow no fórum/página de detalhe, (3) comentários reorganizados estilo Facebook, (4) Voltar/Início no cabeçalho público (usuário anônimo), (5) cabeçalho autenticado mobile redesenhado (1 linha só, ordem Aa/tema/ajuda/notificações/perfil/Sair, ícones menores que 44px WCAG de propósito pra caber tudo) com campo de busca sempre visível substituindo o modal Ctrl+K e a busca duplicada no meio da home, mais 2 bugs de sidebar recolhida (rótulos sumindo na gaveta mobile, logo cortado no desktop) achados via captura de tela real de produção. `next` → `main` → produção → droplet confirmado saudável (`healthy` + `curl` 200 OK) duas vezes na mesma sessão (meio e fim). Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
 
 ---
 
@@ -1697,10 +1697,35 @@ de tela comparando "antes"/"depois" da gaveta do menu mobile):
 testes limpos; as mesmas 39 checagens de scroll horizontal revalidadas
 sem regressão; testado também o envio de fato do campo de busca novo
 (`?q=` chegando certo na home). Commitado e enviado pra `next`
-(`442003d`) — **ainda não promovido pra produção**, autorização à
-parte como sempre (mesmo o usuário estando testando via produção real
-no navegador, o código publicado lá continua sendo o anterior a essa
-correção até uma promoção explícita).
+(`442003d`).
+
+### Segunda promoção `next` → `main` → produção → droplet, fim da sessão (2026-08-13)
+
+A pedido explícito do usuário ("Aplique na next, produção e droplet e
+em seguida por hoje é só"), `check`/`makemigrations --check`/78
+testes/`ruff` revalidados, `main` local (`dd3390a`) era fast-forward
+puro com `next` (`2153484`, 2 commits) — levou o redesenho do
+cabeçalho mobile em 1 linha, a busca sempre visível, e os 2 fixes de
+sidebar recolhida (rótulos sumindo na gaveta, logo cortado no
+desktop). Push pra `origin` e `production`; CI verde nos dois.
+
+Deploy no droplet via SSH: `git pull origin main` trouxe o
+fast-forward (`dd3390a..2153484`), build sem cache stale, container
+subiu. **Primeira checagem de `curl` bateu `502 Bad Gateway`** — não
+era erro de verdade, só o container tinha 4 segundos de vida
+(`docker compose ps` mostrava "Up 4 seconds", log ainda nem tinha
+chegado na linha "Starting gunicorn") quando o `curl` rodou logo em
+seguida no mesmo comando colado. Pedido pro usuário esperar ~15-20s e
+rodar de novo: `docker compose ps` → `(healthy)`, log completo com
+Gunicorn de pé e os 3 workers, `curl` → `200 OK` com todos os
+cabeçalhos de segurança. **Lição registrada**: depois de um
+`docker compose up -d`, dar uma pausa curta antes do `curl` de
+confirmação, ou não estranhar um 502 no primeiro segundo — é o
+healthcheck ainda "starting", não uma falha real.
+
+Com isso, **tudo que estava pendente de promoção nesta sessão já está
+em produção** — não sobrou nenhum item "só em `next`" da lista de
+fixes de hoje.
 
 ### Pendências e próximos passos
 
