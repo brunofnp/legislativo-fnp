@@ -7,16 +7,18 @@
     {% endif %}
   {% endwith %}
   <div class="comment-body">
-    <div class="comment-author">
-      {% if comentario.autor_id %}
-        <a href="{% url 'legislativo:usuario_publico' comentario.autor_id %}" class="comment-author-link">{{ comentario.autor.get_display_name }}</a>
-      {% else %}
-        <strong>Anônimo</strong>
-      {% endif %}
-      <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
+    <div class="comment-bubble">
+      <div class="comment-author">
+        {% if comentario.autor_id %}
+          <a href="{% url 'legislativo:usuario_publico' comentario.autor_id %}" class="comment-author-link">{{ comentario.autor.get_display_name }}</a>
+        {% else %}
+          <strong>Anônimo</strong>
+        {% endif %}
+      </div>
+      <p>{{ comentario.texto }}</p>
     </div>
-    <p>{{ comentario.texto }}</p>
     <div class="comment-actions-row">
+      <span class="comment-time">{{ comentario.criado_em|timesince }} atrás</span>
       {% if request.user.is_authenticated %}
         <form method="post" action="{% url 'legislativo:curtir_comentario' comentario.pk %}" class="comment-like-form">
           {% csrf_token %}
@@ -52,7 +54,7 @@
       {% if respostas %}
         <ul class="comments comments-nested">
           {% for resposta in respostas %}
-            {% include 'legislativo/_comentario.html' with comentario=resposta extra_class='' %}
+            {% include 'legislativo/_comentario.html' with comentario=resposta extra_class='comment-reply' %}
           {% endfor %}
         </ul>
       {% endif %}
