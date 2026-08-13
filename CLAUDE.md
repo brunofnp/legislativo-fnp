@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases, roteiro rígido do usuário — "mobile é o modo principal, não presuma que ficou bom").** Playwright + Chromium headless instalado só pra isso, 4 breakpoints (360/390/414/768px), screenshot + medição programática como evidência, 2 relatórios publicados como Artifact. 3 achados ❌ QUEBRADO reais: sidebar do site não colapsa em hambúrguer (cobria o conteúdo em todo mobile), scroll horizontal (topbar + dropdown de Tema estourando a tela), lápis de editar foto (construído horas antes na mesma sessão) invisível em touchscreen. Mais 7 ⚠️ corrigidos (tap target <44px, font-size <16px em input, telefone sem teclado numérico, busca abaixo da dobra, avatar sem resize server-side). Tudo corrigido e reconfirmado — 17/20 ✅, só em `next`, não promovido. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
+> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 2 bugs de produção real corrigidos no mesmo dia.** Playwright + Chromium headless, 4 breakpoints (360/390/414/768px). Auditoria original: 3 achados ❌ QUEBRADO (sidebar sem hambúrguer, scroll horizontal, lápis de foto invisível em touch) + 7 ⚠️, tudo corrigido (17/20 ✅). **Depois, usuário reportou por captura de tela de produção** que a topbar sumia em páginas allauth (login/senha/2FA) — causa raiz: `allauth/layouts/base.html` tinha cópia hardcoded do cabeçalho sem checagem de login; unificado num `_header.html` único. Achado um segundo bug no caminho: comentário Django `{# #}` multi-linha vazava como texto visível na tela (Django só remove comentário de uma linha só). Também corrigido: overflow horizontal real na página de detalhe (grid sem `min-width:0`, incluindo respostas aninhadas do fórum) e reorganização da topbar mobile em linhas próprias. 39 checagens de scroll horizontal (13 páginas × 3 breakpoints) limpas. Só em `next` (`d09e20a`), não promovido. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
 
 ---
 
@@ -1448,17 +1448,101 @@ conversa pros links. **Só em `next`, não promovido** — servidor de dev
 local usado pros testes já foi parado, dados de teste (`mobiletest`)
 limpos.
 
+### Dois bugs de produção real (topbar sumindo, overflow no fórum) — 2026-08-13, mesmo dia
+
+Usuário reportou por captura de tela do celular, **de produção real**
+(não `next`), dois problemas que sobraram depois da auditoria acima —
+tratados como prioridade máxima ("90% do uso é mobile"), mesma regra de
+sempre: nada de presumir corrigido, teste em breakpoint real (360-414px)
+com Playwright + screenshot antes/depois.
+
+- **Causa raiz do "os ícones somem em outras páginas"**: `templates/
+  allauth/layouts/base.html` (login, cadastro, alterar senha, 2FA,
+  confirmação de login social) tinha uma **cópia hardcoded** do
+  cabeçalho público, sem nenhum `{% if user.is_authenticated %}` —
+  qualquer pessoa logada que caísse numa tela allauth via "Entrar" em
+  vez da topbar de verdade (busca/avatar/sino/Aa/tema/ajuda/sair), daí a
+  percepção de "alguns botões somem". Fix: `templates/_header.html`
+  novo, único ponto de renderização do cabeçalho (decide entre
+  `_topbar.html` autenticado ou o header público), incluído tanto por
+  `base.html` quanto por `allauth/layouts/base.html` — nunca mais duas
+  cópias divergentes. **Bug no caminho, achado só depois de screenshotar
+  a página de novo**: o comentário multi-linha `{# ... #}` desse arquivo
+  novo aparecia **literal na tela**, como texto visível — Django só
+  remove `{# #}` se for de uma linha só; comentário de várias linhas
+  precisa de `{% comment %}...{% endcomment %}`. Trocado, confirmado via
+  `curl` que o HTML não contém mais o texto do comentário.
+- **Reorganização da topbar mobile** (parte visual do mesmo problema,
+  reportada como "dois grupos soltos de ícone"): com 6-7 controles
+  sempre visíveis (busca, avatar, sino, Aa, tema, ajuda, sair) sobrando
+  só uma coluna estreita ao lado do título, a topbar quebrava em ~1-2
+  ícones por linha. `.app-topbar` ganhou `flex-wrap`, com título e
+  `.app-topbar-actions` cada um em `flex-basis: 100%` — 3 linhas
+  próprias (marca+Voltar, título, ações) em vez de tudo competindo pela
+  mesma linha; a linha de ações cheia agora cabe 5-6 ícones por fileira
+  em 360-414px, não mais 1-2.
+- **Overflow horizontal real na página de detalhe** (a causa mais
+  provável do "card Resumo parecendo sobrepor" reportado, embora não
+  reproduzido visualmente — ver abaixo): `.detail-panel-main`,
+  `.detail-sidebar` e `.panel-block` são `display: grid` sem
+  `min-width: 0` — item de grid nunca encolhe abaixo do próprio
+  conteúdo por padrão, empurrando ~66px de página pra fora do viewport
+  em mobile sem cortar nada visivelmente, só forçando scroll horizontal
+  (mesmo padrão de bug já corrigido na topbar na auditoria anterior).
+  **Segundo achado, mais fundo**: mesmo depois desse fix, sobrava
+  overflow variável por largura (38px em 360px, 8px em 390px) — rastreado
+  até `.comments-nested` (lista de respostas aninhadas do fórum,
+  também `display: grid`) sem `min-width:0` no `<li class="comment-card">`
+  dentro dela; cada nível de resposta empurrava o comentário pra fora.
+  Truque de depuração: script Playwright percorrendo todo `body *`
+  medindo `getBoundingClientRect().right > viewport`, ordenado pelo mais
+  saliente — achou o elemento exato em vez de adivinhar por inspeção
+  visual. Também corrigido no caminho: `.comment-author` (nome+data) e
+  `.comment-actions-row` (curtir/responder/denunciar/excluir) sem
+  `flex-wrap`, quebrando a página quando nome de autor comprido +
+  timestamp não cabiam na mesma linha.
+- **"Card Resumo sobrepondo" não reproduzido em Chromium** mesmo depois
+  dos fixes acima — screenshot de página inteira em 390px mostra os
+  cards (Resumo, Casa/Status, Próximos eventos, Interlocutores, Última
+  movimentação, Mérito, Fórum) empilhados limpos, sem sobreposição, sem
+  corte de texto. Hipótese mais provável (não confirmada): o overflow
+  horizontal real corrigido acima causava esse efeito visual em Safari
+  iOS/Chrome Android de verdade durante rolagem elástica, mas não em
+  Chromium headless — vale o usuário reconferir no celular real depois
+  desse deploy antes de fechar como resolvido.
+- **Achados extras da regressão** (checklist "scroll horizontal + tap
+  target 44px" da auditoria anterior, revalidado): botão de fechar a
+  gaveta da sidebar (`.app-sidebar-close`, 40×40) e os botões "Abrir
+  câmera"/"Importar arquivo" do menu de foto de perfil (31px de altura)
+  abaixo do mínimo de 44px — só na faixa mobile, corrigidos junto.
+
+Regressão completa revalidada via Playwright: **13 páginas × 3
+breakpoints (360/390/414) = 39 checagens de scroll horizontal, todas
+limpas**; página de detalhe e perfil também checadas em 768px. `check`,
+`makemigrations --check`, `ruff --select F401,F811,F841` e 78 testes
+limpos. Confirmado por grep que só 2 templates no projeto todo têm tag
+`<html>` própria (`base.html` e `allauth/layouts/base.html`) e ambos
+passam por `_header.html` agora — não sobrou nenhuma página com cabeçalho
+duplicado. Commitado e enviado só pra `next` (`d09e20a`) — **não
+promovido pra produção**, autorização à parte como sempre.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
-- **Promover a auditoria de UX mobile (2026-08-13) pra `main`/produção**
-  — está só em `next`, aguardando autorização (nunca promovida
-  automaticamente). Antes de promover, testar em dispositivo físico de
-  verdade (Safari iOS + Chrome Android) os 5 itens que emulador não
-  cobre: teclado virtual cobrindo campo, rodapé (home tem 30.000+px de
-  altura, não rolado até o fim), contraste de cor dos badges, SSE se
-  recuperando de troca de rede, tempo de carga em 4G real.
+- **Promover a auditoria de UX mobile (2026-08-13) + os 2 fixes de
+  produção do mesmo dia (topbar sumindo em allauth, overflow no fórum)
+  pra `main`/produção** — tudo está só em `next` (`d09e20a`), aguardando
+  autorização (nunca promovida automaticamente). O usuário reportou os 2
+  bugs mais recentes **via produção real**, então essa promoção é a
+  única forma de fato corrigi-los lá. Antes de promover, testar em
+  dispositivo físico de verdade (Safari iOS + Chrome Android): os 5
+  itens que emulador não cobre da auditoria original (teclado virtual
+  cobrindo campo, rodapé — home tem 30.000+px de altura, não rolado até
+  o fim —, contraste de cor dos badges, SSE se recuperando de troca de
+  rede, tempo de carga em 4G real) **mais** o "card Resumo parecendo
+  sobrepor" reportado no celular — não reproduzido em Chromium mesmo
+  depois do fix de overflow, vale confirmar se sumiu de verdade.
 - **Rotacionar `SECRET_KEY`, senha da role `legislativo` e
   `GOOGLE_CLIENT_SECRET`** — os três apareceram em texto puro num print
   do `.env` de produção nesta sessão de chat (2026-08-11). `SECRET_KEY`
