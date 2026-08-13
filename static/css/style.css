@@ -107,21 +107,28 @@ body {
 }
 
 .main-nav a {
-  min-height: 2.5rem;
+  /* "Entrar" era um link de texto solto -- lia mal isolado num header
+     simples de 1 ação só, e sem contorno nenhum ficava perdido/pouco
+     convidativo perto da logo. Vira um botão de verdade, mesma
+     linguagem visual do .fbtn usado no resto do site (pill azul).
+     Achado de UX mobile, 2026-08-13. */
+  min-height: 2.75rem;
+  padding: 0 1.2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.main-nav a {
-  color: #334155;
+  border-radius: 999px;
+  background: #1a4b8f;
+  color: #fff;
   text-decoration: none;
-  font-weight: 600;
-  transition: color .2s ease;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: transform .15s ease, opacity .15s ease;
 }
 
 .main-nav a:hover {
-  color: #1a4b8f;
+  transform: translateY(-1px);
+  opacity: 0.95;
 }
 
 .page-shell {
@@ -1935,14 +1942,17 @@ body {
     align-items: stretch;
   }
 
-  .header-inner {
-    justify-content: center;
-    text-align: center;
-  }
-
+  /* Antes centralizava .header-inner e forçava .main-nav pra 100% de
+     largura -- como os dois filhos (.brand e .main-nav) já quebram linha
+     sozinhos em telas estreitas (flex-wrap do .header-inner), cada um
+     ficava centralizado na própria linha isoladamente: a logo "grudada"
+     à esquerda (larga demais pra centralizar de verdade) e "Entrar"
+     flutuando sozinho, centralizado, numa segunda linha -- lido como
+     desalinhado/quebrado. Mantém space-between (do base) pra logo ficar
+     sempre à esquerda e "Entrar" sempre à direita, mesmo se quebrar
+     linha (achado de UX mobile, 2026-08-13). */
   .main-nav {
-    width: 100%;
-    justify-content: center;
+    flex-shrink: 0;
   }
 
   .search-form {
@@ -2000,12 +2010,14 @@ body {
     line-height: 1.7;
   }
 
+  /* Logo (com "Frente Nacional de Prefeitas e Prefeitos" já embutido na
+     própria imagem) já basta como marca num header compacto -- monta
+     junto com "Painel Legislativo da FNP" mais o botão "Entrar", os
+     três não cabem numa linha só em ~360px sem espremer/quebrar
+     (achado de UX mobile, 2026-08-13). O título completo continua
+     aparecendo no H1 logo abaixo. */
   .brand-text {
-    font-size: 1rem;
-  }
-
-  .main-nav a {
-    padding-inline: 0.3rem;
+    display: none;
   }
 
   .realtime-toast {
