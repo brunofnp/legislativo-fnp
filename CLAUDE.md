@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 2 bugs de produção real corrigidos no mesmo dia.** Playwright + Chromium headless, 4 breakpoints (360/390/414/768px). Auditoria original: 3 achados ❌ QUEBRADO (sidebar sem hambúrguer, scroll horizontal, lápis de foto invisível em touch) + 7 ⚠️, tudo corrigido (17/20 ✅). **Depois, usuário reportou por captura de tela de produção** que a topbar sumia em páginas allauth (login/senha/2FA) — causa raiz: `allauth/layouts/base.html` tinha cópia hardcoded do cabeçalho sem checagem de login; unificado num `_header.html` único. Achado um segundo bug no caminho: comentário Django `{# #}` multi-linha vazava como texto visível na tela (Django só remove comentário de uma linha só). Também corrigido: overflow horizontal real na página de detalhe (grid sem `min-width:0`, incluindo respostas aninhadas do fórum) e reorganização da topbar mobile em linhas próprias. 39 checagens de scroll horizontal (13 páginas × 3 breakpoints) limpas. Só em `next` (`d09e20a`), não promovido. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
+> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 4 rodadas de fixes de produção no mesmo dia, tudo promovido pra produção/droplet no fim da sessão.** Playwright + Chromium headless, 4 breakpoints (360/390/414/768px). Auditoria original: 3 achados ❌ QUEBRADO (sidebar sem hambúrguer, scroll horizontal, lápis de foto invisível em touch) + 7 ⚠️, tudo corrigido (17/20 ✅). Depois, usuário reportou por captura de tela real: (1) topbar sumindo em páginas allauth — `_header.html` unificado, mais um comentário Django `{# #}` multi-linha vazando como texto visível achado no caminho; (2) overflow horizontal real na página de detalhe/fórum (grid sem `min-width:0`); (3) comentários do fórum reorganizados estilo Facebook (balão + barra de metadados, resposta aninhada sem cartão duplo); (4) cabeçalho público (usuário anônimo) sem nenhum jeito de voltar/ir pro início no mobile — corrigido com o mesmo padrão Voltar/Início do topbar autenticado. `next` → `main` → produção → droplet promovido no fim da sessão, CI verde, `curl` confirmando 200 OK em produção. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
 
 ---
 
@@ -1600,23 +1600,54 @@ ponto que o usuário circulou. `check`, `makemigrations --check`,
 checagens de scroll horizontal revalidadas sem regressão. Commitado e
 enviado só pra `next` (`d0114e3`) — não promovido.
 
+### Promoção completa `next` → `main` → produção → droplet (2026-08-13, fim da sessão)
+
+A pedido explícito do usuário ("vamos subir todas as alterações até o
+momento tanto na next quanto na main (produção) e no droplet também"),
+promovido tudo que foi feito nesta sessão de uma vez: `check`,
+`makemigrations --check`, 78 testes e `ruff` revalidados antes do push;
+`main` local (`3dc6812`) estava 13 commits atrás de `next` (`dd3390a`)
+e era fast-forward puro, sem divergência — levou a topbar sumindo em
+páginas allauth (`_header.html` unificado), o overflow horizontal no
+fórum/página de detalhe, os comentários reorganizados estilo Facebook,
+o Voltar/Início adicionado ao cabeçalho público, mais o redesenho do
+cabeçalho público e toda a auditoria de UX mobile de 3 fases anterior
+no mesmo dia. Push pra `origin` e `production`; CI verde nos dois
+repositórios (`gh run watch`).
+
+Deploy real no droplet via SSH conduzido pelo usuário: `git pull origin
+main` trouxe o fast-forward (`3dc6812..dd3390a`), `docker compose build`
+reconstruiu a camada `COPY . .` com código novo de verdade (não veio do
+cache, diferente do incidente de 2026-08-07), `docker compose up -d`
+subiu sem erro. Log confirmou "No migrations to apply" (bate com o
+`makemigrations --check` limpo local — nenhuma migration nesta leva),
+138 estáticos coletados (3 novos, resto sem mudança), Gunicorn sem
+traceback. `docker compose ps` mostrou só o serviço `legislativo`
+rodando (`sync-camara` continua desativado por `profiles`, como
+esperado). `curl -sI https://legislativo.fnp.org.br/` → `200 OK` com
+todos os cabeçalhos de segurança esperados (CSP com `form-action`
+incluindo o Google, HSTS, `X-Frame-Options: DENY`, cookie `Secure`) —
+essa checagem via Nginx real já confirma o site funcionando de ponta a
+ponta, independente do rótulo interno `(health: starting)` do Docker
+ainda não ter virado `(healthy)` no momento da checagem (só uma questão
+de tempo, não bloqueia nada).
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
-- **Promover a auditoria de UX mobile (2026-08-13) + os 2 fixes de
-  produção do mesmo dia (topbar sumindo em allauth, overflow no fórum)
-  pra `main`/produção** — tudo está só em `next` (`d09e20a`), aguardando
-  autorização (nunca promovida automaticamente). O usuário reportou os 2
-  bugs mais recentes **via produção real**, então essa promoção é a
-  única forma de fato corrigi-los lá. Antes de promover, testar em
-  dispositivo físico de verdade (Safari iOS + Chrome Android): os 5
-  itens que emulador não cobre da auditoria original (teclado virtual
-  cobrindo campo, rodapé — home tem 30.000+px de altura, não rolado até
-  o fim —, contraste de cor dos badges, SSE se recuperando de troca de
-  rede, tempo de carga em 4G real) **mais** o "card Resumo parecendo
-  sobrepor" reportado no celular — não reproduzido em Chromium mesmo
-  depois do fix de overflow, vale confirmar se sumiu de verdade.
+- ~~Promover a auditoria de UX mobile (2026-08-13) + os fixes de
+  produção do mesmo dia pra `main`/produção~~ — **feito em 2026-08-13**,
+  ver seção datada "Promoção completa `next` → `main` → produção →
+  droplet" logo abaixo. Ainda pendente: testar em dispositivo físico de
+  verdade (Safari iOS + Chrome Android) os 5 itens que emulador não
+  cobre da auditoria original (teclado virtual cobrindo campo, rodapé —
+  home tem 30.000+px de altura, não rolado até o fim —, contraste de
+  cor dos badges, SSE se recuperando de troca de rede, tempo de carga
+  em 4G real) **mais** o "card Resumo parecendo sobrepor" reportado no
+  celular — não reproduzido em Chromium mesmo depois do fix de
+  overflow, vale confirmar se sumiu de verdade agora que está em
+  produção.
 - **Rotacionar `SECRET_KEY`, senha da role `legislativo` e
   `GOOGLE_CLIENT_SECRET`** — os três apareceram em texto puro num print
   do `.env` de produção nesta sessão de chat (2026-08-11). `SECRET_KEY`
