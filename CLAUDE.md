@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-11 — **Dia inteiro de auditoria de segurança + correções, várias rodadas promovidas até produção/droplet.** Pentest de 48 itens (1 crítico + 8 riscos corrigidos) revarrido depois do zero com acesso a SSH — 41 ✅ confirmados por leitura de código/infra, achado real novo (mérito interno público sem login, decisão do usuário pendente), Cloud Firewall e Trusted Sources conferidos sem achado, log de auditoria de login novo (`TentativaLogin`). `doadmin` rotacionado 2x, Google Client Secret rotacionado, Sentry ativado (e já pegou um erro real: healthcheck do Docker mal configurado, corrigido). Usuário/Admin ganharam exclusão de comentário; comentários agrupados por proposição no Admin. `sync-camara` desativado por padrão (`profiles`) depois de repopular a base sozinho 2x no mesmo dia — banco travado em 104/104. **Pendência nova e não tratada ainda**: `SECRET_KEY`, senha da role `legislativo` e um Client Secret do Google apareceram em texto puro num print desta sessão de chat — precisam ser rotacionados. Detalhes nas seções datadas 2026-08-11 do Estado Atual (múltiplas, em ordem cronológica) e na lista de Pendências.
+> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases, roteiro rígido do usuário — "mobile é o modo principal, não presuma que ficou bom").** Playwright + Chromium headless instalado só pra isso, 4 breakpoints (360/390/414/768px), screenshot + medição programática como evidência, 2 relatórios publicados como Artifact. 3 achados ❌ QUEBRADO reais: sidebar do site não colapsa em hambúrguer (cobria o conteúdo em todo mobile), scroll horizontal (topbar + dropdown de Tema estourando a tela), lápis de editar foto (construído horas antes na mesma sessão) invisível em touchscreen. Mais 7 ⚠️ corrigidos (tap target <44px, font-size <16px em input, telefone sem teclado numérico, busca abaixo da dobra, avatar sem resize server-side). Tudo corrigido e reconfirmado — 17/20 ✅, só em `next`, não promovido. Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
 
 ---
 
@@ -1371,10 +1371,94 @@ dois bugs foram vistos no Chrome/Windows antes da correção; falta
 testar de novo depois do fix (câmera de verdade abrindo, menu fechando
 ao clicar fora) antes de promover pra produção.
 
+### Auditoria de UX mobile completa (2026-08-13)
+
+A pedido do usuário ("a versão mobile precisa ficar impecável, é o modo
+principal do produto"), auditoria em 3 fases seguindo um roteiro rígido
+do usuário: nada de "presumir que ficou bom" — só testado de verdade,
+com emulação de dispositivo real (Playwright + Chromium headless
+instalado no `.venv` pra isso) em 4 larguras (360/390/414/768px),
+screenshot + medição programática (scroll, tap target, font-size) como
+evidência, publicado como Artifact.
+
+**Fase 1 (diagnóstico)**: 20 itens checados (A-G do roteiro do usuário).
+5 ✅, 7 ⚠️, **3 ❌ QUEBRADO reais**: (1) scroll horizontal na topbar
+autenticada + no dropdown de "Tema" estourando a borda da tela; (2) a
+sidebar do site **não colapsa em hambúrguer** — renderiza como painel
+largo cobrindo/empurrando o conteúdo em todos os 4 breakpoints, sem
+jeito de fechar (bug real, não só falta de responsividade — havia uma
+tentativa incompleta de virar gaveta, mas o estado padrão sem
+`localStorage` nascia "aberto", cobrindo o próprio botão hambúrguer que
+deveria fechá-la); (3) **o lápis de editar foto de perfil construído
+horas antes nesta mesma sessão** tem `opacity: 0` por padrão, só visível
+no `:hover` — inexistente em touchscreen, achado por medição direta
+(`getComputedStyle().opacity === "0"` sem hover).
+
+**Fase 2 (correção, depois de aprovação do usuário)**: todos os 15 itens
+não-✅ corrigidos.
+- Sidebar: dois estados agora separados — `sidebar-collapsed` (desktop,
+  preferência salva) e `sidebar-mobile-open` (mobile, sempre começa
+  fechado) — antes compartilhavam a mesma flag. Fundo escurecido
+  clicável + botão de fechar novos.
+- Topbar: `.app-topbar-title` ganhou `min-width: 0` + truncamento
+  (`text-overflow: ellipsis`) — sem isso, um item flex com `flex: 1`
+  nunca encolhe abaixo do próprio conteúdo, empurrando a topbar inteira
+  pra fora do viewport em breadcrumb comprido.
+- Dropdown de "Tema": ancorado por `right: 0` em vez de `left: 0` no
+  variante flutuante (o único alinhado à direita) — achado só
+  interagindo de verdade, não aparecia na medição estática.
+- Lápis do avatar: `@media (hover: hover)` escopa o "esconde até
+  hover" só pra quem tem mouse de verdade; toque sempre mostra. Área de
+  toque foi de 20×20px pra 44×44px reais (círculo visível continua
+  pequeno, via `::before`).
+- Tap targets (`.sidebar-link`, `.tema-option`, `.favorito-btn`,
+  ícones/botão de logout do Admin) — 44px mínimo, só na faixa mobile.
+- **Achado no meio da correção**: a primeira tentativa de consertar o
+  font-size dos inputs (`.auth-form input[type=...]`, 15.2px→16px) não
+  teve efeito nenhum na medição — existia uma segunda regra mais
+  específica (`.auth-card form input:not(...)`) vencendo a cascata de
+  verdade em cadastro/login/perfil. Só apareceu reconferindo com
+  `document.styleSheets` depois que o "fix" inicial não mudou nada —
+  exatamente o tipo de coisa que só se pega testando, não só editando.
+  `telefone` também virou `type="tel"` (cadastro e perfil).
+- Campo de busca sobe pro topo da tela ao focar em mobile
+  (`scrollIntoView`), pra sugestões não nascerem abaixo da dobra.
+- `Perfil.save()` agora redimensiona a foto (Pillow, máx. 512px de
+  lado) antes de gravar — não tinha nenhum resize server-side antes,
+  só validação de tamanho de arquivo.
+- `.field-label` subiu de 12px pra 13.1px (badges/meta-texto de card
+  deixados de propósito, risco de quebrar o desenho visual sem terem
+  sido pedidos).
+
+**Fase 3 (checklist final)**: reconferido nos mesmos 4 breakpoints —
+17 de 20 ✅. Seguem "não testável aqui", precisam de dispositivo físico
+antes do lançamento: teclado virtual cobrindo campo (emulador não
+simula o resize de viewport do teclado real do iOS/Android), rodapé
+(não rolado até o fim, home tem 30.000+px de altura), contraste de cor
+dos badges (não medido com ferramenta própria), SSE se recuperando de
+troca de rede, tempo de carga em 4G real (a medição da Fase 1 não tinha
+throttling nenhum, metodologia inválida, não refeita). Recomendado
+testar em Safari iOS real e Chrome Android real antes do lançamento
+(comportamento de teclado/viewport do WebKit é notoriamente diferente).
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 78
+testes limpos a cada rodada. Relatórios completos (com screenshot de
+cada achado, antes/depois) publicados como Artifact — ver histórico da
+conversa pros links. **Só em `next`, não promovido** — servidor de dev
+local usado pros testes já foi parado, dados de teste (`mobiletest`)
+limpos.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Promover a auditoria de UX mobile (2026-08-13) pra `main`/produção**
+  — está só em `next`, aguardando autorização (nunca promovida
+  automaticamente). Antes de promover, testar em dispositivo físico de
+  verdade (Safari iOS + Chrome Android) os 5 itens que emulador não
+  cobre: teclado virtual cobrindo campo, rodapé (home tem 30.000+px de
+  altura, não rolado até o fim), contraste de cor dos badges, SSE se
+  recuperando de troca de rede, tempo de carga em 4G real.
 - **Rotacionar `SECRET_KEY`, senha da role `legislativo` e
   `GOOGLE_CLIENT_SECRET`** — os três apareceram em texto puro num print
   do `.env` de produção nesta sessão de chat (2026-08-11). `SECRET_KEY`
