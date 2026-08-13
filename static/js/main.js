@@ -508,30 +508,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
     const clearCheckbox = document.getElementById('foto-clear_id');
 
-    menu.querySelectorAll('[data-avatar-action]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.avatarAction;
-        if (action === 'remover') {
-          if (clearCheckbox) clearCheckbox.checked = true;
-          menu.open = false;
-          return;
-        }
-        // "capture" só é respeitado por navegadores mobile (abre a câmera
-        // direto); desktop ignora e cai no seletor de arquivo normal --
-        // degrada bem, sem precisar de getUserMedia/canvas pra capturar
-        // foto por webcam.
-        if (action === 'camera') {
-          fileInput.setAttribute('capture', 'user');
-        } else {
-          fileInput.removeAttribute('capture');
-        }
-        menu.open = false;
-        fileInput.click();
-      });
-    });
-
-    fileInput.addEventListener('change', () => {
-      const arquivo = fileInput.files && fileInput.files[0];
+    function atualizarPreview(arquivo) {
       const preview = document.getElementById('perfil-avatar-preview');
       if (!arquivo || !preview) return;
       const url = URL.createObjectURL(arquivo);
@@ -546,6 +523,106 @@ window.addEventListener('DOMContentLoaded', function () {
         preview.replaceWith(img);
       }
       if (clearCheckbox) clearCheckbox.checked = false;
+    }
+
+    menu.querySelectorAll('[data-avatar-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.avatarAction;
+        menu.open = false;
+        if (action === 'remover') {
+          if (clearCheckbox) clearCheckbox.checked = true;
+        } else if (action === 'camera') {
+          abrirCamera();
+        } else {
+          fileInput.click();
+        }
+      });
+    });
+
+    // <details> não fecha sozinho ao clicar fora -- só ao clicar de novo no
+    // summary (mesmo comportamento já tratado pro .tema-dropdown).
+    document.addEventListener('click', event => {
+      if (menu.open && !menu.contains(event.target)) {
+        menu.open = false;
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      atualizarPreview(fileInput.files && fileInput.files[0]);
+    });
+
+    // ---- Captura por webcam (getUserMedia) ----
+    // O atributo capture="..." do <input type="file"> só é respeitado por
+    // navegador mobile (abre o app de câmera nativo); desktop ignora e cai
+    // no seletor de arquivo comum, sem abrir webcam nenhuma. Pra "Abrir
+    // câmera" funcionar de verdade em qualquer dispositivo, usa um <video>
+    // ao vivo + captura de frame num <canvas> em vez do atributo.
+    const cameraModal = document.getElementById('avatar-camera-modal');
+    const cameraVideo = document.getElementById('avatar-camera-video');
+    const cameraErro = document.getElementById('avatar-camera-erro');
+    const cameraCapturar = document.getElementById('avatar-camera-capturar');
+    const cameraCancelar = document.getElementById('avatar-camera-cancelar');
+    const cameraBackdrop = document.getElementById('avatar-camera-modal-backdrop');
+    let stream = null;
+
+    function pararStream() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    }
+
+    function fecharCamera() {
+      pararStream();
+      if (cameraModal) cameraModal.classList.add('hidden');
+    }
+
+    async function abrirCamera() {
+      if (!cameraModal || !cameraVideo || !navigator.mediaDevices) return;
+      cameraModal.classList.remove('hidden');
+      if (cameraErro) cameraErro.classList.add('hidden');
+      cameraVideo.classList.remove('hidden');
+      if (cameraCapturar) cameraCapturar.disabled = false;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        cameraVideo.srcObject = stream;
+      } catch (error) {
+        if (cameraErro) cameraErro.classList.remove('hidden');
+        cameraVideo.classList.add('hidden');
+        if (cameraCapturar) cameraCapturar.disabled = true;
+      }
+    }
+
+    if (cameraCapturar) {
+      cameraCapturar.addEventListener('click', () => {
+        if (!stream || !cameraVideo.videoWidth) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = cameraVideo.videoWidth;
+        canvas.height = cameraVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        // O <video> só é espelhado visualmente via CSS (transform) -- sem
+        // desespelhar aqui a foto salva sairia com o texto/lado trocado.
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(cameraVideo, 0, 0);
+        canvas.toBlob(blob => {
+          if (!blob) return;
+          const arquivo = new File([blob], 'foto-camera.jpg', { type: 'image/jpeg' });
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(arquivo);
+          fileInput.files = dataTransfer.files;
+          atualizarPreview(arquivo);
+          fecharCamera();
+        }, 'image/jpeg', 0.92);
+      });
+    }
+
+    if (cameraCancelar) cameraCancelar.addEventListener('click', fecharCamera);
+    if (cameraBackdrop) cameraBackdrop.addEventListener('click', fecharCamera);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && cameraModal && !cameraModal.classList.contains('hidden')) {
+        fecharCamera();
+      }
     });
   }
 

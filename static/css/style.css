@@ -2698,6 +2698,71 @@ body {
   background: #142943;
 }
 
+/* ==================== Modal de captura de foto por webcam (Meu perfil) ====================
+   O atributo capture="..." do <input type="file"> só é respeitado por
+   navegador mobile (abre o app de câmera nativo) -- no desktop ele cai no
+   seletor de arquivo normal, sem abrir webcam nenhuma. Pra "Abrir câmera"
+   funcionar de verdade em qualquer dispositivo, usa getUserMedia + <video>
+   ao vivo + captura de frame num <canvas> (ver initPerfilAvatarEdit). */
+.avatar-camera-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.avatar-camera-modal.hidden {
+  display: none;
+}
+
+.avatar-camera-modal-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.avatar-camera-modal-panel {
+  position: relative;
+  width: min(420px, 90vw);
+  background: var(--bg-surface, #fff);
+  border-radius: 1rem;
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.25);
+  padding: 1.25rem;
+}
+
+.avatar-camera-modal-panel video {
+  width: 100%;
+  border-radius: 0.75rem;
+  background: #000;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  transform: scaleX(-1); /* espelhado, como qualquer webcam de "selfie" */
+}
+
+.avatar-camera-erro {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #b3261e;
+}
+
+.avatar-camera-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.avatar-camera-modal-actions .fbtn {
+  width: auto;
+}
+
+.avatar-camera-cancelar-btn {
+  background: var(--bg-surface-alt, #f1f5f9);
+  color: var(--text-primary, #111827);
+}
+
 /* ==================== Tour de onboarding (primeiro acesso) ==================== */
 
 .tour-modal {

@@ -85,4 +85,16 @@
       <button type="submit" class="fbtn auth-submit">Salvar</button>
     </form>
   </div>
+
+  <div class="avatar-camera-modal hidden" id="avatar-camera-modal">
+    <div class="avatar-camera-modal-backdrop" id="avatar-camera-modal-backdrop"></div>
+    <div class="avatar-camera-modal-panel">
+      <video id="avatar-camera-video" autoplay playsinline muted></video>
+      <p class="avatar-camera-erro hidden" id="avatar-camera-erro">Não foi possível acessar a câmera. Verifique se o navegador tem permissão de câmera pra este site.</p>
+      <div class="avatar-camera-modal-actions">
+        <button type="button" id="avatar-camera-cancelar" class="fbtn avatar-camera-cancelar-btn">Cancelar</button>
+        <button type="button" id="avatar-camera-capturar" class="fbtn">Capturar foto</button>
+      </div>
+    </div>
+  </div>
 {% endblock %}
