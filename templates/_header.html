@@ -14,13 +14,37 @@
 {% else %}
   <header class="site-header">
     <div class="header-inner">
-      <div class="brand">
-        <a href="https://fnp.org.br/" target="_blank" rel="noopener" aria-label="Site institucional da FNP">
-          <img class="brand-logo" src="{% static 'img/logo-FNP.png' %}" alt="FNP" />
-        </a>
-        <a href="/" class="brand-copy">
-          <span class="brand-text">Painel Legislativo da FNP</span>
-        </a>
+      <div class="header-left">
+        <div class="brand">
+          <a href="https://fnp.org.br/" target="_blank" rel="noopener" aria-label="Site institucional da FNP">
+            <img class="brand-logo" src="{% static 'img/logo-FNP.png' %}" alt="FNP" />
+          </a>
+          <a href="/" class="brand-copy">
+            <span class="brand-text">Painel Legislativo da FNP</span>
+          </a>
+        </div>
+        {% comment %}
+          A logo acima abre o site institucional (externo, fnp.org.br) --
+          nunca foi um link pra dentro do próprio painel. Em telas ≤560px
+          o texto "Painel Legislativo da FNP" (o único link interno pra
+          home que sobrava) some por falta de espaço, e não sobrava
+          nenhum jeito de voltar/ir pro início pra quem navega sem login
+          (achado via captura de tela real, 2026-08-13 -- usuário
+          circulou o espaço vazio ao lado da logo perguntando onde foi
+          parar o botão de voltar). Mesmo padrão Voltar/Início que o
+          _topbar.html autenticado já usa.
+        {% endcomment %}
+        {% if request.resolver_match.url_name != 'home' %}
+          <a href="{% url 'legislativo:home' %}" class="topbar-back-link" aria-label="Voltar para a página anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+            <span>Voltar</span>
+          </a>
+        {% elif request.GET %}
+          <a href="{% url 'legislativo:home' %}" class="topbar-back-link" aria-label="Voltar para o início">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+            <span>Início</span>
+          </a>
+        {% endif %}
       </div>
       <nav class="main-nav" id="menu-principal" aria-label="Menu principal">
         <a href="{% url 'account_login' %}">Entrar</a>
