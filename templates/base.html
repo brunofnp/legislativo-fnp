@@ -36,25 +36,7 @@
     {% endif %}
 
     <div class="app-main">
-      {% if user.is_authenticated %}
-        {% include '_topbar.html' %}
-      {% else %}
-        <header class="site-header">
-          <div class="header-inner">
-            <div class="brand">
-              <a href="https://fnp.org.br/" target="_blank" rel="noopener" aria-label="Site institucional da FNP">
-                <img class="brand-logo" src="{% static 'img/logo-FNP.png' %}" alt="FNP" />
-              </a>
-              <a href="/" class="brand-copy">
-                <span class="brand-text">Painel Legislativo da FNP</span>
-              </a>
-            </div>
-            <nav class="main-nav" id="menu-principal" aria-label="Menu principal">
-              <a href="{% url 'account_login' %}">Entrar</a>
-            </nav>
-          </div>
-        </header>
-      {% endif %}
+      {% include '_header.html' %}
 
       <main class="{% if mostrar_sidebar %}app-content{% else %}container page-shell{% endif %}" id="conteudo-principal" tabindex="-1">
         {% block content %}{% endblock %}

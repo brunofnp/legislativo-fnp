@@ -1383,11 +1383,19 @@ body {
 .detail-panel-main {
   display: grid;
   gap: 1.5rem;
+  /* Item de grid sem min-width:0 nunca encolhe abaixo do próprio
+     conteúdo -- mesma causa do overflow horizontal já corrigido na
+     topbar (achado da auditoria mobile, 2026-08-13): em mobile
+     (.detail-grid vira 1 coluna), essa seção ficava ~66px mais larga
+     que o viewport, sem cortar nada visível mas empurrando o documento
+     inteiro pra scroll horizontal. */
+  min-width: 0;
 }
 
 .detail-sidebar {
   display: grid;
   gap: 1.5rem;
+  min-width: 0;
 }
 
 .panel-block {
@@ -1395,6 +1403,7 @@ body {
   border-radius: 1.25rem;
   padding: 1.5rem;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  min-width: 0;
 }
 
 .panel-block h2,
@@ -1407,6 +1416,10 @@ body {
   margin: 0;
   line-height: 1.8;
   color: var(--text-secondary, #475569);
+  /* Nunca corta palavra no meio (ex.: ementa/resumo comprido em tela
+     estreita) -- rede de segurança mesmo com o overflow horizontal já
+     corrigido acima. */
+  overflow-wrap: break-word;
 }
 
 .two-columns {
@@ -1548,6 +1561,13 @@ body {
   background: #f8fafc;
   border-radius: 1rem;
   border: 1px solid #e2e8f0;
+  /* Resposta aninhada (.comments-nested, abaixo) é grid -- sem
+     min-width:0 este <li> não encolhe abaixo do próprio conteúdo dentro
+     da coluna implícita do grid, e cada nível de resposta empurra o
+     comentário pra fora do viewport em telas estreitas (achado da
+     auditoria mobile, 2026-08-13 -- overflow real em produção, não só a
+     topbar). */
+  min-width: 0;
 }
 
 .comment-avatar {
@@ -1575,9 +1595,10 @@ body {
 
 .comment-author {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: 0.2rem 0.75rem;
   margin-bottom: 0.35rem;
   font-size: 0.92rem;
 }
@@ -1656,8 +1677,9 @@ body {
 
 .comment-actions-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   margin-top: 0.3rem;
 }
 
@@ -3120,7 +3142,20 @@ body {
     height: 1.15rem;
   }
 
+  /* Título/breadcrumb e ícones de ação disputavam a mesma linha com a
+     marca/"Voltar" -- com 6-7 ícones (busca, avatar, sino, Aa, tema,
+     ajuda, sair) isso sobrava só uma coluna estreita à direita, forçando
+     quebra em ~1-2 ícones por linha ("dois grupos soltos" reportado pelo
+     usuário via captura de tela em produção, 2026-08-13). Sequência
+     ganhou 3 linhas próprias: marca+Voltar, título, e uma linha cheia só
+     pra ações -- cada uma com a largura toda do viewport pra organizar. */
+  .app-topbar {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
   .app-topbar-title {
+    flex-basis: 100%;
     font-size: 1rem;
   }
 
@@ -3151,12 +3186,15 @@ body {
   }
 
   .app-topbar-actions {
-    gap: 0.25rem;
+    flex-basis: 100%;
+    gap: 0.35rem;
     /* Mais ícones agora sempre visíveis (tamanho da fonte, tema, ajuda
-       saíram do menu "..." a pedido do usuário) -- sem quebrar linha,
-       transbordava horizontalmente em telas estreitas. */
+       saíram do menu "..." a pedido do usuário). Com a linha cheia
+       (flex-basis:100% acima) cabem uns 5-6 por fileira em 360-414px em
+       vez de 1-2 -- flex-start pra ficar previsível da esquerda pra
+       direita, em vez de flex-end empurrando pro canto. */
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
     row-gap: 0.4rem;
   }
 
@@ -3176,6 +3214,19 @@ body {
   .favorito-btn {
     width: 2.75rem;
     height: 2.75rem;
+  }
+
+  /* Área de toque mínima de 44px, mesma diretriz acima -- desktop usa
+     mouse, então esses dois ficam compactos só fora do mobile. */
+  .app-sidebar-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .perfil-avatar-menu-panel button {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
   }
 }
 
