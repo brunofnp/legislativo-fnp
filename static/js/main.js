@@ -102,6 +102,13 @@ window.addEventListener('DOMContentLoaded', function () {
       if (input.value.trim().length >= 2) {
         fetchLivePreview(input.value.trim());
       }
+      // Em mobile o campo de busca fica abaixo dos cards de estatística --
+      // sem subir a tela, a lista de sugestões nasce abaixo da dobra (e o
+      // teclado virtual real reduz o espaço visível ainda mais). Achado da
+      // auditoria mobile, 2026-08-13.
+      if (window.innerWidth <= 900) {
+        input.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
     });
 
     input.addEventListener('input', () => {
@@ -133,24 +140,53 @@ window.addEventListener('DOMContentLoaded', function () {
   function initAppShell() {
     const shell = document.getElementById('app-shell');
     const collapseBtn = document.getElementById('sidebar-collapse-btn');
-    const hamburger = document.getElementById('sidebar-hamburger');
+    if (!shell) return;
 
+    // Modo "recolher" (desktop) -- sidebar permanente, só encolhe pra
+    // ícone. Estado salvo entre sessões, é uma preferência de verdade.
     function applyCollapsed(collapsed) {
-      if (!shell) return;
       shell.classList.toggle('sidebar-collapsed', collapsed);
       localStorage.setItem('fnp-sidebar-collapsed', collapsed ? '1' : '0');
     }
 
-    if (shell) {
-      applyCollapsed(localStorage.getItem('fnp-sidebar-collapsed') === '1');
+    applyCollapsed(localStorage.getItem('fnp-sidebar-collapsed') === '1');
+
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', () => {
+        applyCollapsed(!shell.classList.contains('sidebar-collapsed'));
+      });
     }
 
-    function toggleCollapsed() {
-      applyCollapsed(!shell.classList.contains('sidebar-collapsed'));
+    // Modo gaveta (mobile, <900px) -- estado independente do "recolher"
+    // de desktop; começa sempre fechado a cada carregamento de página (não
+    // é uma preferência pra lembrar, é só "a gaveta está aberta agora").
+    // Achado da auditoria mobile: antes os dois modos compartilhavam a
+    // mesma classe/flag, então em mobile a gaveta nascia aberta cobrindo a
+    // tela (com o próprio hambúrguer escondido atrás dela) sempre que a
+    // preferência de desktop estivesse "não recolhida" (o padrão).
+    const hamburger = document.getElementById('sidebar-hamburger');
+    const closeBtn = document.getElementById('app-sidebar-close');
+    const backdrop = document.getElementById('app-sidebar-backdrop');
+
+    function setDrawerOpen(open) {
+      shell.classList.toggle('sidebar-mobile-open', open);
+      if (hamburger) hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
-    if (collapseBtn) collapseBtn.addEventListener('click', toggleCollapsed);
-    if (hamburger) hamburger.addEventListener('click', toggleCollapsed);
+    if (hamburger) {
+      hamburger.setAttribute('aria-expanded', 'false');
+      hamburger.addEventListener('click', () => {
+        setDrawerOpen(!shell.classList.contains('sidebar-mobile-open'));
+      });
+    }
+    if (closeBtn) closeBtn.addEventListener('click', () => setDrawerOpen(false));
+    if (backdrop) backdrop.addEventListener('click', () => setDrawerOpen(false));
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && shell.classList.contains('sidebar-mobile-open')) {
+        setDrawerOpen(false);
+      }
+    });
   }
 
   initAppShell();

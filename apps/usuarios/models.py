@@ -1,10 +1,18 @@
 import re
+from io import BytesIO
 
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.db import models
+from PIL import Image
 
 FOTO_PERFIL_TAMANHO_MAXIMO_MB = 5
+# Exibido nos ~40-70px do avatar (topbar/comentários) mesmo em telas retina
+# -- 512px de lado já sobra bastante margem, evita servir uma foto de
+# celular moderno (podem vir com 4000px+) do jeito que foi enviada, sem
+# nenhum redimensionamento (achado da auditoria mobile, 2026-08-13).
+FOTO_PERFIL_LADO_MAXIMO_PX = 512
 
 
 def validar_tamanho_foto_perfil(arquivo):
@@ -121,6 +129,32 @@ class Perfil(models.Model):
 
     def __str__(self):
         return f'Perfil de {self.usuario}'
+
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self._redimensionar_foto_se_necessario()
+        super().save(*args, **kwargs)
+
+    def _redimensionar_foto_se_necessario(self):
+        self.foto.seek(0)
+        try:
+            imagem = Image.open(self.foto)
+            if imagem.width <= FOTO_PERFIL_LADO_MAXIMO_PX and imagem.height <= FOTO_PERFIL_LADO_MAXIMO_PX:
+                return
+            imagem.load()
+        except Exception:
+            # Arquivo corrompido/formato exótico -- deixa o ImageField
+            # nativo do Django recusar na validação, não é papel do resize.
+            return
+
+        if imagem.mode not in ('RGB', 'RGBA'):
+            imagem = imagem.convert('RGB')
+        imagem.thumbnail((FOTO_PERFIL_LADO_MAXIMO_PX, FOTO_PERFIL_LADO_MAXIMO_PX), Image.LANCZOS)
+
+        buffer = BytesIO()
+        formato = 'PNG' if imagem.mode == 'RGBA' else 'JPEG'
+        imagem.save(buffer, format=formato, quality=85, optimize=True)
+        self.foto = ContentFile(buffer.getvalue(), name=self.foto.name)
 
 
 class TentativaLogin(models.Model):

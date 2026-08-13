@@ -3,6 +3,9 @@
   <a href="{% url 'legislativo:home' %}" class="app-sidebar-brand">
     <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="app-sidebar-logo" />
   </a>
+  <button type="button" class="app-sidebar-close" id="app-sidebar-close" aria-label="Fechar menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
 
   <nav class="app-sidebar-nav" id="menu-principal" aria-label="Menu principal">
     <a href="{% url 'legislativo:home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-label="Início" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>

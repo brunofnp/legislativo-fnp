@@ -863,4 +863,18 @@ a.button {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Área de toque mínima de 44px (achado da auditoria mobile,
+     2026-08-13) -- "Encerrar sessão" media 112x14px, os ícones do
+     header 34x34px; no desktop o tamanho compacto original é
+     suficiente com mouse. */
+  .fnp-icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .fnp-logout-link {
+    padding: 0.65rem 0.75rem;
+    min-height: 2.75rem;
+  }
 }

@@ -240,6 +240,18 @@ body {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
+/* Esse dropdown é o único ancorado à direita (.tema-filter-floating usa
+   justify-content: flex-end) -- o painel padrão (.tema-dropdown-panel)
+   nasce com left:0, relativo ao gatilho, então num gatilho já perto da
+   borda direita da tela ele estourava o viewport em mobile (achado da
+   auditoria, 2026-08-13: caixa de busca e itens cortados em 360px).
+   Ancorar pela direita resolve sem afetar o outro uso do mesmo painel
+   (dropdown de "Área de interesse", que já nasce alinhado à esquerda). */
+.tema-filter-floating .tema-dropdown-panel {
+  left: auto;
+  right: 0;
+}
+
 .search-form {
   display: flex;
   gap: 0.75rem;
@@ -265,6 +277,9 @@ body {
 .search-input-wrapper input {
   width: 100%;
   min-width: 0;
+  /* Junto com o scrollIntoView() no focus (main.js), garante que a
+     topbar fixa não cubra o campo depois de rolar pra ele em mobile. */
+  scroll-margin-top: calc(var(--header-height, 4.5rem) + 1rem);
 }
 
 .search-suggestions {
@@ -440,7 +455,9 @@ body {
   border-radius: 999px;
   border: 1px solid #d1d5db;
   margin-bottom: 0.6rem;
-  font-size: 0.9rem;
+  /* 16px evita zoom automático ao focar em mobile -- achado da auditoria
+     mobile, 2026-08-13. */
+  font-size: 1rem;
   outline: none;
 }
 
@@ -928,12 +945,16 @@ body {
 
 .auth-form input[type="text"],
 .auth-form input[type="email"],
-.auth-form input[type="password"] {
+.auth-form input[type="password"],
+.auth-form input[type="tel"] {
   width: 100%;
   padding: 0.85rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.85rem;
-  font-size: 0.95rem;
+  /* 16px é o limiar que evita o zoom automático do Safari/Chrome mobile
+     ao focar o campo -- estava em 0.95rem (15.2px), achado da auditoria
+     mobile (2026-08-13). */
+  font-size: 1rem;
   margin-bottom: 0.9rem;
   outline: none;
 }
@@ -1098,23 +1119,57 @@ body {
 }
 
 .perfil-avatar-edit-btn {
+  /* Área de toque real de 44px (WCAG), maior que o círculo visível de
+     propósito -- o ::before abaixo desenha só o círculo pequeno no meio
+     dela, então o botão não fica gigante ao lado do avatar. */
   position: absolute;
-  right: -0.2rem;
-  bottom: -0.2rem;
-  width: 1.5rem;
-  height: 1.5rem;
+  right: -0.65rem;
+  bottom: -0.65rem;
+  width: 2.75rem;
+  height: 2.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #1a4b8f;
+  background: none;
+  border: none;
   color: #fff;
-  border: 2px solid var(--surface, #fff);
   cursor: pointer;
   list-style: none;
-  opacity: 0;
-  transform: scale(0.85);
+  opacity: 1;
+  transform: scale(1);
   transition: opacity .15s ease, transform .15s ease;
+}
+
+.perfil-avatar-edit-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #1a4b8f;
+  border: 2px solid var(--surface, #fff);
+}
+
+/* Some no hover só em dispositivo com mouse de verdade -- em touchscreen
+   (hover:none) não existe um jeito confiável de "passar o mouse" antes de
+   tocar, então o botão ficava só tecnicamente clicável mas invisível,
+   sem nenhuma pista de que estava ali (achado da auditoria mobile,
+   2026-08-13, confirmado medindo opacity computado = 0 sem hover). */
+@media (hover: hover) {
+  .perfil-avatar-edit-btn {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  .perfil-avatar-edit:hover .perfil-avatar-edit-btn,
+  .perfil-avatar-edit:focus-within .perfil-avatar-edit-btn,
+  .perfil-avatar-menu[open] .perfil-avatar-edit-btn {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .perfil-avatar-edit-btn::-webkit-details-marker,
@@ -1124,15 +1179,10 @@ body {
 }
 
 .perfil-avatar-edit-btn svg {
+  position: relative;
+  z-index: 1;
   width: 0.85rem;
   height: 0.85rem;
-}
-
-.perfil-avatar-edit:hover .perfil-avatar-edit-btn,
-.perfil-avatar-edit:focus-within .perfil-avatar-edit-btn,
-.perfil-avatar-menu[open] .perfil-avatar-edit-btn {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .perfil-avatar-menu-panel {
@@ -1202,7 +1252,13 @@ body {
   padding: 0.85rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.85rem;
-  font-size: 0.95rem;
+  /* 16px é o limiar que evita o zoom automático do Safari/Chrome mobile
+     ao focar o campo -- estava em 0.95rem (15.2px). Essa regra (mais
+     específica que .auth-form input[type=...] logo abaixo) é quem
+     realmente manda em cadastro/login/perfil -- achado da auditoria
+     mobile, 2026-08-13: a primeira tentativa de fix mexeu na regra
+     errada, essa aqui que vencia a cascata o tempo todo. */
+  font-size: 1rem;
   outline: none;
 }
 
@@ -1378,7 +1434,9 @@ body {
   padding: 0.95rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 1rem;
-  font-size: 0.95rem;
+  /* 16px evita zoom automático ao focar em mobile -- achado da auditoria
+     mobile, 2026-08-13. */
+  font-size: 1rem;
   outline: none;
 }
 
@@ -1390,7 +1448,10 @@ body {
 .field-label {
   margin-bottom: 0.5rem;
   display: block;
-  font-size: 0.75rem;
+  /* Era 0.75rem (12px) -- achado da auditoria mobile (2026-08-13):
+     abaixo do ideal de legibilidade. Continua pequeno de propósito (é
+     rótulo em caixa alta, não texto de leitura), só não tão no limite. */
+  font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-muted, #6b7280);
@@ -2170,6 +2231,16 @@ body {
 
 .app-topbar-title {
   flex: 1;
+  /* min-width:0 é o que falta pra um item flex com flex:1 conseguir
+     encolher abaixo do tamanho do próprio conteúdo -- sem isso, um
+     título/breadcrumb comprido empurra o .app-topbar inteiro pra fora do
+     viewport em vez de truncar, forçando o resto da topbar (busca, avatar,
+     sino...) pra uma coluna de 1 ícone por linha em telas estreitas
+     (achado da auditoria mobile, 2026-08-13). */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -2210,6 +2281,12 @@ body {
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
+}
+
+/* Só existe pra abrir a gaveta da sidebar em mobile -- no desktop a
+   sidebar já é permanente, o hambúrguer não tem o que fazer lá. */
+.sidebar-hamburger {
+  display: none;
 }
 
 .icon-btn:hover {
@@ -2943,16 +3020,92 @@ body {
   background: #142943;
 }
 
+/* Fundo escurecido atrás da gaveta -- clicável pra fechar, cobre o
+   conteúdo (não a própria sidebar) enquanto a gaveta está aberta. */
+.app-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.app-sidebar-close {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .app-sidebar {
     position: fixed;
     z-index: 30;
     left: 0;
+    top: 0;
     transform: translateX(-100%);
+    /* Sempre no tamanho "expandido" dentro da gaveta -- o modo ícone-só
+       do desktop (.sidebar-collapsed) não faz sentido aqui, a gaveta some
+       inteira quando fechada, não precisa de uma versão "meio aberta". */
+    width: 16rem;
+    padding: 1.25rem 1rem;
   }
 
-  .app-shell:not(.sidebar-collapsed) .app-sidebar {
+  /* Mesma especificidade (3 classes) do que a regra de "recolhido" do
+     desktop -- garante que a gaveta mobile sempre abre em largura cheia,
+     mesmo que fnp-sidebar-collapsed=1 tenha ficado salvo de uma sessão
+     de tela larga no mesmo aparelho (ex.: janela redimensionada). */
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .app-sidebar {
+    width: 16rem;
+    padding: 1.25rem 1rem;
+  }
+
+  /* Estado da gaveta é uma classe própria (.sidebar-mobile-open),
+     independente do "recolher" de desktop (.sidebar-collapsed) -- ver
+     initAppShell() em main.js. Antes os dois compartilhavam a mesma
+     flag, então a gaveta nascia aberta sempre que a preferência de
+     desktop estivesse "não recolhida" (o padrão), cobrindo a tela
+     inteira sem jeito de fechar (achado da auditoria mobile,
+     2026-08-13). */
+  .app-shell.sidebar-mobile-open .app-sidebar {
     transform: translateX(0);
+  }
+
+  .app-shell.sidebar-mobile-open .app-sidebar-backdrop {
+    display: block;
+  }
+
+  .sidebar-hamburger {
+    display: inline-flex;
+  }
+
+  /* "Recolher" (modo ícone-só) é um conceito de desktop -- em mobile a
+     gaveta já fecha inteira, não faz sentido oferecer os dois. */
+  .sidebar-collapse-btn {
+    display: none;
+  }
+
+  .app-sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    cursor: pointer;
+  }
+
+  .app-sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .app-sidebar-close svg {
+    width: 1.15rem;
+    height: 1.15rem;
   }
 
   .app-topbar-title {
@@ -2993,6 +3146,24 @@ body {
     flex-wrap: wrap;
     justify-content: flex-end;
     row-gap: 0.4rem;
+  }
+
+  /* Área de toque mínima de 44px (achado da auditoria mobile,
+     2026-08-13) -- no desktop o tamanho compacto original já é
+     suficiente com mouse, então isso fica só na faixa mobile. */
+  .sidebar-link {
+    min-height: 2.75rem;
+  }
+
+  .tema-option {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .favorito-btn {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 

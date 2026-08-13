@@ -55,7 +55,7 @@ class CustomSignupForm(forms.Form):
     telefone = forms.CharField(
         max_length=32,
         label='Telefone',
-        widget=forms.TextInput(attrs={'placeholder': 'Seu telefone'}),
+        widget=forms.TextInput(attrs={'placeholder': 'Seu telefone', 'type': 'tel'}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -148,7 +148,7 @@ class PerfilDadosForm(forms.ModelForm):
             'setor_responsavel': 'Setor responsável',
         }
         widgets = {
-            'telefone': forms.TextInput(attrs={'class': 'input-wide'}),
+            'telefone': forms.TextInput(attrs={'class': 'input-wide', 'type': 'tel'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
             'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
         }
