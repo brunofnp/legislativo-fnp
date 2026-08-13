@@ -1340,23 +1340,36 @@ próprio do `tema-dropdown`) com "Abrir câmera", "Importar arquivo" e
 O widget nativo do Django continua existindo no DOM (`display: none`,
 `.perfil-avatar-widget-hidden`) — é ele quem de fato recebe o arquivo e
 processa o "Limpar" no submit; o menu novo só aciona esse input via JS
-(`initPerfilAvatarEdit` em `main.js`): "Importar arquivo" chama
-`fileInput.click()` direto; "Abrir câmera" seta `capture="user"` antes do
-`.click()` (só navegador mobile respeita, abre a câmera frontal direto;
-desktop ignora e cai no seletor de arquivo normal — degrada bem, sem
-precisar de `getUserMedia`/canvas pra capturar por webcam); "Remover
-foto" marca o checkbox `foto-clear_id` que o `ClearableFileInput` já
-gera. Preview atualiza na hora (`URL.createObjectURL`, sem esperar o
-submit) — se ainda não havia foto (mostrando só a inicial), o `<span>`
-fallback é substituído por um `<img>` novo no DOM.
+(`initPerfilAvatarEdit` em `main.js`). "Remover foto" marca o checkbox
+`foto-clear_id` que o `ClearableFileInput` já gera. Preview atualiza na
+hora (`URL.createObjectURL`, sem esperar o submit) — se ainda não havia
+foto (mostrando só a inicial), o `<span>` fallback é substituído por um
+`<img>` novo no DOM.
 
-`check` e 78 testes limpos (nenhum teste novo — comportamento é só
-client-side, sem lógica de servidor nova; `PerfilView` já é exercitada
-pelos testes existentes, confirma que o template continua renderizando).
-**Não testado visualmente num navegador de verdade** — vale conferir o
-hover/menu/preview antes de considerar pronto, e testar em mobile de
-verdade se "Abrir câmera" realmente abre a câmera (comportamento depende
-do navegador/SO, não dá pra simular aqui).
+**Correção no mesmo dia, depois do usuário testar de verdade** — 2
+bugs reais: (1) o menu (`<details>`) só fechava clicando de novo no
+lápis, nunca clicando fora — fix: `document.addEventListener('click', ...)`
+fechando se o clique for fora do menu, mesmo padrão já usado no
+`tema-dropdown`. (2) "Abrir câmera" não abria câmera nenhuma no desktop
+— a primeira versão setava `capture="user"` no `<input type="file">`
+antes do `.click()`, mas esse atributo só é respeitado por navegador
+mobile; desktop ignora e cai no seletor de arquivo comum (foi
+exatamente o que o usuário viu ao testar no Chrome/Windows). Fix de
+verdade: modal novo (`#avatar-camera-modal`) com `<video>` ao vivo via
+`getUserMedia({video: {facingMode: 'user'}})`, botão "Capturar foto"
+desenha o frame atual num `<canvas>` (desespelhado — o `<video>` só é
+espelhado visualmente via CSS `transform: scaleX(-1)`, efeito "selfie"),
+converte pra `Blob`/`File` via `canvas.toBlob()` e injeta no
+`fileInput.files` via `DataTransfer`, reaproveitando a mesma função de
+preview. Erro de permissão/sem câmera mostra mensagem no próprio modal
+em vez de falhar silencioso. Funciona igual em desktop e mobile agora
+(não depende mais de comportamento específico de plataforma).
+
+`check` e 78 testes limpos (nenhum teste novo — tudo client-side, sem
+lógica de servidor nova). **Ainda não confirmado pelo usuário** — os
+dois bugs foram vistos no Chrome/Windows antes da correção; falta
+testar de novo depois do fix (câmera de verdade abrindo, menu fechando
+ao clicar fora) antes de promover pra produção.
 
 ### Pendências e próximos passos
 
