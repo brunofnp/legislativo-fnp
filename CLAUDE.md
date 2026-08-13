@@ -1326,6 +1326,38 @@ serviço `legislativo` rodando (`sync-camara` não subiu, confirma que
 manualmente pra aplicar a permissão nova de excluir comentário ao grupo
 "Administrador FNP" (16 permissões, era 15). `curl` confirmando `200 OK`.
 
+### Edição de foto de perfil vira lápis no hover (2026-08-13)
+
+A pedido do usuário, a partir de uma captura de tela da tela "Meu perfil":
+o campo de foto era o `<input type="file">` cru do Django
+(`ClearableFileInput`), com o botão nativo "Escolher arquivo" grande do
+lado do avatar. Substituído por um lápis pequeno que só aparece no hover/
+foco sobre o avatar (`.perfil-avatar-edit-btn`, posicionado no canto do
+círculo) — ao clicar, abre um menu (`<details>`, mesmo padrão sem-JS-
+próprio do `tema-dropdown`) com "Abrir câmera", "Importar arquivo" e
+"Remover foto" (esse último só aparece se já existe `Perfil.foto`).
+
+O widget nativo do Django continua existindo no DOM (`display: none`,
+`.perfil-avatar-widget-hidden`) — é ele quem de fato recebe o arquivo e
+processa o "Limpar" no submit; o menu novo só aciona esse input via JS
+(`initPerfilAvatarEdit` em `main.js`): "Importar arquivo" chama
+`fileInput.click()` direto; "Abrir câmera" seta `capture="user"` antes do
+`.click()` (só navegador mobile respeita, abre a câmera frontal direto;
+desktop ignora e cai no seletor de arquivo normal — degrada bem, sem
+precisar de `getUserMedia`/canvas pra capturar por webcam); "Remover
+foto" marca o checkbox `foto-clear_id` que o `ClearableFileInput` já
+gera. Preview atualiza na hora (`URL.createObjectURL`, sem esperar o
+submit) — se ainda não havia foto (mostrando só a inicial), o `<span>`
+fallback é substituído por um `<img>` novo no DOM.
+
+`check` e 78 testes limpos (nenhum teste novo — comportamento é só
+client-side, sem lógica de servidor nova; `PerfilView` já é exercitada
+pelos testes existentes, confirma que o template continua renderizando).
+**Não testado visualmente num navegador de verdade** — vale conferir o
+hover/menu/preview antes de considerar pronto, e testar em mobile de
+verdade se "Abrir câmera" realmente abre a câmera (comportamento depende
+do navegador/SO, não dá pra simular aqui).
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
