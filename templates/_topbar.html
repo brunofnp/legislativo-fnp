@@ -94,4 +94,17 @@
 
     <a href="{% url 'account_logout' %}" class="topbar-logout" title="Sair">Sair</a>
   </div>
+
+  {% comment %}
+    Só visível em mobile (ver .topbar-mobile-search no CSS) -- substitui o
+    botão "Buscar..." que abre o modal Ctrl+K por um campo de busca de
+    verdade, sempre visível, ocupando a largura toda. Evita duplicidade de
+    função com a busca solta no meio da home (.search-panel, também
+    escondida em mobile) -- achado via captura de tela real, 2026-08-13.
+  {% endcomment %}
+  <form method="get" action="{% url 'legislativo:home' %}" class="topbar-mobile-search" role="search" aria-label="Buscar proposições">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <label for="topbar-mobile-search-input" class="sr-only">Buscar por proposição, ementa ou tema</label>
+    <input type="search" name="q" id="topbar-mobile-search-input" value="{{ request.GET.q }}" placeholder="Buscar por proposição, ementa, tema..." autocomplete="off" />
+  </form>
 </header>

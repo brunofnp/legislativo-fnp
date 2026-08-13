@@ -2142,6 +2142,22 @@ body {
   filter: brightness(0) invert(1);
 }
 
+/* logo-FNP.png é um lockup só (marca "FNP" + "Frente Nacional..." por
+   extenso, sem versão separada só do ícone) -- com height:2rem e
+   width:auto, a imagem inteira (187x69px, proporção ~2.7:1) não cabe na
+   largura da sidebar recolhida (4.75rem = 76px, ~57px de área útil já
+   descontando padding), cortando o texto no meio sem terminar em lugar
+   nenhum limpo (achado via captura de tela real, 2026-08-13). Fix:
+   object-fit:cover recorta só a marca "FNP" + as 3 bolinhas de cor (os
+   primeiros ~78px da imagem original) em vez de deixar o navegador
+   cortar arbitrariamente no meio do texto. */
+.app-shell.sidebar-collapsed .app-sidebar-logo {
+  width: 2.25rem;
+  height: 2rem;
+  object-fit: cover;
+  object-position: left center;
+}
+
 .app-sidebar-nav {
   flex: 1;
   display: flex;
@@ -2412,6 +2428,13 @@ body {
 
 .topbar-search-trigger:hover {
   border-color: #1a4b8f;
+}
+
+/* Só existe pro mobile (ver .topbar-mobile-search no @media) -- campo de
+   busca de verdade, sempre visível, no lugar do botão que abre o modal
+   Ctrl+K (esse continua existindo só no desktop). */
+.topbar-mobile-search {
+  display: none;
 }
 
 .icon-moon {
@@ -3140,6 +3163,35 @@ body {
     padding: 1.25rem 1rem;
   }
 
+  /* Mesmo problema, achado depois via captura de tela real (2026-08-13):
+     o fix acima só restaurava a LARGURA da gaveta, mas o rótulo de cada
+     item (.sidebar-link span) continuava escondido por
+     .sidebar-collapsed .sidebar-link span (display:none) -- sobrava só
+     ícone, sem texto, com a gaveta já larga. Mesma técnica de
+     especificidade (3 classes) pra vencer a regra de 2 classes do modo
+     "recolhido" do desktop. */
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .sidebar-link span,
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .sidebar-section-label,
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .sidebar-collapse-btn span {
+    display: inline;
+  }
+
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .sidebar-link,
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .sidebar-collapse-btn {
+    justify-content: flex-start;
+  }
+
+  /* Mesmo problema: o recorte do logo (só a marca "FNP", pro modo
+     recolhido do desktop) também vazava pra a gaveta mobile quando
+     fnp-sidebar-collapsed=1 tinha ficado salvo -- a gaveta é sempre
+     largura cheia, não faz sentido cortar o logo nela. */
+  .app-shell.sidebar-collapsed.sidebar-mobile-open .app-sidebar-logo {
+    width: auto;
+    height: 2rem;
+    object-fit: initial;
+    object-position: initial;
+  }
+
   /* Estado da gaveta é uma classe própria (.sidebar-mobile-open),
      independente do "recolher" de desktop (.sidebar-collapsed) -- ver
      initAppShell() em main.js. Antes os dois compartilhavam a mesma
@@ -3198,53 +3250,146 @@ body {
      usuário via captura de tela em produção, 2026-08-13). Sequência
      ganhou 3 linhas próprias: marca+Voltar, título, e uma linha cheia só
      pra ações -- cada uma com a largura toda do viewport pra organizar. */
+  /* Redesenho pedido pelo usuário via mockup anotado (2026-08-13, mesmo
+     dia): cabeçalho vira UMA linha só (logo + título + todos os ícones,
+     incluindo avatar/sino), e o "Buscar..." que abria o modal Ctrl+K
+     virou um campo de busca de verdade numa segunda linha, ocupando a
+     largura toda -- ver .topbar-mobile-search. Pra caber título + 6
+     controles numa linha de 360-414px, os ícones ficam menores que o
+     padrão de 44px (WCAG) usado no resto do site -- trade-off visual
+     pedido explicitamente pelo usuário nesta rodada, sinalizado no chat.
+     .app-topbar-actions vira display:contents pra seus filhos (busca,
+     avatar, sino, Aa, tema, ajuda, sair) participarem do flex-wrap do
+     .app-topbar direto, e não ficarem presos numa segunda linha própria
+     -- só assim avatar/sino conseguem ficar na mesma linha do título. */
   .app-topbar {
     flex-wrap: wrap;
-    row-gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    column-gap: 0.3rem;
+    row-gap: 0.6rem;
+  }
+
+  .topbar-brand-logo {
+    height: 1.4rem;
   }
 
   .app-topbar-title {
-    flex-basis: 100%;
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .user-name {
     display: none;
   }
 
-  .topbar-search-trigger span {
-    display: none;
-  }
-
-  /* Área de toque confortável (WCAG/HIG recomendam mínimo de 44px) --
-     no desktop o tamanho menor (2.25rem) já é suficiente com mouse. */
-  .icon-btn {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
+  /* Substituído pelo campo de busca sempre visível (.topbar-mobile-search)
+     -- manter os dois seria duplicidade de função, mesmo achado que
+     tirou a busca solta do meio da home em mobile (.search-panel). */
   .topbar-search-trigger {
-    width: 2.75rem;
-    height: 2.75rem;
-    padding: 0;
-    justify-content: center;
+    display: none;
   }
 
-  .topbar-search-trigger kbd {
-    display: none;
+  .icon-btn {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .icon-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
   }
 
   .app-topbar-actions {
+    display: contents;
+  }
+
+  /* Ordem exata pedida via mockup, conferida item a item: Aa, tema,
+     ajuda, notificações, perfil, Sair (perfil sempre logo antes de
+     Sair, notificações sempre logo antes do perfil). */
+  #font-size-btn {
+    order: 3;
+  }
+
+  #theme-toggle-btn {
+    order: 4;
+  }
+
+  #page-help-btn {
+    order: 5;
+  }
+
+  .notif-wrapper {
+    order: 6;
+  }
+
+  .user-menu-trigger {
+    order: 7;
+    flex-shrink: 0;
+    gap: 0;
+    padding: 0;
+  }
+
+  .user-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
+
+  .topbar-logout {
+    order: 8;
+    flex-shrink: 0;
+    padding: 0.25rem 0.3rem;
+    font-size: 0.75rem;
+  }
+
+  /* Pseudo-elemento "quebra-linha": flex-basis:100% força tudo que vem
+     depois (a busca) pra uma linha nova, sem precisar de um <div>
+     extra só pra isso. */
+  .app-topbar::after {
+    content: '';
+    order: 9;
     flex-basis: 100%;
-    gap: 0.35rem;
-    /* Mais ícones agora sempre visíveis (tamanho da fonte, tema, ajuda
-       saíram do menu "..." a pedido do usuário). Com a linha cheia
-       (flex-basis:100% acima) cabem uns 5-6 por fileira em 360-414px em
-       vez de 1-2 -- flex-start pra ficar previsível da esquerda pra
-       direita, em vez de flex-end empurrando pro canto. */
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    row-gap: 0.4rem;
+  }
+
+  .topbar-mobile-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    order: 10;
+    flex-basis: 100%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface-alt);
+  }
+
+  .topbar-mobile-search svg {
+    flex-shrink: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--text-muted);
+  }
+
+  .topbar-mobile-search input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    /* >=16px evita o zoom automático do iOS ao focar (achado da
+       auditoria mobile, 2026-08-13). */
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+
+  .topbar-mobile-search input:focus {
+    outline: none;
+  }
+
+  /* Duplicava a função do campo de busca acima, sempre visível no
+     cabeçalho -- mesmo achado do usuário (captura de tela real,
+     2026-08-13). Continua existindo normalmente no desktop. */
+  .search-panel {
+    display: none;
   }
 
   /* Área de toque mínima de 44px (achado da auditoria mobile,
