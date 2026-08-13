@@ -1571,6 +1571,35 @@ testes limpos; as mesmas 39 checagens de scroll horizontal (13 páginas ×
 3 breakpoints) revalidadas sem regressão. Commitado e enviado só pra
 `next` (`66bf0e0`) — não promovido.
 
+### Cabeçalho público (anônimo) sem Voltar/Início no mobile (2026-08-13, mesmo dia)
+
+Usuário testou localmente (não produção) e circulou, numa captura de
+tela, o espaço vazio ao lado da logo perguntando "aonde foram parar os
+botões de voltar e home" — achado real, não regressão de hoje: o
+cabeçalho público (usuário anônimo, sem login) **nunca teve** esse
+padrão. A logo sempre abriu o site institucional externo
+(`fnp.org.br`, não o painel), e o único link interno que sobrava
+("Painel Legislativo da FNP", `.brand-text`) some por `display:none`
+em telas ≤560px — sem sobrar nenhum jeito de navegar de volta ao
+início a partir de uma página interna sem estar logado.
+
+Fix: `templates/_header.html` (ramo anônimo) ganhou o mesmo padrão
+Voltar/Início que `_topbar.html` (autenticado) já usa — "Voltar" fora
+da home, "Início" na home só quando há filtro ativo na URL (mesmas
+duas condições, mesmas classes CSS `.topbar-back-link` reaproveitadas,
+sem duplicar estilo). Agrupado com a logo dentro de um `.header-left`
+novo (antes `.header-inner` só tinha 2 filhos em `space-between` —
+logo e "Entrar" — inserir um terceiro no meio quebraria esse layout).
+
+Testado em 360/390px, home limpa (sem filtro, corretamente sem
+Voltar/Início — não faz sentido voltar pra onde já se está),
+home com filtro (mostra "Início") e página de detalhe (mostra
+"Voltar") — screenshot confirmando visualmente ao lado da logo, exato
+ponto que o usuário circulou. `check`, `makemigrations --check`,
+`ruff --select F401,F811,F841` e 78 testes limpos; as mesmas 39
+checagens de scroll horizontal revalidadas sem regressão. Commitado e
+enviado só pra `next` (`d0114e3`) — não promovido.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
