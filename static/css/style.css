@@ -1821,7 +1821,10 @@ body {
 
 .footer-col-social {
   align-content: start;
-  justify-items: start;
+  /* Título "Siga-nos" e a fileira de ícones centralizados um em relação
+     ao outro dentro da coluna -- antes os dois só ficavam alinhados à
+     esquerda (achado via captura de tela real, 2026-08-14). */
+  justify-items: center;
 }
 
 .footer-heading {
