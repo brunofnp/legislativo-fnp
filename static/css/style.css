@@ -2159,11 +2159,17 @@ body {
    largura da sidebar recolhida (4.75rem = 76px, ~57px de área útil já
    descontando padding), cortando o texto no meio sem terminar em lugar
    nenhum limpo (achado via captura de tela real, 2026-08-13). Fix:
-   object-fit:cover recorta só a marca "FNP" + as 3 bolinhas de cor (os
-   primeiros ~78px da imagem original) em vez de deixar o navegador
-   cortar arbitrariamente no meio do texto. */
+   object-fit:cover recorta só a marca "FNP" + as 3 bolinhas de cor.
+   **Correção 2026-08-14**: a largura original (2.25rem = recorte de
+   ~78px) cortava o "P" bem no meio da curva, sobrando só o traço
+   vertical -- achado só reconferindo com screenshot em alta resolução
+   focado no ícone (em telas normais o elemento é pequeno demais pra
+   notar). Testado com crops de 85-110px via Pillow: o "P" só fecha
+   completo a partir de ~90px, e o texto "FRENTE..." começa a vazar a
+   partir de ~96-100px -- 2.67rem (recorte de 92px) fica no meio desse
+   intervalo seguro. */
 .app-shell.sidebar-collapsed .app-sidebar-logo {
-  width: 2.25rem;
+  width: 2.67rem;
   height: 2rem;
   object-fit: cover;
   object-position: left center;
