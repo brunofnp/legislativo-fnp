@@ -1791,6 +1791,66 @@ migration nesta leva; `docker compose ps` → `(healthy)`, `curl -sI
 https://legislativo.fnp.org.br/` → `200 OK` com todos os cabeçalhos de
 segurança esperados.
 
+### Fixes de UX na home e e-mail de aviso pra cadastro pendente (2026-08-14, mesma sessão)
+
+Dois pedidos do usuário, ambos com achados reais no caminho:
+
+- **Card de estatística selecionado zerava os outros** — clicar em
+  "Na pauta" (ou qualquer card) navegava pra `?filtro=pauta`, e os 5
+  números do topo eram recalculados em cima do próprio conjunto já
+  filtrado — com poucos/nenhum resultado em "na pauta", os outros
+  cards (Urgentes/Alta prioridade/Com relator) também apareciam
+  zerados, mesmo tendo proposições reais. Contagem dos cards agora
+  reflete busca/tema (facetas de contexto), nunca o próprio filtro de
+  card selecionado — fix aplicado nos 3 lugares que calculavam isso
+  (`HomeView`, `api_proposicoes_cards` e o stream SSE, que sozinho já
+  sobrescrevia o primeiro render correto com os números errados assim
+  que conectava). **Regressão pega no caminho**: o próprio fix quebrou
+  o título da seção ("Na pauta (N)"), que usava a mesma variável —
+  trocado por `page_obj.paginator.count`, a contagem real do filtro
+  ativo.
+- **Limpar a busca não resetava os cards** — corrigido em duas
+  rodadas. Primeiro fix (só cobria quem digita ao vivo sem nunca
+  submeter): campo vazio dispara um preview via fetch com `q=` vazio,
+  que a view já trata como "sem filtro". Usuário testou e reportou que
+  ainda não funcionava numa página vinda de busca *submetida* (`?q=`
+  de verdade, ex. apertando "Buscar") — nesse estado,
+  Urgentes/Áreas de interesse/Em alta/Últimos acessados nem existem no
+  DOM (`{% if not filtro_ativo %}` no template) e o título "Busca por
+  X (N)" é texto estático; só trocar o conteúdo de `#cards-todas` via
+  AJAX não bastava. Fix definitivo: se a página carregou com filtro de
+  verdade (existe `.filtro-limpar-link` no DOM), limpar o campo navega
+  pro próprio link "Limpar filtro" — reconstrução completa via SSR, sem
+  duplicar lógica de montagem de seção em JS (mesmo princípio das
+  Diretrizes de Engenharia). Quem só digita sem nunca submeter continua
+  com o reset instantâneo via fetch, sem reload.
+- **E-mail de aviso de cadastro pendente** (pedido novo, não um bug) —
+  sempre que um cadastro nasce `Perfil.status_aprovacao='pendente'`
+  (`criar_perfil` em `apps/usuarios/signals.py`), agora manda e-mail
+  pra `ronan.castro@fnp.org.br` e `nucleo.dados@fnp.org.br` (lista em
+  `CADASTRO_PENDENTE_NOTIFICACAO_EMAILS`, configurável via env sem
+  precisar de deploy) com link direto pra tela de aprovação no Admin.
+  `fail_silently=True` de propósito — SMTP fora do ar (ou
+  `EMAIL_BACKEND` de produção ainda sem configuração real, ver
+  Pendências) nunca pode derrubar o cadastro em si, mesmo bug já
+  corrigido antes com o e-mail de confirmação do allauth. Também
+  adicionado `DEFAULT_FROM_EMAIL` (não existia, caía no
+  `webmaster@localhost` padrão do Django) e `SITE_URL` (derivado de
+  `ALLOWED_HOSTS`, mesmo raciocínio do `CSRF_TRUSTED_ORIGINS`, pra
+  montar o link absoluto no corpo do e-mail).
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e 80
+testes (era 78, +2 novos cobrindo o e-mail de cadastro pendente e a
+ausência dele pra cadastro de staff) limpos — 1 teste pré-existente
+(`DefinirSenhaSocialTest`) precisou de ajuste, já contava e-mails
+enviados e passou a contar também o aviso novo disparado na criação do
+usuário de teste. Testado de ponta a ponta via `manage.py shell` com o
+console backend de verdade: assunto/remetente/destinatários/corpo/link
+todos corretos. **Nota importante pro usuário**: em produção isso só
+entrega de verdade quando `EMAIL_BACKEND` estiver configurado com um
+provedor real (SMTP/SES/etc.) — mesma pendência já registrada mais
+abaixo; até lá, o e-mail é "enviado" mas não chega em lugar nenhum.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
@@ -1872,6 +1932,9 @@ segurança esperados.
   manda e-mail de confirmação mas não entrega de verdade lá. (O bug de
   dev, cadastro local derrubando sem `EMAIL_BACKEND`, já foi corrigido —
   isso aqui é só sobre produção ter um backend real configurado.)
+  **Ficou mais urgente em 2026-08-14**: o aviso de cadastro pendente pra
+  `ronan.castro@fnp.org.br`/`nucleo.dados@fnp.org.br` (ver seção datada
+  acima) também depende disso pra chegar de verdade em produção.
 - Cache do Django é `LocMemCache` (por processo) — com Gunicorn
   `--workers 3`, rate limit de login e `throttling.py` de
   comentário/participação têm limite efetivo até 3x mais permissivo do
