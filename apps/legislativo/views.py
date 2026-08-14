@@ -152,7 +152,14 @@ class HomeView(View):
             active_tema_obj = Macrotema.objects.filter(slug=tema_slug).first()
 
         sections = get_home_sections(query, tema_slug, page_number, filtro)
-        stats = compute_counts(sections['filtered'])
+        # Contagem dos cards de estatística reflete busca/tema (facetas de
+        # contexto — "de quantos resultados da minha busca X são urgentes"),
+        # mas nunca o próprio filtro de card já selecionado -- senão clicar
+        # em "Na pauta" (0 resultados) zerava Total/Urgentes/Alta prioridade/
+        # Com relator também, já que o cálculo de todos passava a partir do
+        # conjunto já filtrado só por "na pauta" (achado via captura de tela
+        # real, 2026-08-14).
+        stats = compute_counts(get_filtered_proposicoes(query, tema_slug))
         page_obj = sections['page_obj']
         urgentes = sections['urgentes']
         em_alta = sections['em_alta']
@@ -264,7 +271,10 @@ def api_proposicoes_cards(request):
         )
 
     return JsonResponse({
-        'counts': compute_counts(sections['filtered']),
+        # Mesmo raciocínio do HomeView -- não usa sections['filtered'] (que
+        # inclui o filtro de card já selecionado) pra não zerar os outros
+        # cards quando o filtro ativo tiver poucos/nenhum resultado.
+        'counts': compute_counts(get_filtered_proposicoes(query, tema_slug)),
         'sections': {
             'urgentes': render_cards(sections['urgentes']),
             'em_alta': render_cards(sections['em_alta']),
@@ -310,7 +320,13 @@ def _sse_stream(query, tema_slug, filtro):
     for _ in range(SSE_MAX_ITERATIONS):
         proposicoes = get_filtered_proposicoes(query, tema_slug, filtro)
         latest = proposicoes.aggregate(Max('atualizado_em'))['atualizado_em__max']
-        counts = compute_counts(proposicoes)
+        # Contagem dos cards de estatística não usa o filtro de card em si
+        # (mesmo raciocínio de HomeView/api_proposicoes_cards) -- senão o
+        # primeiro push do SSE, que sempre acontece por causa do
+        # last_snapshot=None inicial, sobrescrevia os números certos do
+        # primeiro render com os zerados (achado via captura de tela real,
+        # 2026-08-14).
+        counts = compute_counts(get_filtered_proposicoes(query, tema_slug))
         snapshot = (latest, tuple(sorted(counts.items())))
 
         if snapshot != last_snapshot:

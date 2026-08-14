@@ -127,7 +127,7 @@
   <section class="home-section">
     <h2 class="section-heading">
       {% if filtro_ativo %}
-        {{ filtro_label|default:'Resultado do filtro' }} ({{ stats.total }})
+        {{ filtro_label|default:'Resultado do filtro' }} ({{ page_obj.paginator.count }})
         <a href="{% url 'legislativo:home' %}" class="filtro-limpar-link">Limpar filtro ×</a>
       {% else %}
         Todas as proposições
