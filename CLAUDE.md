@@ -1876,6 +1876,29 @@ e-mail (`DEFAULT_FROM_EMAIL`, `CADASTRO_PENDENTE_NOTIFICACAO_EMAILS`,
 `SITE_URL`) subiram com os valores padrão embutidos no código, sem
 precisar mexer no `.env` do servidor.
 
+### Logo recolhido cortando o "P" + segunda promoção (2026-08-14, mesma sessão)
+
+Usuário reportou em produção (depois testado e reproduzido também em
+`next` local) que o logo da sidebar recolhida continuava cortado
+mesmo depois do fix anterior (`442003d`) — inicialmente suspeitei de
+cache do navegador (confirmei que o CSS certo já estava no servidor
+via `curl`), mas o usuário confirmou hard refresh sem mudança. Causa
+real: a largura usada no fix anterior (2.25rem, recorte de ~78px da
+imagem original) estava **matematicamente errada** — só ficava visível
+tirando um screenshot em alta resolução focado só no ícone (no
+tamanho normal renderizado, ~36px, o defeito é pequeno demais pra
+notar a olho nu). O recorte cortava bem no meio da curva/bojo do "P",
+sobrando só o traço vertical. Testado com Pillow em várias larguras
+(85 a 110px): o "P" só fecha completo a partir de ~90px, e o texto
+"FRENTE..." começa a vazar a partir de ~96-100px. Trocado pra 2.67rem
+(recorte de 92px, no meio do intervalo seguro). `check`/80 testes/
+`ruff` limpos; confirmado sem overflow na sidebar recolhida (logo
+termina em 59px de 76px disponíveis).
+
+Promovido `next` (`6f3c493`) → `main` → produção → droplet na
+sequência, sem migration; CI verde nos dois repositórios; `docker
+compose ps` → `(healthy)`, `curl` → `200 OK`.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
