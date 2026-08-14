@@ -41,6 +41,19 @@
       <kbd>Ctrl K</kbd>
     </button>
 
+    {% comment %}
+      Sempre visível, em toda página (inclusive a própria home) -- antes
+      não existia nenhum jeito confiável de "ir pro início" no topbar
+      autenticado: a logo da FNP abre o site institucional externo (não
+      o painel), e "Voltar" (acima) navega pela pilha de páginas
+      visitadas, não literalmente pra home. Pedido explícito do usuário
+      2026-08-14: "em qualquer página você estiver conseguir voltar
+      para a home".
+    {% endcomment %}
+    <a href="{% url 'legislativo:home' %}" class="icon-btn" id="home-link-btn" aria-label="Ir para o início" title="Início">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    </a>
+
     <button type="button" class="icon-btn" id="font-size-btn" aria-label="Alternar tamanho da fonte" title="Tamanho da fonte">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19 9 6l5 13M5.5 15h7"/><path d="M15 19l3.5-9L22 19"/></svg>
     </button>
