@@ -253,6 +253,33 @@ EMAIL_BACKEND = os.getenv(
     'EMAIL_BACKEND',
     'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
 )
+
+# Remetente dos e-mails que o próprio app manda (fora do fluxo interno do
+# allauth) -- ex.: aviso de cadastro pendente, ver
+# apps/usuarios/signals.py::notificar_cadastro_pendente. Sem isso o Django
+# cai no default 'webmaster@localhost'.
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Painel Legislativo FNP <painel@fnp.org.br>')
+
+# Quem recebe aviso por e-mail sempre que um cadastro novo nasce pendente de
+# aprovação (Perfil.status_aprovacao='pendente'). Lista fixa combinada com o
+# usuário, mas configurável via env sem precisar de deploy caso mude.
+CADASTRO_PENDENTE_NOTIFICACAO_EMAILS = [
+    email.strip() for email in os.getenv(
+        'CADASTRO_PENDENTE_NOTIFICACAO_EMAILS',
+        'ronan.castro@fnp.org.br,nucleo.dados@fnp.org.br',
+    ).split(',')
+    if email.strip()
+]
+
+# Base pra montar link absoluto nesses e-mails -- mesmo raciocínio do
+# CSRF_TRUSTED_ORIGINS acima, derivado de ALLOWED_HOSTS em vez de env var
+# nova (fica sempre em sincronia).
+SITE_URL = (
+    f'https://{ALLOWED_HOSTS[0]}'
+    if ALLOWED_HOSTS and ALLOWED_HOSTS[0] not in ('127.0.0.1', 'localhost')
+    else 'http://127.0.0.1:8000'
+)
+
 ACCOUNT_LOGOUT_ON_GET = True
 LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'

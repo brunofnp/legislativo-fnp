@@ -1,8 +1,11 @@
 from allauth.socialaccount.signals import pre_social_login
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.signals import user_logged_in, user_login_failed
+from django.core.mail import send_mail
 from django.db.models.signals import m2m_changed, post_save
 from django.dispatch import receiver
+from django.urls import reverse
 
 from .models import Perfil, TentativaLogin, Usuario
 
@@ -38,6 +41,32 @@ def criar_perfil(sender, instance, created, **kwargs):
     if created:
         status_inicial = Perfil.APROVADO if (instance.is_staff or instance.is_superuser) else Perfil.PENDENTE
         Perfil.objects.get_or_create(usuario=instance, defaults={'status_aprovacao': status_inicial})
+        if status_inicial == Perfil.PENDENTE:
+            notificar_cadastro_pendente(instance)
+
+
+def notificar_cadastro_pendente(usuario):
+    """E-mail pra CADASTRO_PENDENTE_NOTIFICACAO_EMAILS sempre que um
+    cadastro novo nasce pendente -- pedido explícito do usuário,
+    2026-08-14. `fail_silently=True` de propósito: SMTP fora do ar (ou
+    ainda sem EMAIL_BACKEND real configurado em produção, ver Pendências
+    no CLAUDE.md) nunca pode derrubar o cadastro em si -- mesmo raciocínio
+    do bug já corrigido antes com o e-mail de confirmação do allauth."""
+    destinatarios = settings.CADASTRO_PENDENTE_NOTIFICACAO_EMAILS
+    if not destinatarios:
+        return
+    link = settings.SITE_URL + reverse('admin:usuarios_usuario_change', args=[usuario.pk])
+    send_mail(
+        subject='Novo cadastro aguardando aprovação — Painel Legislativo FNP',
+        message=(
+            f'{usuario.get_display_name()} ({usuario.email}) acabou de se cadastrar '
+            'no Painel Legislativo FNP e está aguardando aprovação.\n\n'
+            f'Revisar e aprovar ou rejeitar: {link}'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=destinatarios,
+        fail_silently=True,
+    )
 
 
 def _client_ip(request):

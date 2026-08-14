@@ -5,6 +5,7 @@ import tempfile
 from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -117,6 +118,21 @@ class PerfilSignalTest(TestCase):
     def test_novo_usuario_ganha_perfil_automaticamente(self):
         usuario = Usuario.objects.create(username='ana', email='ana@fnp.org.br')
         self.assertIsNotNone(usuario.perfil)
+
+    def test_cadastro_pendente_notifica_equipe_por_email(self):
+        usuario = Usuario.objects.create(
+            username='novo.cadastro', email='novo.cadastro@fnp.org.br', first_name='Novo', last_name='Cadastro',
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        enviado = mail.outbox[0]
+        self.assertIn('ronan.castro@fnp.org.br', enviado.to)
+        self.assertIn('nucleo.dados@fnp.org.br', enviado.to)
+        self.assertIn('Novo Cadastro', enviado.body)
+        self.assertIn(reverse('admin:usuarios_usuario_change', args=[usuario.pk]), enviado.body)
+
+    def test_cadastro_de_staff_nao_dispara_email(self):
+        Usuario.objects.create(username='equipe', email='equipe@fnp.org.br', is_staff=True)
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class PerfilViewTest(TestCase):
@@ -759,13 +775,15 @@ class DefinirSenhaSocialTest(TestCase):
         self.assertIn('ainda não tem uma senha', content)
 
     def test_post_envia_email_de_confirmacao(self):
-        from django.core import mail
-
         from apps.usuarios.views import definir_senha_social
 
         usuario = Usuario.objects.create(username='soogoogle2', email='soogoogle2@fnp.org.br')
         usuario.set_unusable_password()
         usuario.save()
+        # A criação do usuário acima já dispara o aviso de cadastro pendente
+        # (ver PerfilSignalTest) -- limpa a caixa antes do POST pra testar só
+        # o e-mail de confirmação que o próprio endpoint manda.
+        mail.outbox.clear()
         request = _post_request_with_session('/contas/password/set/')
         request.user = usuario
         response = definir_senha_social(request)
