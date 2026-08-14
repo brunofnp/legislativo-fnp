@@ -2048,4 +2048,5 @@ compose ps` → `(healthy)`, `curl` → `200 OK`.
 | `README.md` | Visão geral do projeto e fluxo de repositórios |
 | `docs/runbook.md` | Operação e procedimentos de execução |
 | `docs/adr/0001-initial-architecture.md` | Arquitetura inicial do projeto |
+| `docs/adr/0002-deploy-producao-dominio.md` | Como o projeto foi pro ar em `legislativo.fnp.org.br` — infraestrutura, passo a passo e cronologia real do primeiro deploy (2026-08-03/05) |
 | `CONTRIBUTING.md` | Padrões de contribuição |
