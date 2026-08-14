@@ -63,6 +63,20 @@ window.addEventListener('DOMContentLoaded', function () {
     // (não soma a) qualquer tema/card de estatística já ativo na URL, daí
     // as chamadas abaixo usarem só `q`, nunca tema/filtro da página atual.
     const cardsGridExiste = !!document.getElementById('cards-todas');
+    // Se a página já carregou com um filtro de verdade aplicado (veio de um
+    // ?q=/?tema=/?filtro= submetido, não só digitação ao vivo), Urgentes/
+    // Áreas de interesse/Em alta/Últimos acessados nem existem no DOM
+    // (`{% if not filtro_ativo %}` no template) e o título da seção
+    // consolidada ("Busca por X (N)") é só texto estático -- não dá pra
+    // "desfazer" isso trocando só o conteúdo de #cards-todas via fetch, sem
+    // duplicar em JS a lógica de montagem que já existe (e deveria
+    // continuar existindo só) no template. Nesse caso, limpar a busca
+    // navega pro link "Limpar filtro" de verdade (mesma URL que o próprio
+    // servidor já usa), em vez de só ajustar pedaços incompletos via AJAX
+    // (achado via captura de tela real, 2026-08-14 -- limpar o campo numa
+    // página vinda de busca submetida deixava o título e as seções
+    // originais sumidas mesmo com o "x" clicado).
+    const limparFiltroLink = document.querySelector('.filtro-limpar-link');
 
     function hide() {
       box.classList.add('hidden');
@@ -122,7 +136,11 @@ window.addEventListener('DOMContentLoaded', function () {
         // a pessoa clicar em outro lugar ou recarregar a página (achado via
         // captura de tela real, 2026-08-14).
         if (term.length === 0) {
-          fetchLivePreview('');
+          if (limparFiltroLink) {
+            window.location.href = limparFiltroLink.href;
+          } else {
+            fetchLivePreview('');
+          }
         }
         return;
       }
