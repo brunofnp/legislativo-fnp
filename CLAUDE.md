@@ -327,6 +327,50 @@ Estas são decisões arquiteturais fechadas para o projeto. Se uma sugestão min
 
 ---
 
+## Postura de segurança (referência rápida)
+
+> Histórico completo, com o raciocínio por trás de cada item (o que foi
+> corrigido, o que foi decisão consciente, o que ainda está pendente):
+> `docs/adr/0003-seguranca-auditoria-hardening.md`. Esta seção é só o
+> resumo do estado atual — atualizar aqui quando algo mudar, mas deixar a
+> narrativa completa no ADR.
+
+O projeto é tratado como alvo plausível de ataque (fórum de discussão
+política pública, cadastro aberto) — não como sistema interno de baixo
+risco. Duas rodadas de auditoria já feitas: hardening geral em 2026-08-06
+(junto do upgrade Django 4.2→5.2) e pentest completo de 48 itens em
+2026-08-11 (relatório → correção → revarredura, no mesmo dia).
+
+| Área | Estado |
+|---|---|
+| Framework | Django 5.2 LTS (suporte até abril/2028), `django-allauth` 65.x |
+| `DEBUG`/`SECRET_KEY` | Fail-closed — produção sem `SECRET_KEY` não sobe |
+| HTTPS/HSTS | `SECURE_SSL_REDIRECT`, HSTS 1 ano + subdomínios + preload, cookies `Secure` (só com `DEBUG=False`) |
+| CSP | Ativo, `script-src` com nonce, sem `'unsafe-inline'` em nenhuma diretiva |
+| Rate limit | Comentário/participação/denúncia + login (allauth nativo), IP real via `X-Forwarded-For` (não `REMOTE_ADDR` cru) |
+| Senha | Mínimo 10 caracteres (`MinimumLengthValidator`), sem regra extra de complexidade (orientação NIST/OWASP atual) |
+| Sessão | Expira em 7 dias (`SESSION_COOKIE_AGE`) |
+| 2FA | Disponível em `/contas/2fa/`, **opcional** — não obrigatório pra staff (decisão consciente, ver Diretrizes) |
+| Dependências | `requirements.lock` com hash; `pip-audit` no CI a cada push/PR |
+| Monitoramento | Sentry ativo em produção (`SENTRY_DSN`) |
+| Log de auditoria | `TentativaLogin` (sucesso/falha de login) + `LogEntry` explícito em aprovação/rejeição de cadastro/exclusão em massa |
+| Infraestrutura | Cloud Firewall DO + `ufw` (só 22/80/443), SSH key-only, `fail2ban` ativo, Trusted Sources do banco restrito ao droplet + 1 IP |
+
+**Pendências de segurança em aberto** (lista completa e atualizada em
+"Pendências e próximos passos" mais abaixo): rotacionar `SECRET_KEY` +
+senha da role `legislativo` + `GOOGLE_CLIENT_SECRET` (expostos num print
+do `.env`); desativar o Client Secret antigo do Google no Console;
+decidir se `acoes_incidencia`/`riscos_oportunidades` deveriam exigir
+login; configurar `EMAIL_BACKEND` real em produção; atualizações de
+SO/Docker com reboot pendente (adiado, droplet compartilhado).
+
+**Regra permanente**: qualquer credencial exposta em captura de tela ou
+terminal colado no chat (mesmo já rotacionada antes) merece rotação —
+já aconteceu duas vezes com a mesma credencial (`doadmin`) nesta sessão
+de auditoria. Nunca colar comando com senha visível sem necessidade.
+
+---
+
 ## Regras de colaboração
 
 1. **Nunca** adicionar `Co-Authored-By: Claude` em commits
@@ -2049,4 +2093,5 @@ compose ps` → `(healthy)`, `curl` → `200 OK`.
 | `docs/runbook.md` | Operação e procedimentos de execução |
 | `docs/adr/0001-initial-architecture.md` | Arquitetura inicial do projeto |
 | `docs/adr/0002-deploy-producao-dominio.md` | Como o projeto foi pro ar em `legislativo.fnp.org.br` — infraestrutura, passo a passo e cronologia real do primeiro deploy (2026-08-03/05) |
+| `docs/adr/0003-seguranca-auditoria-hardening.md` | Auditorias de segurança, hardening, decisões conscientes e pendências — histórico completo (ver também "Postura de segurança" acima, no corpo deste arquivo) |
 | `CONTRIBUTING.md` | Padrões de contribuição |
