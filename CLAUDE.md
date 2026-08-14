@@ -1779,6 +1779,18 @@ Nenhuma mudança de código nesta sessão — só verificação. Servidor de
 dev local parado e usuários de teste (`mobiletest`, `verifytest`)
 removidos ao final.
 
+### Promoção `next` → `main` → produção → droplet (2026-08-14)
+
+A pedido do usuário ("vamos subir tudo que fizemos até agora pra a
+next e para a produção e droplet"), `check`/`makemigrations --check`/78
+testes/`ruff` revalidados antes do push; `main` local (`2153484`) era
+fast-forward puro com `next` (`bb62fa7`, 1 commit — só o registro da
+verificação visual acima, sem mudança de código). Push pra `origin` e
+`production`; CI verde nos dois. Deploy no droplet via SSH sem
+migration nesta leva; `docker compose ps` → `(healthy)`, `curl -sI
+https://legislativo.fnp.org.br/` → `200 OK` com todos os cabeçalhos de
+segurança esperados.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
