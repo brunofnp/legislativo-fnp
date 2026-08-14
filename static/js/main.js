@@ -116,6 +116,14 @@ window.addEventListener('DOMContentLoaded', function () {
       clearTimeout(debounceTimer);
       if (term.length < 2) {
         hide();
+        // Campo zerado (inclusive pelo "x" nativo do <input type="search">,
+        // que dispara input normalmente) -- volta pros cards sem filtro
+        // nenhum, em vez de deixar o preview anterior travado na tela até
+        // a pessoa clicar em outro lugar ou recarregar a página (achado via
+        // captura de tela real, 2026-08-14).
+        if (term.length === 0) {
+          fetchLivePreview('');
+        }
         return;
       }
       debounceTimer = setTimeout(() => {
