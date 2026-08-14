@@ -1727,6 +1727,58 @@ Com isso, **tudo que estava pendente de promoção nesta sessão já está
 em produção** — não sobrou nenhum item "só em `next`" da lista de
 fixes de hoje.
 
+### Verificação visual pendente de duas rodadas antigas (2026-08-14)
+
+A pedido do usuário ("vamos voltar para as pendências do projeto"),
+fechada uma pendência que vinha se arrastando desde 2026-08-07/08-10:
+tanto a "rodada de 23 pedidos" quanto os "5 ajustes finos" do Admin
+tinham sido validados só por teste de servidor (`Client`/`RequestFactory`),
+nunca conferidos de fato renderizados num navegador. Usando Playwright
+contra o servidor de dev local, checado item a item:
+
+**Rodada de 23 pedidos (2026-08-10)** — todos confirmados funcionando:
+`.detail-grid` com `align-items: start` (Resumo não deforma mais),
+resposta aninhada do fórum renderiza de verdade, formulário de
+"Enviar Participação" não aparece mais no fórum (o "achado" inicial do
+script de teste foi falso positivo — bateu no formulário de comentário,
+que reaproveita a classe CSS `.participation-form` por herança visual,
+não o formulário de participação de fato), botão/contagem de curtir
+presente, card de estatística é um `<a>` clicável de verdade, filtro
+ativo mostra "Limpar filtro ×" e consolida a seção (`Urgentes (17)` no
+teste), API de preview de busca responde 200, pilha de navegação
+"Voltar" no `sessionStorage` funciona (testado navegando A→B→C e
+confirmando que "Voltar" sai da página C de verdade), campo de e-mail
+editável no perfil, `/participacoes/` carrega mostrando só as próprias
+(estado vazio correto pro usuário de teste sem comentários), página de
+perfil público de usuário carrega a partir do link do fórum,
+`/conta/solicitar-exclusao/` mostra sidebar + ícone de alerta + lista
+de consequências + botão Cancelar ao lado do de confirmar, troca de
+senha pede senha atual pra conta com senha local. Testado também à
+parte, direto via `shell` (mais confiável que clicar no widget
+JS do Admin): entrar no grupo "Administrador FNP" seta `is_staff=True`
+automaticamente (`sincronizar_staff_por_grupo`); sair do grupo
+mantém `is_staff=True` (comportamento intencional — o sinal só reage a
+`post_add`, nunca rebaixa sozinho, confirmado lendo `signals.py`, não é
+bug). `initPreventDoubleSubmit` (proteção contra notificação
+duplicada) confirmado presente e correto em `main.js`.
+
+**5 ajustes finos do Admin (2026-08-07)** — todos confirmados: `#branding`
+é `flex` (casinha ao lado do título), título do Admin e "Painel Geral"
+do site têm exatamente o mesmo `font-size` (17.6px = 1.1rem), botão de
+Ajuda do Admin sem borda/fundo nativo do navegador, avatar mantém
+`border-radius: 999px` mesmo com foco de teclado (não vira retângulo),
+botão "voltar ao topo" aparece ao rolar além de 500px, fonte da sidebar
+do site público em 14.4px (0.9rem). **Achado no caminho**: minha
+primeira tentativa de medir a largura dos modais de tour/ajuda deu
+"1400px" (falso alarme) — o seletor tinha pego o *backdrop* (que cobre
+a tela toda), não o painel interno (`.tour-modal-panel`/
+`.help-modal-panel`); corrigindo o seletor, os dois batem exatamente
+com o que foi documentado (`460px`/`540px`).
+
+Nenhuma mudança de código nesta sessão — só verificação. Servidor de
+dev local parado e usuários de teste (`mobiletest`, `verifytest`)
+removidos ao final.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
@@ -1776,16 +1828,13 @@ fixes de hoje.
   reboot derruba todos juntos, não só o nosso; usuário optou por não
   mexer agora pra não impactar os outros sistemas sem coordenar antes.
   Precisa de uma janela combinada com quem administra os demais.
-- **Conferir visualmente no navegador a rodada de 23 itens acima** — só
-  o lado servidor foi validado (testes + smoke test via `Client`); nada
-  foi visto renderizado de verdade. Prioridade: cards de estatística
-  clicáveis, colapso/consolidação do filtro da home, layout do fórum com
-  respostas aninhadas + like, botão "Voltar" em fluxos reais de
-  navegação.
-- **Confirmar visualmente no navegador se os 5 ajustes finos da rodada
-  anterior ficaram bons** (header do Admin, tour, contorno de foco,
-  largura dos modais, fonte da sidebar) — já em produção, mas sem
-  confirmação visual final do usuário ainda.
+- ~~Conferir visualmente no navegador a rodada de 23 itens acima~~ —
+  **resolvido em 2026-08-14**, ver seção datada "Verificação visual
+  pendente de duas rodadas antigas" logo abaixo. Tudo confirmado
+  funcionando via Playwright contra o dev local.
+- ~~Confirmar visualmente no navegador se os 5 ajustes finos da rodada
+  anterior ficaram bons~~ — **resolvido em 2026-08-14**, mesma seção
+  acima. Todos os 5 confirmados corretos.
 - ~~Decidir o que fazer com as proposições não-curadas já em produção~~ —
   **resolvido em 2026-08-11**: `sync_legado_firestore --keep-json`
   rodado em produção pra restaurar/corrigir os 104 registros curados
