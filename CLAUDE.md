@@ -1851,6 +1851,31 @@ entrega de verdade quando `EMAIL_BACKEND` estiver configurado com um
 provedor real (SMTP/SES/etc.) — mesma pendência já registrada mais
 abaixo; até lá, o e-mail é "enviado" mas não chega em lugar nenhum.
 
+### Rodapé: remove "Solicitar exclusão" duplicado, centraliza "Siga-nos" (2026-08-14, mesma sessão)
+
+Dois ajustes de UX a pedido do usuário, a partir de captura de tela
+real: "Solicitar exclusão" no rodapé da home era duplicado (já existe
+na sidebar do perfil, Privacidade → Excluir conta) — removido do
+rodapé, confirmado que continua acessível pela sidebar. "Siga-nos" e a
+fileira de ícones de redes sociais só ficavam alinhados à esquerda
+entre si (`justify-items: start`), sem centralizar um em relação ao
+outro — trocado pra `justify-items: center`. `check`/80 testes/`ruff`
+limpos; 39 checagens de scroll horizontal sem regressão.
+
+### Promoção `next` → `main` → produção → droplet (2026-08-14, fim da sessão)
+
+A pedido do usuário, `check`/`makemigrations --check`/80 testes/`ruff`
+revalidados antes do push; `main` local (`bb62fa7`) era fast-forward
+puro com `next` (`3dc4c6e`, 6 commits — os fixes de UX da home
+descritos acima, o e-mail de aviso de cadastro pendente e os ajustes
+do rodapé). Push pra `origin` e `production`; CI verde nos dois. Deploy
+no droplet via SSH sem migration nesta leva; `docker compose ps` →
+`(healthy)`, `curl -sI https://legislativo.fnp.org.br/` → `200 OK` com
+todos os cabeçalhos de segurança esperados. As novas settings de
+e-mail (`DEFAULT_FROM_EMAIL`, `CADASTRO_PENDENTE_NOTIFICACAO_EMAILS`,
+`SITE_URL`) subiram com os valores padrão embutidos no código, sem
+precisar mexer no `.env` do servidor.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
