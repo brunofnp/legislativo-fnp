@@ -1510,6 +1510,85 @@ body {
   color: var(--text-secondary, #475569);
 }
 
+.anexos-lista {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.anexo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.8rem;
+}
+
+.anexo-icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.anexo-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.anexo-nome {
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  text-decoration: none;
+  overflow-wrap: break-word;
+}
+
+.anexo-nome:hover {
+  text-decoration: underline;
+}
+
+.anexo-meta {
+  font-size: 0.76rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.anexo-excluir-form {
+  margin: 0;
+}
+
+.anexo-excluir-btn {
+  border: none;
+  background: none;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.anexo-excluir-btn:hover {
+  color: #dc2626;
+}
+
+.anexo-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.anexo-form input[type="text"],
+.anexo-form input[type="file"] {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 1rem;
+  font-size: 0.9rem;
+}
+
 .participation-form {
   display: grid;
   gap: 1rem;

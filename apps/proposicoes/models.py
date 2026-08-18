@@ -1,5 +1,18 @@
+import os
+
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
+
+ANEXO_TAMANHO_MAXIMO_MB = 10
+ANEXO_EXTENSOES_PERMITIDAS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png']
+
+
+def validar_tamanho_anexo(arquivo):
+    limite = ANEXO_TAMANHO_MAXIMO_MB * 1024 * 1024
+    if arquivo.size > limite:
+        raise ValidationError(f'Arquivo muito grande (máx. {ANEXO_TAMANHO_MAXIMO_MB}MB).')
 
 
 class Macrotema(models.Model):
@@ -141,3 +154,44 @@ class Noticia(models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+class AnexoProposicao(models.Model):
+    """Documentos/ementas anexados por prefeitos, indicados de prefeitura ou
+    parlamentares (ver Perfil.classe_usuario) -- complementa o mérito e
+    subsídios da FNP com material trazido pela própria base de usuários."""
+
+    proposicao = models.ForeignKey(
+        Proposicao,
+        on_delete=models.CASCADE,
+        related_name='anexos',
+    )
+    arquivo = models.FileField(
+        upload_to='anexos_proposicoes/%Y/%m/',
+        validators=[validar_tamanho_anexo, FileExtensionValidator(ANEXO_EXTENSOES_PERMITIDAS)],
+    )
+    titulo = models.CharField(max_length=255, blank=True)
+    enviado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='anexos_enviados',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Anexo da proposição'
+        verbose_name_plural = 'Anexos da proposição'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return self.nome_exibicao
+
+    @property
+    def nome_exibicao(self):
+        return self.titulo or os.path.basename(self.arquivo.name)
+
+    @property
+    def extensao(self):
+        return os.path.splitext(self.arquivo.name)[1].lstrip('.').lower()

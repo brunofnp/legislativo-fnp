@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.text import slugify
 
 from apps.comentarios.models import Comentario
+from apps.proposicoes.models import AnexoProposicao
 from apps.usuarios.models import Municipio, Perfil, Usuario
 
 CLASSE_USUARIO_SIGNUP_CHOICES = [
@@ -201,5 +202,18 @@ class ComentarioForm(forms.ModelForm):
         self.fields['parent'].queryset = (
             Comentario.objects.filter(proposicao=proposicao) if proposicao else Comentario.objects.none()
         )
+
+
+class AnexoProposicaoForm(forms.ModelForm):
+    class Meta:
+        model = AnexoProposicao
+        fields = ['arquivo', 'titulo']
+        widgets = {
+            'titulo': forms.TextInput(attrs={'placeholder': 'Título do documento (opcional)'}),
+        }
+        labels = {
+            'arquivo': 'Arquivo',
+            'titulo': 'Título',
+        }
 
 

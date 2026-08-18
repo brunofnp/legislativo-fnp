@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
+from .models import AnexoProposicao, EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 
 
 @admin.register(Macrotema)
@@ -35,6 +35,13 @@ class NoticiaInline(admin.TabularInline):
     fields = ('titulo', 'url', 'publicado_em')
 
 
+class AnexoProposicaoInline(admin.TabularInline):
+    model = AnexoProposicao
+    extra = 0
+    fields = ('titulo', 'arquivo', 'enviado_por', 'criado_em')
+    readonly_fields = ('enviado_por', 'criado_em')
+
+
 @admin.register(Proposicao)
 class ProposicaoAdmin(admin.ModelAdmin):
     list_display = (
@@ -48,7 +55,7 @@ class ProposicaoAdmin(admin.ModelAdmin):
     search_fields = ('titulo', 'ementa_resumida')
     date_hierarchy = 'atualizado_em'
     autocomplete_fields = ['macrotema', 'temas']
-    inlines = [EdicaoMeritoHistoricoInline, NoticiaInline]
+    inlines = [EdicaoMeritoHistoricoInline, NoticiaInline, AnexoProposicaoInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('macrotema')
@@ -104,3 +111,14 @@ class NoticiaAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('proposicao')
+
+
+@admin.register(AnexoProposicao)
+class AnexoProposicaoAdmin(admin.ModelAdmin):
+    list_display = ('nome_exibicao', 'proposicao', 'enviado_por', 'criado_em')
+    search_fields = ('titulo', 'proposicao__titulo')
+    autocomplete_fields = ['proposicao']
+    readonly_fields = ('enviado_por', 'criado_em')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('proposicao', 'enviado_por')

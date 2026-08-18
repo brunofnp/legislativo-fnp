@@ -140,6 +140,46 @@
             </div>
           </div>
         </div>
+
+        <div class="panel-block anexos-panel">
+          <h2>Documentos e anexos</h2>
+          {% with anexos=proposicao.anexos.all %}
+            {% if anexos %}
+              <ul class="anexos-lista">
+                {% for anexo in anexos %}
+                  <li class="anexo-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="anexo-icon"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14.5 2v5.5H20"/></svg>
+                    <div class="anexo-info">
+                      <a href="{{ anexo.arquivo.url }}" target="_blank" rel="noopener" class="anexo-nome">{{ anexo.nome_exibicao }}</a>
+                      <span class="anexo-meta">
+                        Enviado por {{ anexo.enviado_por.get_display_name|default:'usuário removido' }} em {{ anexo.criado_em|date:'d/m/Y' }}
+                      </span>
+                    </div>
+                    {% if request.user.is_authenticated and anexo.enviado_por_id == request.user.id or request.user.is_staff %}
+                      <form method="post" action="{% url 'legislativo:excluir_anexo' anexo.pk %}" class="anexo-excluir-form" onsubmit="return confirm('Excluir este anexo? Não dá pra desfazer.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                        <button type="submit" class="anexo-excluir-btn" aria-label="Excluir anexo">×</button>
+                      </form>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>Nenhum documento anexado ainda.</p>
+            {% endif %}
+          {% endwith %}
+          {% if request.user.is_authenticated %}
+            <form method="post" action="{% url 'legislativo:enviar_anexo' proposicao.pk %}" enctype="multipart/form-data" class="anexo-form">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+              <label class="field-label" for="{{ anexo_form.arquivo.id_for_label }}">Anexar documento (PDF, Word, Excel ou imagem — até 10MB)</label>
+              {{ anexo_form.arquivo }}
+              {{ anexo_form.titulo }}
+              <button class="fbtn" type="submit">Enviar anexo</button>
+            </form>
+          {% endif %}
+        </div>
       </section>
 
       <aside class="detail-sidebar">

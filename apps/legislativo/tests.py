@@ -16,7 +16,7 @@ from PIL import Image
 
 from apps.comentarios.models import Comentario, ComentarioLike, PalavraProibida
 from apps.comentarios.moderacao import classificar_comentario, contem_palavra_proibida
-from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
+from apps.proposicoes.models import AnexoProposicao, EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 from apps.usuarios.middleware import CadastroPendenteMiddleware, MFAObrigatorioStaffMiddleware
 from apps.usuarios.models import Perfil, Usuario
 
@@ -706,6 +706,77 @@ class DominioFilterTest(TestCase):
         self.assertEqual(dominio('https://www.camara.leg.br/noticias/x'), 'CAMARA.LEG.BR')
         self.assertEqual(dominio('https://cmbh.mg.gov.br/x'), 'CMBH.MG.GOV.BR')
         self.assertEqual(dominio(''), '')
+
+
+class AnexoProposicaoTest(TestCase):
+    """Anexos de documentos/ementas na proposição -- qualquer usuário
+    autenticado e aprovado envia; exclusão só pelo autor do envio ou staff
+    (mesmo modelo de excluir_comentario)."""
+
+    def setUp(self):
+        cache.clear()
+        self.proposicao = Proposicao.objects.create(titulo='PL com anexo', casa='camara')
+        self.usuario = Usuario.objects.create_user(username='anexador', email='anexador@fnp.org.br', password='x')
+        self.usuario.perfil.status_aprovacao = Perfil.APROVADO
+        self.usuario.perfil.save()
+
+    def test_upload_valido_cria_anexo(self):
+        self.client.force_login(self.usuario)
+        arquivo = SimpleUploadedFile('ementa.pdf', b'%PDF-1.4 conteudo falso', content_type='application/pdf')
+        response = self.client.post(
+            reverse('legislativo:enviar_anexo', args=[self.proposicao.pk]),
+            {'arquivo': arquivo, 'titulo': 'Ementa oficial'},
+        )
+        self.assertEqual(response.status_code, 302)
+        anexo = self.proposicao.anexos.get()
+        self.assertEqual(anexo.titulo, 'Ementa oficial')
+        self.assertEqual(anexo.enviado_por, self.usuario)
+
+    def test_extensao_nao_permitida_e_rejeitada(self):
+        self.client.force_login(self.usuario)
+        arquivo = SimpleUploadedFile('script.exe', b'conteudo', content_type='application/octet-stream')
+        self.client.post(reverse('legislativo:enviar_anexo', args=[self.proposicao.pk]), {'arquivo': arquivo})
+        self.assertEqual(self.proposicao.anexos.count(), 0)
+
+    def test_arquivo_maior_que_o_limite_e_rejeitado(self):
+        from django.core.exceptions import ValidationError
+
+        from apps.proposicoes.models import ANEXO_TAMANHO_MAXIMO_MB, validar_tamanho_anexo
+
+        arquivo = SimpleUploadedFile('grande.pdf', b'x')
+        arquivo.size = ANEXO_TAMANHO_MAXIMO_MB * 1024 * 1024 + 1  # simula arquivo grande sem gerar bytes reais
+        with self.assertRaises(ValidationError):
+            validar_tamanho_anexo(arquivo)
+
+    def test_exclusao_por_outro_usuario_nao_apaga(self):
+        anexo = AnexoProposicao.objects.create(
+            proposicao=self.proposicao, arquivo=SimpleUploadedFile('doc.pdf', b'x'), enviado_por=self.usuario,
+        )
+        outro = Usuario.objects.create_user(username='outroanexo', email='outroanexo@fnp.org.br', password='x')
+        outro.perfil.status_aprovacao = Perfil.APROVADO
+        outro.perfil.save()
+        self.client.force_login(outro)
+        self.client.post(reverse('legislativo:excluir_anexo', args=[anexo.pk]))
+        self.assertTrue(AnexoProposicao.objects.filter(pk=anexo.pk).exists())
+
+    def test_autor_exclui_o_proprio_anexo(self):
+        anexo = AnexoProposicao.objects.create(
+            proposicao=self.proposicao, arquivo=SimpleUploadedFile('doc.pdf', b'x'), enviado_por=self.usuario,
+        )
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('legislativo:excluir_anexo', args=[anexo.pk]))
+        self.assertFalse(AnexoProposicao.objects.filter(pk=anexo.pk).exists())
+
+    def test_staff_exclui_anexo_de_outro(self):
+        anexo = AnexoProposicao.objects.create(
+            proposicao=self.proposicao, arquivo=SimpleUploadedFile('doc.pdf', b'x'), enviado_por=self.usuario,
+        )
+        staff = Usuario.objects.create_user(
+            username='staffanexo', email='staffanexo@fnp.org.br', password='x', is_staff=True,
+        )
+        self.client.force_login(staff)
+        self.client.post(reverse('legislativo:excluir_anexo', args=[anexo.pk]))
+        self.assertFalse(AnexoProposicao.objects.filter(pk=anexo.pk).exists())
 
 
 class EnviarParticipacaoRemovidaTest(TestCase):

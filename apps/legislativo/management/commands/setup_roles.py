@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.comentarios.models import Comentario, Participacao
-from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
+from apps.proposicoes.models import AnexoProposicao, EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 from apps.usuarios.models import Usuario
 
 ROOT_EMAIL_PADRAO = 'bruno.marra@fnp.org.br'
@@ -20,6 +20,7 @@ ADMINISTRADOR_PERMISSOES = {
     Macrotema: ['view', 'add', 'change'],
     Tema: ['view', 'add', 'change'],
     Noticia: ['view', 'add', 'change'],
+    AnexoProposicao: ['view', 'add', 'change', 'delete'],
     Participacao: ['view'],
     EdicaoMeritoHistorico: ['view'],
 }

@@ -16,10 +16,10 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.comentarios.models import Comentario, ComentarioLike, DenunciaComentario, Notificacao
 from apps.comentarios.moderacao import classificar_comentario
-from apps.proposicoes.models import Macrotema, Proposicao, Tema
+from apps.proposicoes.models import AnexoProposicao, Macrotema, Proposicao, Tema
 from apps.usuarios.models import Usuario
 
-from .forms import ComentarioForm, PerfilDadosForm, PerfilForm
+from .forms import AnexoProposicaoForm, ComentarioForm, PerfilDadosForm, PerfilForm
 from .throttling import rate_limited
 
 FAVORITOS_SESSION_KEY = 'favoritos'
@@ -407,6 +407,40 @@ def excluir_comentario(request, pk):
 
 @login_required
 @require_POST
+def enviar_anexo(request, pk):
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+    if not rate_limited('anexo', request, limit=5, window_seconds=600):
+        form = AnexoProposicaoForm(request.POST, request.FILES)
+        if form.is_valid():
+            anexo = form.save(commit=False)
+            anexo.proposicao = proposicao
+            anexo.enviado_por = request.user
+            anexo.save()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=proposicao.pk)
+
+
+@login_required
+@require_POST
+def excluir_anexo(request, pk):
+    """Só o autor do envio ou staff (Root/Administrador FNP) excluem --
+    mesmo modelo de excluir_comentario."""
+    anexo = get_object_or_404(AnexoProposicao, pk=pk)
+    proposicao_id = anexo.proposicao_id
+    if anexo.enviado_por_id == request.user.id or request.user.is_staff:
+        anexo.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=proposicao_id)
+
+
+@login_required
+@require_POST
 def curtir_comentario(request, pk):
     comentario = get_object_or_404(Comentario, pk=pk)
     like, criado = ComentarioLike.objects.get_or_create(comentario=comentario, usuario=request.user)
@@ -507,6 +541,7 @@ class ProposicaoDetailView(View):
                 'proposicao': proposicao,
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
+                'anexo_form': AnexoProposicaoForm(),
                 'favoritos_ids': get_favoritos_ids(request),
                 **self._breadcrumb(),
                 **self._forum_context(proposicao, request.user),
@@ -543,6 +578,7 @@ class ProposicaoDetailView(View):
                 'proposicao': proposicao,
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
+                'anexo_form': AnexoProposicaoForm(),
                 'favoritos_ids': get_favoritos_ids(request),
                 'success_message': success_message,
                 **self._breadcrumb(),
