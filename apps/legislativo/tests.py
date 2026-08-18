@@ -779,6 +779,68 @@ class AnexoProposicaoTest(TestCase):
         self.assertFalse(AnexoProposicao.objects.filter(pk=anexo.pk).exists())
 
 
+class ComentarioMidiaTest(TestCase):
+    """Foto/vídeo opcional no comentário do fórum -- 1 arquivo por comentário,
+    sem moderação de conteúdo além do que já existe pro texto."""
+
+    def setUp(self):
+        cache.clear()
+        self.proposicao = Proposicao.objects.create(titulo='PL com mídia no fórum', casa='camara')
+        self.usuario = Usuario.objects.create_user(username='midiador', email='midiador@fnp.org.br', password='x')
+        self.usuario.perfil.status_aprovacao = Perfil.APROVADO
+        self.usuario.perfil.save()
+        self.client.force_login(self.usuario)
+
+    def _postar(self, midia):
+        return self.client.post(
+            reverse('legislativo:proposicao_detail', args=[self.proposicao.pk]),
+            {'texto': 'Comentário com mídia', 'parent': '', 'midia': midia},
+        )
+
+    def test_comentario_com_imagem_e_publicado(self):
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2)).save(buffer, format='PNG')
+        arquivo = SimpleUploadedFile('foto.jpg', buffer.getvalue(), content_type='image/jpeg')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertTrue(comentario.midia)
+        self.assertEqual(comentario.tipo_midia, 'imagem')
+
+    def test_comentario_com_video_e_publicado(self):
+        arquivo = SimpleUploadedFile('registro.mp4', b'conteudo de video falso', content_type='video/mp4')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertEqual(comentario.tipo_midia, 'video')
+
+    def test_extensao_nao_permitida_e_rejeitada(self):
+        arquivo = SimpleUploadedFile('arquivo.exe', b'conteudo', content_type='application/octet-stream')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.proposicao.comentarios.count(), 0)
+
+    def test_video_maior_que_o_limite_e_rejeitado(self):
+        from django.core.exceptions import ValidationError
+
+        from apps.comentarios.models import COMENTARIO_VIDEO_TAMANHO_MAXIMO_MB, validar_tamanho_midia_comentario
+
+        arquivo = SimpleUploadedFile('grande.mp4', b'x')
+        arquivo.size = COMENTARIO_VIDEO_TAMANHO_MAXIMO_MB * 1024 * 1024 + 1
+        with self.assertRaises(ValidationError):
+            validar_tamanho_midia_comentario(arquivo)
+
+    def test_comentario_sem_midia_continua_funcionando(self):
+        response = self.client.post(
+            reverse('legislativo:proposicao_detail', args=[self.proposicao.pk]),
+            {'texto': 'Comentário só texto', 'parent': ''},
+        )
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertFalse(comentario.midia)
+        self.assertIsNone(comentario.tipo_midia)
+
+
 class EnviarParticipacaoRemovidaTest(TestCase):
     def test_pagina_da_proposicao_nao_tem_mais_o_formulario_avulso(self):
         proposicao = Proposicao.objects.create(titulo='PL sem participação avulsa', casa='camara')

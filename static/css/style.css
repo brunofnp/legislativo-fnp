@@ -1810,6 +1810,27 @@ body {
   overflow-wrap: break-word;
 }
 
+.comment-midia-link {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.comment-midia-imagem {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 0.75rem;
+  object-fit: cover;
+}
+
+.comment-midia-video {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .comment-reply-btn {
   border: none;
   background: none;

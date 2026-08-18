@@ -556,7 +556,7 @@ class ProposicaoDetailView(View):
         if rate_limited('comentario', request, limit=5, window_seconds=300):
             success_message = 'Você enviou comentários rápido demais. Aguarde alguns minutos e tente novamente.'
         else:
-            comentario_form = ComentarioForm(request.POST, proposicao=proposicao)
+            comentario_form = ComentarioForm(request.POST, request.FILES, proposicao=proposicao)
             if comentario_form.is_valid():
                 comentario = comentario_form.save(commit=False)
                 comentario.proposicao = proposicao

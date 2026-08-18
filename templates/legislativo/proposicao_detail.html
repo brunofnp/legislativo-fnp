@@ -213,7 +213,7 @@
           {% else %}
             <p>Ainda não há comentários. Seja o primeiro a comentar nesta proposição.</p>
           {% endif %}
-          <form method="post" class="participation-form" id="form-comentario">
+          <form method="post" class="participation-form" id="form-comentario" enctype="multipart/form-data">
             {% csrf_token %}
             {{ comentario_form.parent }}
             <div class="comment-reply-indicator hidden" id="comment-reply-indicator">
@@ -222,6 +222,8 @@
             </div>
             <label class="field-label" for="{{ comentario_form.texto.id_for_label }}">Comentário</label>
             {{ comentario_form.texto }}
+            <label class="field-label" for="{{ comentario_form.midia.id_for_label }}">Foto ou vídeo (opcional)</label>
+            {{ comentario_form.midia }}
             <button class="fbtn" type="submit">Publicar comentário</button>
           </form>
         </div>

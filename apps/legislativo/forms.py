@@ -182,13 +182,15 @@ class PerfilDadosForm(forms.ModelForm):
 class ComentarioForm(forms.ModelForm):
     class Meta:
         model = Comentario
-        fields = ['texto', 'parent']
+        fields = ['texto', 'parent', 'midia']
         widgets = {
             'texto': forms.Textarea(attrs={'rows': 4, 'class': 'input-wide'}),
             'parent': forms.HiddenInput(),
+            'midia': forms.ClearableFileInput(attrs={'accept': 'image/*,video/*'}),
         }
         labels = {
             'texto': 'Comentário',
+            'midia': 'Foto ou vídeo (opcional)',
         }
 
     def __init__(self, *args, proposicao=None, **kwargs):
