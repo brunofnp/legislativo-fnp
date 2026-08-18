@@ -16,7 +16,7 @@ from PIL import Image
 
 from apps.comentarios.models import Comentario, ComentarioLike, PalavraProibida
 from apps.comentarios.moderacao import classificar_comentario, contem_palavra_proibida
-from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Proposicao, Tema
+from apps.proposicoes.models import EdicaoMeritoHistorico, Macrotema, Noticia, Proposicao, Tema
 from apps.usuarios.middleware import CadastroPendenteMiddleware, MFAObrigatorioStaffMiddleware
 from apps.usuarios.models import Perfil, Usuario
 
@@ -666,6 +666,46 @@ class RespostaAninhadaTest(TestCase):
         # "Responder" precisa existir também dentro do bloco aninhado, não só
         # no comentário raiz -- checa que aparece mais de uma vez.
         self.assertGreater(content.count('data-parent-id="'), 1)
+
+
+class NoticiasRelacionadasTest(TestCase):
+    """Seção "Notícias relacionadas" na página da proposição -- reaproveita o
+    model Noticia (já existente, sem migration nova) e o filtro `dominio`
+    (apps.legislativo.templatetags.legislativo_extras)."""
+
+    def test_noticia_aparece_com_link_clicavel_e_badge_de_dominio(self):
+        proposicao = Proposicao.objects.create(titulo='PL com notícia', casa='camara')
+        Noticia.objects.create(
+            proposicao=proposicao,
+            titulo='Câmara aprova projeto',
+            url='https://www.folhavitoria.com.br/materia-x',
+        )
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = Usuario.objects.create(username='leitornoticia', email='leitornoticia@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('Câmara aprova projeto', content)
+        self.assertIn('https://www.folhavitoria.com.br/materia-x', content)
+        self.assertIn('FOLHAVITORIA.COM.BR', content)
+
+    def test_sem_noticia_mostra_estado_vazio(self):
+        proposicao = Proposicao.objects.create(titulo='PL sem notícia', casa='camara')
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = Usuario.objects.create(username='semnoticia', email='semnoticia@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('Nenhuma notícia registrada para esta proposição.', content)
+
+
+class DominioFilterTest(TestCase):
+    def test_extrai_dominio_sem_www(self):
+        from apps.legislativo.templatetags.legislativo_extras import dominio
+
+        self.assertEqual(dominio('https://www.camara.leg.br/noticias/x'), 'CAMARA.LEG.BR')
+        self.assertEqual(dominio('https://cmbh.mg.gov.br/x'), 'CMBH.MG.GOV.BR')
+        self.assertEqual(dominio(''), '')
 
 
 class EnviarParticipacaoRemovidaTest(TestCase):

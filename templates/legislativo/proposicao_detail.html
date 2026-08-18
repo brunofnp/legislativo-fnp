@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load legislativo_extras %}
 
 {% block title %}{{ proposicao.titulo }} | Painel Legislativo FNP{% endblock %}
 
@@ -98,6 +99,28 @@
         <div class="panel-block">
           <h2>Última movimentação</h2>
           <p>{{ proposicao.ultima_movimentacao|default:'Sem movimentação registrada.' }}</p>
+        </div>
+
+        <div class="panel-block noticias-panel">
+          <h2>Notícias relacionadas</h2>
+          {% with noticias=proposicao.noticias.all %}
+            {% if noticias %}
+              <ul class="noticias-lista">
+                {% for noticia in noticias %}
+                  <li class="noticia-card">
+                    <a href="{{ noticia.url }}" target="_blank" rel="noopener" class="noticia-titulo">{{ noticia.titulo }}</a>
+                    <div class="noticia-meta">
+                      {% if noticia.url %}<span class="noticia-badge">{{ noticia.url|dominio }}</span>{% endif %}
+                      {% if noticia.publicado_em %}<span class="noticia-data">{{ noticia.publicado_em|date:'d/m/Y' }}</span>{% endif %}
+                    </div>
+                    {% if noticia.resumo %}<p class="noticia-resumo">{{ noticia.resumo|truncatewords:30 }}</p>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>Nenhuma notícia registrada para esta proposição.</p>
+            {% endif %}
+          {% endwith %}
         </div>
 
         <div class="panel-block merit-panel">
