@@ -495,6 +495,69 @@ class UsernamePadraoTest(TestCase):
         self.assertEqual(usuario.username, 'nucleo')
 
 
+class ClasseUsuarioTest(TestCase):
+    """Classe do usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar)
+    -- autodeclarada no cadastro público (sem "Equipe FNP", promovida via grupo do
+    Admin), editável depois em /perfil/."""
+
+    def _dados_signup(self, **overrides):
+        dados = {
+            'first_name': 'Maria',
+            'last_name': 'Silva',
+            'municipio': 'Cidade Teste',
+            'uf': 'SP',
+            'classe_usuario': Perfil.PREFEITO,
+            'setor_responsavel': 'Gabinete',
+            'cargo': 'Prefeita',
+            'telefone': '11999999999',
+            'email': 'maria.silva@exemplo.com',
+            'password1': 'senha-segura-123',
+            'password2': 'senha-segura-123',
+        }
+        dados.update(overrides)
+        return dados
+
+    def test_signup_grava_a_classe_escolhida(self):
+        response = self.client.post(reverse('account_signup'), self._dados_signup())
+        self.assertEqual(response.status_code, 302)
+        usuario = Usuario.objects.get(email='maria.silva@exemplo.com')
+        self.assertEqual(usuario.perfil.classe_usuario, Perfil.PREFEITO)
+
+    def test_equipe_fnp_nao_aparece_nas_opcoes_do_formulario_publico(self):
+        from .forms import CustomSignupForm
+
+        valores = dict(CustomSignupForm().fields['classe_usuario'].choices)
+        self.assertNotIn(Perfil.EQUIPE_FNP, valores)
+        self.assertIn(Perfil.PARLAMENTAR, valores)
+
+    def test_edicao_em_perfil_atualiza_a_classe(self):
+        usuario = Usuario.objects.create_user(username='parla', email='parla@exemplo.com', password='x')
+        usuario.perfil.classe_usuario = Perfil.INDICADO_PREFEITURA
+        usuario.perfil.status_aprovacao = Perfil.APROVADO
+        usuario.perfil.save()
+        self.client.force_login(usuario)
+
+        response = self.client.post(reverse('legislativo:perfil'), {
+            'first_name': usuario.first_name,
+            'last_name': usuario.last_name,
+            'email': usuario.email,
+            'classe_usuario': Perfil.PARLAMENTAR,
+            'telefone': '',
+            'cargo': '',
+            'setor_responsavel': '',
+            'municipio_nome': '',
+            'municipio_uf': '',
+        })
+        self.assertEqual(response.status_code, 200)
+        usuario.perfil.refresh_from_db()
+        self.assertEqual(usuario.perfil.classe_usuario, Perfil.PARLAMENTAR)
+
+    def test_admin_filtra_por_classe_de_usuario(self):
+        from apps.usuarios.admin import UsuarioAdmin
+
+        self.assertIn('perfil__classe_usuario', UsuarioAdmin.list_filter)
+
+
 class RateLimitTest(TestCase):
     def setUp(self):
         cache.clear()

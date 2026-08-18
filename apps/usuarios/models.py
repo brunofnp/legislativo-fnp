@@ -96,11 +96,23 @@ class Perfil(models.Model):
         (REJEITADO, 'Rejeitado'),
     ]
 
+    EQUIPE_FNP = 'equipe_fnp'
+    PREFEITO = 'prefeito'
+    INDICADO_PREFEITURA = 'indicado_prefeitura'
+    PARLAMENTAR = 'parlamentar'
+    CLASSE_USUARIO_CHOICES = [
+        (EQUIPE_FNP, 'Equipe FNP'),
+        (PREFEITO, 'Prefeito'),
+        (INDICADO_PREFEITURA, 'Indicado da prefeitura'),
+        (PARLAMENTAR, 'Parlamentar'),
+    ]
+
     usuario = models.OneToOneField(
         Usuario,
         on_delete=models.CASCADE,
         related_name='perfil',
     )
+    classe_usuario = models.CharField(max_length=32, choices=CLASSE_USUARIO_CHOICES, blank=True)
     municipio = models.ForeignKey(
         Municipio,
         null=True,

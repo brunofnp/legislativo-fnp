@@ -25,12 +25,14 @@ class UsuarioAdmin(UserAdmin):
     grupos e permissões nativas do Django — ver `python manage.py setup_roles`."""
 
     list_display = (
-        'username', 'email', 'first_name', 'last_name', 'email_confirmado',
+        'username', 'email', 'first_name', 'last_name', 'classe_usuario_display', 'email_confirmado',
         'status_cadastro', 'exclusao_pendente', 'is_staff', 'is_superuser', 'is_active',
         'acoes_rapidas',
     )
     # UserAdmin.list_filter já inclui 'groups' -- não repetir aqui (duplicava o filtro).
-    list_filter = UserAdmin.list_filter + ('perfil__status_aprovacao', 'perfil__exclusao_solicitada_em')
+    list_filter = UserAdmin.list_filter + (
+        'perfil__classe_usuario', 'perfil__status_aprovacao', 'perfil__exclusao_solicitada_em',
+    )
     inlines = [PerfilInline]
     actions = ['aprovar_cadastros', 'rejeitar_cadastros', 'aprovar_exclusoes', 'rejeitar_exclusoes']
 
@@ -99,6 +101,11 @@ class UsuarioAdmin(UserAdmin):
             self.message_user(request, f'Conta de {nome} excluída.')
             return HttpResponseRedirect(reverse('admin:usuarios_usuario_changelist'))
         return super().response_change(request, obj)
+
+    @admin.display(description='Classe', ordering='perfil__classe_usuario')
+    def classe_usuario_display(self, obj):
+        perfil = getattr(obj, 'perfil', None)
+        return perfil.get_classe_usuario_display() if perfil and perfil.classe_usuario else '—'
 
     @admin.display(description='Cadastro', ordering='perfil__status_aprovacao')
     def status_cadastro(self, obj):
