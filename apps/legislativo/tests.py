@@ -841,6 +841,57 @@ class ComentarioMidiaTest(TestCase):
         self.assertIsNone(comentario.tipo_midia)
 
 
+class ImprimirProposicaoTest(TestCase):
+    """Página de impressão dedicada (sem topbar/sidebar) -- 3 modos: reduzida
+    (só resumo), completa (todas as seções) e personalizada (?secoes=...)."""
+
+    def setUp(self):
+        self.proposicao = Proposicao.objects.create(
+            titulo='PL para imprimir',
+            casa='camara',
+            ementa_resumida='Resumo da proposição',
+            posicionamento_fnp='Posição da FNP',
+        )
+
+    def test_formato_reduzida_mostra_so_o_resumo(self):
+        response = self.client.get(
+            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), {'formato': 'reduzida'},
+        )
+        content = response.content.decode('utf-8')
+        self.assertIn('Resumo da proposição', content)
+        self.assertNotIn('Mérito e subsídios da FNP', content)
+
+    def test_formato_completa_mostra_todas_as_secoes(self):
+        response = self.client.get(
+            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), {'formato': 'completa'},
+        )
+        content = response.content.decode('utf-8')
+        self.assertIn('Resumo da proposição', content)
+        self.assertIn('Mérito e subsídios da FNP', content)
+        self.assertIn('Posição da FNP', content)
+
+    def test_sem_formato_cai_no_padrao_completa(self):
+        response = self.client.get(reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]))
+        content = response.content.decode('utf-8')
+        self.assertIn('Mérito e subsídios da FNP', content)
+
+    def test_formato_personalizada_mostra_so_as_secoes_pedidas(self):
+        response = self.client.get(
+            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]),
+            {'formato': 'personalizada', 'secoes': 'merito'},
+        )
+        content = response.content.decode('utf-8')
+        self.assertIn('Mérito e subsídios da FNP', content)
+        self.assertNotIn('Resumo da proposição', content)
+
+    def test_botao_de_impressao_aparece_na_pagina_da_proposicao(self):
+        request = _request_with_session(f'/proposicao/{self.proposicao.pk}/')
+        request.user = Usuario.objects.create(username='vejoimpressao', email='vejoimpressao@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=self.proposicao.pk)
+        content = response.content.decode('utf-8')
+        self.assertIn(reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), content)
+
+
 class EnviarParticipacaoRemovidaTest(TestCase):
     def test_pagina_da_proposicao_nao_tem_mais_o_formulario_avulso(self):
         proposicao = Proposicao.objects.create(titulo='PL sem participação avulsa', casa='camara')

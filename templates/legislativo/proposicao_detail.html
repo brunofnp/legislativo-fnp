@@ -38,7 +38,7 @@
           <span>{{ proposicao.status_tramitacao|default:'Status indisponível' }}</span>
         </div>
       </div>
-      <div class="detail-header-actions">
+      <div class="detail-header-actions card-actions-row">
         <form method="post" action="{% url 'legislativo:toggle_favorito' proposicao.pk %}" class="favorito-form">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}" />
@@ -51,6 +51,7 @@
             <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
           </button>
         </form>
+        {% include 'legislativo/_print_share_actions.html' %}
       </div>
     </div>
 
