@@ -476,6 +476,67 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initPrintPersonalizado();
 
+  function initShareButtons() {
+    // Web Share API (mobile, principalmente) abre a folha nativa direto;
+    // sem suporte, cai num menu de fallback (WhatsApp/X/Facebook/copiar
+    // link) -- mesmo raciocínio de delegação em document dos outros
+    // dropdowns de card, porque os cards são recriados via innerHTML.
+    function absoluteUrl(relativeUrl) {
+      return new URL(relativeUrl, window.location.origin).href;
+    }
+
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('.share-trigger-btn');
+      if (!trigger) return;
+      const url = absoluteUrl(trigger.dataset.shareUrl);
+      const title = trigger.dataset.shareTitle || document.title;
+
+      if (navigator.share) {
+        navigator.share({ title, url }).catch(() => {});
+        return;
+      }
+      const panel = trigger.closest('.share-dropdown').querySelector('.share-fallback-panel');
+      if (panel) panel.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', event => {
+      const option = event.target.closest('.share-option');
+      if (!option) return;
+      event.preventDefault();
+      const dropdown = option.closest('.share-dropdown');
+      const trigger = dropdown.querySelector('.share-trigger-btn');
+      const url = absoluteUrl(trigger.dataset.shareUrl);
+      const title = trigger.dataset.shareTitle || document.title;
+      const network = option.dataset.shareNetwork;
+
+      if (network === 'whatsapp') {
+        window.open(`https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`, '_blank', 'noopener');
+      } else if (network === 'twitter') {
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener');
+      } else if (network === 'facebook') {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'noopener');
+      } else if (network === 'copiar') {
+        navigator.clipboard.writeText(url).then(() => {
+          const textoOriginal = option.textContent;
+          option.textContent = 'Link copiado!';
+          setTimeout(() => { option.textContent = textoOriginal; }, 1500);
+        });
+      }
+      const panel = option.closest('.share-fallback-panel');
+      if (panel) panel.classList.add('hidden');
+    });
+
+    document.addEventListener('click', event => {
+      document.querySelectorAll('.share-fallback-panel:not(.hidden)').forEach(panel => {
+        if (!panel.closest('.share-dropdown').contains(event.target)) {
+          panel.classList.add('hidden');
+        }
+      });
+    });
+  }
+
+  initShareButtons();
+
   function initTour() {
     const modal = document.getElementById('tour-modal');
     if (!modal) return;

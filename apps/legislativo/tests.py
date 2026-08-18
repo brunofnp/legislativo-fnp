@@ -892,6 +892,23 @@ class ImprimirProposicaoTest(TestCase):
         self.assertIn(reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), content)
 
 
+class CompartilharProposicaoTest(TestCase):
+    """Botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/
+    copiar link, 100% client-side) -- checa só que a marcação com os dados
+    que o JS usa (share-trigger-btn) chega renderizada."""
+
+    def test_botao_de_compartilhar_aparece_na_pagina_da_proposicao(self):
+        proposicao = Proposicao.objects.create(titulo='PL para compartilhar', casa='camara')
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = Usuario.objects.create(username='vejocompartilhar', email='vejocompartilhar@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('share-trigger-btn', content)
+        self.assertIn(reverse('legislativo:proposicao_detail', args=[proposicao.pk]), content)
+        self.assertIn('PL para compartilhar', content)
+
+
 class EnviarParticipacaoRemovidaTest(TestCase):
     def test_pagina_da_proposicao_nao_tem_mais_o_formulario_avulso(self):
         proposicao = Proposicao.objects.create(titulo='PL sem participação avulsa', casa='camara')

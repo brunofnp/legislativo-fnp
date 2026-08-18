@@ -8,3 +8,22 @@
     <button type="button" class="print-personalizada-btn" data-imprimir-url="{% url 'legislativo:imprimir_proposicao' proposicao.pk %}">Personalizada…</button>
   </div>
 </details>
+
+<div class="share-dropdown">
+  <button
+    type="button"
+    class="icon-action-btn share-trigger-btn"
+    data-share-url="{% url 'legislativo:proposicao_detail' proposicao.pk %}"
+    data-share-title="{{ proposicao.titulo }}"
+    aria-label="Compartilhar"
+    title="Compartilhar"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/></svg>
+  </button>
+  <div class="card-action-dropdown-panel share-fallback-panel hidden">
+    <a href="#" class="share-option" data-share-network="whatsapp">WhatsApp</a>
+    <a href="#" class="share-option" data-share-network="twitter">X (Twitter)</a>
+    <a href="#" class="share-option" data-share-network="facebook">Facebook</a>
+    <button type="button" class="share-option" data-share-network="copiar">Copiar link</button>
+  </div>
+</div>
