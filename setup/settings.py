@@ -254,11 +254,24 @@ EMAIL_BACKEND = os.getenv(
     'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
 )
 
+# SMTP real (produção) -- conta naoresponda@fnp.org.br no Google Workspace
+# do domínio fnp.org.br (mesmo Workspace usado pro login Google). Defaults
+# já são os de smtp.gmail.com:587 com STARTTLS; só EMAIL_HOST_USER/
+# EMAIL_HOST_PASSWORD (senha de app, não a senha normal da conta -- exige
+# verificação em 2 etapas ativada nessa conta) precisam ser preenchidos no
+# .env do droplet. Em dev (EMAIL_BACKEND=console) esses valores nunca são
+# usados de fato.
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
 # Remetente dos e-mails que o próprio app manda (fora do fluxo interno do
 # allauth) -- ex.: aviso de cadastro pendente, ver
 # apps/usuarios/signals.py::notificar_cadastro_pendente. Sem isso o Django
 # cai no default 'webmaster@localhost'.
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Painel Legislativo FNP <painel@fnp.org.br>')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Painel Legislativo FNP <naoresponda@fnp.org.br>')
 
 # Quem recebe aviso por e-mail sempre que um cadastro novo nasce pendente de
 # aprovação (Perfil.status_aprovacao='pendente'). Lista fixa combinada com o
