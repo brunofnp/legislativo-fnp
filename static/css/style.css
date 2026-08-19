@@ -695,8 +695,22 @@ body {
   color: #193657;
 }
 
+.print-dropdown,
 .share-dropdown {
   position: relative;
+}
+
+/* Menu de impressão abre ao passar o mouse (ou ao focar via teclado/toque,
+   pra continuar acessível sem hover de verdade) -- sem JS nenhum, pedido
+   explícito do usuário pra imitar o menu "Versões para impressão" do site
+   da Câmara dos Deputados. */
+.print-dropdown .card-action-dropdown-panel {
+  display: none;
+}
+
+.print-dropdown:hover .card-action-dropdown-panel,
+.print-dropdown:focus-within .card-action-dropdown-panel {
+  display: flex;
 }
 
 .card-action-dropdown-panel {

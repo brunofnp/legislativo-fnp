@@ -106,6 +106,13 @@ class Proposicao(models.Model):
     def __str__(self):
         return self.titulo
 
+    def urls_impressao(self):
+        """Links diretos das versões de impressão da fonte oficial (Câmara/
+        Senado) -- ver apps.proposicoes.print_urls."""
+        from .print_urls import urls_impressao_oficial
+
+        return urls_impressao_oficial(self.link)
+
 
 class EdicaoMeritoHistorico(models.Model):
     proposicao = models.ForeignKey(

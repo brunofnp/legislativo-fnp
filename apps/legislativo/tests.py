@@ -841,23 +841,83 @@ class ComentarioMidiaTest(TestCase):
         self.assertIsNone(comentario.tipo_midia)
 
 
-class ImprimirProposicaoTest(TestCase):
-    """Botão de impressão aponta direto pra fonte oficial (Proposicao.link,
-    câmara/senado) -- as próprias "versões para impressão" (reduzida/
-    completa/personalizada) já existem lá; tentar deep-link pra elas é
-    inviável (URLs vinculadas a jsessionid, não reaproveitáveis fora da
-    sessão de quem navegou até lá). Sem fonte cadastrada, não tem o que
-    imprimir -- o botão nem aparece."""
+class UrlsImpressaoOficialTest(TestCase):
+    """Links diretos de impressão na fonte oficial -- Câmara tem 3 formatos
+    (reduzida/completa/personalizada), todos derivados só do idProposicao
+    (aparece tanto em /propostas-legislativas/<id> quanto em
+    ?idProposicao=<id>, formatos que coexistem nos dados reais importados
+    de fontes diferentes); Senado só tem 1 (PDF único). Pedido do usuário:
+    apontar direto pra versão de impressão de cada casa, não pra ficha de
+    tramitação normal nem pra uma página de impressão nossa."""
 
-    def test_botao_aponta_para_o_link_da_fonte_oficial(self):
+    def test_camara_formato_id_proposicao_na_query(self):
+        from apps.proposicoes.print_urls import urls_impressao_oficial
+
+        urls = urls_impressao_oficial('https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2589656')
+        self.assertEqual(
+            urls['Impressão reduzida'],
+            'https://www.camara.leg.br/proposicoesWeb/prop_imp?idProposicao=2589656&ord=1&tp=reduzida',
+        )
+        self.assertEqual(
+            urls['Impressão completa'],
+            'https://www.camara.leg.br/proposicoesWeb/prop_imp?idProposicao=2589656&ord=1&tp=completa',
+        )
+        self.assertEqual(
+            urls['Impressão personalizada'],
+            'https://www.camara.leg.br/proposicoesWeb/prop_visual_impress?idProposicao=2589656&ord=1',
+        )
+
+    def test_camara_formato_propostas_legislativas_no_path(self):
+        from apps.proposicoes.print_urls import urls_impressao_oficial
+
+        urls = urls_impressao_oficial('https://www.camara.leg.br/propostas-legislativas/2418774')
+        self.assertEqual(
+            urls['Impressão reduzida'],
+            'https://www.camara.leg.br/proposicoesWeb/prop_imp?idProposicao=2418774&ord=1&tp=reduzida',
+        )
+
+    def test_senado_vira_pdf_unico(self):
+        from apps.proposicoes.print_urls import urls_impressao_oficial
+
+        urls = urls_impressao_oficial('https://www25.senado.leg.br/web/atividade/materias/-/materia/136079')
+        self.assertEqual(
+            urls, {'Imprimir (PDF)': 'https://www25.senado.leg.br/web/atividade/materias/-/materia/136079/pdf'},
+        )
+
+    def test_fonte_desconhecida_cai_no_link_direto(self):
+        from apps.proposicoes.print_urls import urls_impressao_oficial
+
+        urls = urls_impressao_oficial('https://exemplo.gov.br/algo')
+        self.assertEqual(urls, {'Abrir na fonte oficial': 'https://exemplo.gov.br/algo'})
+
+    def test_sem_link_nao_ha_opcao_nenhuma(self):
+        from apps.proposicoes.print_urls import urls_impressao_oficial
+
+        self.assertEqual(urls_impressao_oficial(''), {})
+        self.assertEqual(urls_impressao_oficial(None), {})
+
+
+class ImprimirProposicaoTest(TestCase):
+    """Botão de impressão na página da proposição -- menu com as opções
+    derivadas de urls_impressao_oficial(); sem link cadastrado, o botão
+    nem aparece (não há o que imprimir na fonte)."""
+
+    def test_menu_de_impressao_mostra_as_3_opcoes_da_camara(self):
         proposicao = Proposicao.objects.create(
-            titulo='PL com fonte', casa='camara', link='https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=123',
+            titulo='PL com fonte',
+            casa='camara',
+            link='https://www.camara.leg.br/propostas-legislativas/2589656',
         )
         request = _request_with_session(f'/proposicao/{proposicao.pk}/')
         request.user = Usuario.objects.create(username='vejoimpressao', email='vejoimpressao@fnp.org.br')
         response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
         content = response.content.decode('utf-8')
-        self.assertIn('https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=123', content)
+
+        # Django escapa "&" pra "&amp;" no HTML -- checa por trecho sem "&".
+        self.assertIn('prop_imp?idProposicao=2589656', content)
+        self.assertIn('tp=reduzida', content)
+        self.assertIn('tp=completa', content)
+        self.assertIn('prop_visual_impress?idProposicao=2589656', content)
         self.assertIn('Imprimir na fonte oficial', content)
 
     def test_sem_link_da_fonte_botao_nao_aparece(self):
