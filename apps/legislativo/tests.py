@@ -497,8 +497,9 @@ class UsernamePadraoTest(TestCase):
 
 class ClasseUsuarioTest(TestCase):
     """Classe do usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar)
-    -- autodeclarada no cadastro público (sem "Equipe FNP", promovida via grupo do
-    Admin), editável depois em /perfil/."""
+    -- classificada automaticamente no cadastro a partir do cargo informado
+    (nunca escolhida manualmente), estática em /perfil/ (só o Root/
+    Administrador FNP altera, via Django Admin)."""
 
     def _dados_signup(self, **overrides):
         dados = {
@@ -506,7 +507,6 @@ class ClasseUsuarioTest(TestCase):
             'last_name': 'Silva',
             'municipio': 'Cidade Teste',
             'uf': 'SP',
-            'classe_usuario': Perfil.PREFEITO,
             'setor_responsavel': 'Gabinete',
             'cargo': 'Prefeita',
             'telefone': '11999999999',
@@ -517,20 +517,36 @@ class ClasseUsuarioTest(TestCase):
         dados.update(overrides)
         return dados
 
-    def test_signup_grava_a_classe_escolhida(self):
+    def test_signup_classifica_prefeito_pelo_cargo(self):
         response = self.client.post(reverse('account_signup'), self._dados_signup())
         self.assertEqual(response.status_code, 302)
         usuario = Usuario.objects.get(email='maria.silva@exemplo.com')
         self.assertEqual(usuario.perfil.classe_usuario, Perfil.PREFEITO)
 
-    def test_equipe_fnp_nao_aparece_nas_opcoes_do_formulario_publico(self):
+    def test_signup_classifica_parlamentar_pelo_cargo(self):
+        dados = self._dados_signup(
+            email='joao.deputado@exemplo.com', cargo='Deputado Estadual',
+        )
+        response = self.client.post(reverse('account_signup'), dados)
+        self.assertEqual(response.status_code, 302)
+        usuario = Usuario.objects.get(email='joao.deputado@exemplo.com')
+        self.assertEqual(usuario.perfil.classe_usuario, Perfil.PARLAMENTAR)
+
+    def test_signup_classifica_indicado_da_prefeitura_por_padrao(self):
+        dados = self._dados_signup(
+            email='ana.secretaria@exemplo.com', cargo='Secretária de Educação',
+        )
+        response = self.client.post(reverse('account_signup'), dados)
+        self.assertEqual(response.status_code, 302)
+        usuario = Usuario.objects.get(email='ana.secretaria@exemplo.com')
+        self.assertEqual(usuario.perfil.classe_usuario, Perfil.INDICADO_PREFEITURA)
+
+    def test_classe_usuario_nao_e_campo_do_formulario_publico(self):
         from .forms import CustomSignupForm
 
-        valores = dict(CustomSignupForm().fields['classe_usuario'].choices)
-        self.assertNotIn(Perfil.EQUIPE_FNP, valores)
-        self.assertIn(Perfil.PARLAMENTAR, valores)
+        self.assertNotIn('classe_usuario', CustomSignupForm().fields)
 
-    def test_edicao_em_perfil_atualiza_a_classe(self):
+    def test_usuario_nao_consegue_alterar_a_propria_classe_em_perfil(self):
         usuario = Usuario.objects.create_user(username='parla', email='parla@exemplo.com', password='x')
         usuario.perfil.classe_usuario = Perfil.INDICADO_PREFEITURA
         usuario.perfil.status_aprovacao = Perfil.APROVADO
@@ -550,12 +566,58 @@ class ClasseUsuarioTest(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         usuario.perfil.refresh_from_db()
-        self.assertEqual(usuario.perfil.classe_usuario, Perfil.PARLAMENTAR)
+        self.assertEqual(usuario.perfil.classe_usuario, Perfil.INDICADO_PREFEITURA)
+
+    def test_perfil_de_acesso_aparece_estatico_no_template(self):
+        usuario = Usuario.objects.create_user(username='estatico', email='estatico@exemplo.com', password='x')
+        usuario.perfil.classe_usuario = Perfil.PREFEITO
+        usuario.perfil.status_aprovacao = Perfil.APROVADO
+        usuario.perfil.save()
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse('legislativo:perfil'))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('Perfil de acesso', content)
+        self.assertIn('field-static', content)
+        self.assertNotIn('name="classe_usuario"', content)
 
     def test_admin_filtra_por_classe_de_usuario(self):
         from apps.usuarios.admin import UsuarioAdmin
 
         self.assertIn('perfil__classe_usuario', UsuarioAdmin.list_filter)
+
+
+class ClassificarPorCargoTest(TestCase):
+    """apps.usuarios.classificacao.classificar_por_cargo -- heurística de
+    palavra-chave (fronteira de palavra, sem acento/caixa) que decide
+    o Perfil de acesso a partir do texto livre do cargo."""
+
+    def test_prefeito_e_prefeita(self):
+        from apps.usuarios.classificacao import classificar_por_cargo
+
+        self.assertEqual(classificar_por_cargo('Prefeito'), Perfil.PREFEITO)
+        self.assertEqual(classificar_por_cargo('Prefeita Municipal'), Perfil.PREFEITO)
+
+    def test_deputado_senador_vereador(self):
+        from apps.usuarios.classificacao import classificar_por_cargo
+
+        self.assertEqual(classificar_por_cargo('Deputado Federal'), Perfil.PARLAMENTAR)
+        self.assertEqual(classificar_por_cargo('Senadora'), Perfil.PARLAMENTAR)
+        self.assertEqual(classificar_por_cargo('Vereador'), Perfil.PARLAMENTAR)
+
+    def test_cargo_generico_cai_no_padrao_indicado_da_prefeitura(self):
+        from apps.usuarios.classificacao import classificar_por_cargo
+
+        self.assertEqual(classificar_por_cargo('Secretário de Saúde'), Perfil.INDICADO_PREFEITURA)
+        self.assertEqual(classificar_por_cargo(''), Perfil.INDICADO_PREFEITURA)
+        self.assertEqual(classificar_por_cargo(None), Perfil.INDICADO_PREFEITURA)
+
+    def test_nunca_classifica_como_equipe_fnp(self):
+        from apps.usuarios.classificacao import classificar_por_cargo
+
+        self.assertNotEqual(classificar_por_cargo('Equipe FNP'), Perfil.EQUIPE_FNP)
 
 
 class RateLimitTest(TestCase):

@@ -69,8 +69,11 @@
         </div>
       </div>
 
-      <label class="field-label">Você é</label>
-      {{ dados_form.classe_usuario }}
+      <label class="field-label">Perfil de acesso</label>
+      <div class="field-static" title="Definido automaticamente no cadastro, a partir do cargo informado. Para alterar, contate um administrador.">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>{{ request.user.perfil.get_classe_usuario_display|default:"Não definido" }}</span>
+      </div>
 
       <div class="form-row">
         <div class="form-field">

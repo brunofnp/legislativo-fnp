@@ -1810,6 +1810,31 @@ body {
   color: #dc2626;
 }
 
+/* Valor não-editável dentro de um formulário (ex.: Perfil de acesso em
+   /perfil/ -- classificado automaticamente no cadastro, só o Root/
+   Administrador FNP altera, via Admin). Mesma forma/tamanho de um input
+   real pra não destoar visualmente, com fundo neutro sinalizando "travado". */
+.field-static {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.85rem;
+  font-size: 1rem;
+  margin-bottom: 0.9rem;
+  background: var(--bg-surface-alt, #f8fafc);
+  color: var(--text-secondary, #475569);
+}
+
+.field-static svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
 .toast.success {
   border-radius: 1rem;
 }
@@ -4009,6 +4034,12 @@ body {
   background: var(--bg-surface-alt);
   border-color: var(--border-color);
   color: var(--text-primary);
+}
+
+[data-theme="dark"] .field-static {
+  background: var(--bg-surface-alt);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
 }
 
 [data-theme="dark"] .comment-toolbar-btn {

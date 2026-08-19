@@ -4,11 +4,8 @@ from django.utils.text import slugify
 
 from apps.comentarios.models import Comentario
 from apps.proposicoes.models import AnexoProposicao
+from apps.usuarios.classificacao import classificar_por_cargo
 from apps.usuarios.models import Municipio, Perfil, Usuario
-
-CLASSE_USUARIO_SIGNUP_CHOICES = [
-    (valor, rotulo) for valor, rotulo in Perfil.CLASSE_USUARIO_CHOICES if valor != Perfil.EQUIPE_FNP
-]
 
 
 def salvar_municipio_perfil(perfil, nome, uf):
@@ -47,10 +44,6 @@ class CustomSignupForm(forms.Form):
         label='UF',
         widget=forms.TextInput(attrs={'placeholder': 'UF', 'maxlength': 2, 'class': 'uppercase'}),
     )
-    classe_usuario = forms.ChoiceField(
-        choices=CLASSE_USUARIO_SIGNUP_CHOICES,
-        label='Você é',
-    )
     setor_responsavel = forms.CharField(
         max_length=255,
         label='Setor responsável',
@@ -86,7 +79,7 @@ class CustomSignupForm(forms.Form):
         user.save()
 
         perfil = user.perfil
-        perfil.classe_usuario = self.cleaned_data['classe_usuario']
+        perfil.classe_usuario = classificar_por_cargo(self.cleaned_data['cargo'])
         perfil.setor_responsavel = self.cleaned_data['setor_responsavel']
         perfil.cargo = self.cleaned_data['cargo']
         perfil.telefone = self.cleaned_data['telefone']
@@ -150,16 +143,19 @@ class PerfilDadosForm(forms.ModelForm):
 
     class Meta:
         model = Perfil
-        fields = ['foto', 'classe_usuario', 'telefone', 'cargo', 'setor_responsavel']
+        # classe_usuario (Perfil de acesso) de propósito fora daqui --
+        # classificado automaticamente no cadastro (ver
+        # apps.usuarios.classificacao.classificar_por_cargo) e só editável
+        # depois pelo Root/Administrador FNP via Django Admin, nunca pelo
+        # próprio usuário nesta tela de autoedição.
+        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel']
         labels = {
             'foto': 'Foto de perfil',
-            'classe_usuario': 'Você é',
             'telefone': 'Telefone',
             'cargo': 'Cargo',
             'setor_responsavel': 'Setor responsável',
         }
         widgets = {
-            'classe_usuario': forms.Select(attrs={'class': 'input-wide'}),
             'telefone': forms.TextInput(attrs={'class': 'input-wide', 'type': 'tel'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
             'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
