@@ -905,6 +905,44 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initComentarioMidia();
 
+  function initAnexoUpload() {
+    // Mesmo raciocínio da mídia do comentário: substitui o "Escolher
+    // arquivo / Nenhum arquivo escolhido" nativo por um botão de clipe +
+    // nome do arquivo escolhido, mais amigável (achado real do usuário).
+    const fileInput = document.getElementById('id_arquivo');
+    const clipBtn = document.getElementById('anexo-clip-btn');
+    const hint = document.getElementById('anexo-upload-hint');
+    const filename = document.getElementById('anexo-upload-filename');
+    const removeBtn = document.getElementById('anexo-upload-remove-btn');
+    if (!fileInput || !clipBtn || !hint || !filename) return;
+
+    function atualizar() {
+      const arquivo = fileInput.files && fileInput.files[0];
+      if (arquivo) {
+        filename.textContent = arquivo.name;
+        filename.classList.remove('hidden');
+        hint.classList.add('hidden');
+        if (removeBtn) removeBtn.classList.remove('hidden');
+      } else {
+        filename.textContent = '';
+        filename.classList.add('hidden');
+        hint.classList.remove('hidden');
+        if (removeBtn) removeBtn.classList.add('hidden');
+      }
+    }
+
+    clipBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', atualizar);
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        fileInput.value = '';
+        atualizar();
+      });
+    }
+  }
+
+  initAnexoUpload();
+
   function setToast(message) {
     if (!toast) return;
     toast.textContent = message;
