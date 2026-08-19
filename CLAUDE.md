@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro + 3 rodadas de refino no mesmo dia.** (1) anexos de documentos na proposição — **exige aprovação de Root/Administrador FNP antes de aparecer pro público** (nasce sempre "pendente", sem checagem automática de conteúdo de arquivo, diferente do comentário), com upload redesenhado (ícone de clipe + nome do arquivo escolhido, no lugar do "Escolher arquivo" nativo), (2) foto/vídeo nos comentários do fórum — refeito como toolbar estilo rede social (botão "+" de anexar da galeria + botão de câmera com captura de foto OU gravação de vídeo ao vivo via MediaRecorder, substituindo o `<input type="file">` cru que "ficou muito esquisito"), (3) seção "Notícias relacionadas", (4) botão de impressão — 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da 1ª promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover; também resolvida a pendência de `client_max_body_size` do Nginx (6M → 30M, vídeo de comentário até 25MB). `next` → `main` → produção → droplet confirmado saudável (`curl` 200 OK, headers de segurança corretos) nas 2 primeiras promoções do dia; a 3ª (redesenho do upload de anexo) já está em `main`/CI verde, **deploy no droplet passado pro usuário mas ainda sem confirmação de retorno nesta sessão** — conferir/atualizar antes de considerar o dia todo fechado. Ver seções datadas mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
+> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro + 3 rodadas de refino no mesmo dia, mais uma sessão nova no mesmo dia com fix de bug real, SMTP configurado e classe de usuário virando automática.** (1) anexos de documentos na proposição — **exige aprovação de Root/Administrador FNP antes de aparecer pro público** (nasce sempre "pendente", sem checagem automática de conteúdo de arquivo, diferente do comentário), com upload redesenhado (ícone de clipe + nome do arquivo escolhido, no lugar do "Escolher arquivo" nativo), (2) foto/vídeo nos comentários do fórum — refeito como toolbar estilo rede social (botão "+" de anexar da galeria + botão de câmera com captura de foto OU gravação de vídeo ao vivo via MediaRecorder, substituindo o `<input type="file">` cru que "ficou muito esquisito"), (3) seção "Notícias relacionadas", (4) botão de impressão — 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da 1ª promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover; também resolvida a pendência de `client_max_body_size` do Nginx (6M → 30M, vídeo de comentário até 25MB). `next` → `main` → produção → droplet confirmado saudável (`curl` 200 OK, headers de segurança corretos) nas 2 primeiras promoções do dia; a 3ª (redesenho do upload de anexo) já está em `main`/CI verde, **deploy no droplet passado pro usuário mas ainda sem confirmação de retorno nesta sessão** — conferir/atualizar antes de considerar o dia todo fechado. **Na sessão seguinte, mesmo dia**: usuário reportou 500 real em produção ao tentar definir senha numa conta só-Google (`/contas/password/set/`) — causa raiz era `EMAIL_BACKEND` de produção ainda sem SMTP real (pendência antiga), `form.save()` subindo `ConnectionRefusedError` cru; corrigido com tratamento de erro (nunca mais 500, mostra aviso e deixa tentar de novo). No mesmo fôlego, `EMAIL_HOST`/`PORT`/`USE_TLS`/`USER`/`PASSWORD` configurados em `settings.py` pro Gmail/Workspace (`naoresponda@fnp.org.br`) — **conta ainda não criada**, e-mail de solicitação enviado pro Keven, falta ele criar + gerar senha de app antes de preencher o `.env` do droplet. Também: "Você é" (select cru, autodeclarado, editável até depois do cadastro em `/perfil/` — brecha real, dava pra virar "Equipe FNP" sozinho) virou **"Perfil de acesso"**, classificado automaticamente a partir do cargo informado no cadastro (`apps/usuarios/classificacao.py`, nunca mais autodeclarado), exibido como valor estático (não editável) em `/perfil/`; Root/Administrador FNP continuam editando via Django Admin. Tudo isso só em `next` (`db3f932`, `f7c7868`, `b792e00`) — **não promovido pra produção ainda**. Ver seções datadas mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
 
 ---
 
@@ -2177,10 +2177,129 @@ via SSH no droplet — **confirmação do `docker compose ps`/`curl` pós-
 deploy ainda não recebida nesta sessão** (atualizar esta seção com o
 resultado assim que confirmado).
 
+### 500 em "Definir senha" (conta só-Google) corrigido + SMTP real configurado (2026-08-19, sessão nova)
+
+Usuário reportou por captura de tela, **em produção**: ao tentar criar a
+primeira senha local numa conta que só loga via Google
+(`/contas/password/set/`, ver `definir_senha_social` — fluxo que manda
+e-mail de confirmação antes de liberar senha, criado em 2026-08-10),
+clicar em "Enviar link de confirmação por e-mail" derrubava a página com
+`Server Error (500)`.
+
+Causa raiz: `EMAIL_BACKEND` de produção ainda cai no default
+`smtp.EmailBackend` sem servidor configurado (pendência já registrada há
+tempo, ver "Pendências" — nunca tinha sido priorizada porque nada
+sensível dependia disso até agora). `definir_senha_social` chamava
+`form.save(request)` (do `ResetPasswordForm` do allauth) direto, sem
+tratamento de erro — `ConnectionRefusedError`/`SMTPException` subia cru e
+virava 500. Mesmo bug de categoria já visto antes (cadastro derrubando
+sem `EMAIL_BACKEND` em dev, e-mail de aviso de cadastro pendente com
+`fail_silently=True` por causa disso) — dessa vez pegou um fluxo que
+**não tinha** essa proteção. Fix: `try/except (SMTPException, OSError)`
+em volta do envio, com `logger.exception` pra não perder o rastro, e uma
+mensagem amigável (`erro_envio`) na mesma página em vez de 500 — usuário
+pode tentar de novo depois. 1 teste novo (mock do `ResetPasswordForm.save`
+levantando `ConnectionRefusedError`, confirma 200 com o aviso em vez de
+crash).
+
+**No mesmo fôlego**, usuário decidiu resolver a causa raiz: vai criar
+`naoresponda@fnp.org.br` no Google Workspace do domínio (mesmo Workspace
+usado pro login Google) como remetente técnico do sistema. E-mail de
+solicitação gerado e enviado pro responsável interno (Keven) pedindo a
+criação + 2FA ativado + senha de app gerada. `EMAIL_HOST`/`EMAIL_PORT`/
+`EMAIL_USE_TLS`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD` já adicionados em
+`settings.py` (defaults certos pro Gmail — `smtp.gmail.com:587`,
+STARTTLS — só usuário/senha de app faltam vir do `.env` do droplet);
+`DEFAULT_FROM_EMAIL` trocado de `painel@fnp.org.br` (endereço que nunca
+existiu de verdade) pra `naoresponda@fnp.org.br`. `.env.production.example`
+documentado com o passo a passo (senha de app, não a senha normal da
+conta). **Ainda falta**: Keven criar a conta e passar a senha de app (nunca
+colada em texto puro no chat — é credencial), preencher no `.env` do
+droplet, recriar o container (`--force-recreate`, sem rebuild).
+
+`check`, `makemigrations --check`, teste novo + suíte completa e `ruff`
+limpos a cada commit. Commitado e enviado pra `next` (`db3f932`,
+`f7c7868`) — não promovido.
+
+### "Perfil de acesso" vira classificação automática pelo cargo, não mais autodeclarado (2026-08-19, mesma sessão)
+
+A partir de uma captura de tela de `/perfil/` mostrando o campo "Você é"
+como um `<select>` nativo cru ("muito cru", nas palavras do usuário),
+pedido de 3 partes: (1) melhorar o design pra bater com o resto do site,
+(2) renomear pra "Perfil de acesso", (3) o campo só devia ser editável
+por Root/Administrador FNP (pra corrigir o perfil de qualquer usuário),
+nunca pelo próprio usuário — que deveria ver um valor estático — e (4) a
+categoria deveria ser **identificada automaticamente no cadastro**, a
+partir das informações que o usuário já fornece, não escolhida
+manualmente.
+
+Investigando o código antes de mexer, achado um problema de verdade
+maior que só estética: `classe_usuario` (`Perfil`) já era editável em
+`/perfil/` por **qualquer usuário logado**, com as 4 opções incluindo
+"Equipe FNP" — o formulário de cadastro público excluía essa opção (ver
+sessão de 2026-08-18/19 mais acima), mas nada impedia alguém se cadastrar
+como "Prefeito" e depois ir em `/perfil/` e trocar sozinho pra "Equipe
+FNP". Ou seja, a única barreira contra autopromoção estava só no
+formulário de entrada, não no de edição — brecha real de integridade de
+dado usado pelo Root/Admin pra dar atenção diferenciada por tipo de
+usuário.
+
+Fix, resolvendo os 4 pedidos numa tacada (a automação elimina a
+necessidade de estilizar um `<select>`, porque o campo deixou de ser um
+formulário de escolha em qualquer lugar acessível ao usuário comum):
+
+- **`apps/usuarios/classificacao.py`** (novo) — `classificar_por_cargo(cargo)`,
+  heurística por palavra-chave (fronteira de palavra, sem acento/caixa,
+  mesmo padrão de `apps.comentarios.moderacao`): cargo citando
+  "prefeito"/"prefeita" → Prefeito; citando "deputado"/"senador"/
+  "vereador"/"parlamentar" → Parlamentar; qualquer outro cargo (padrão,
+  cobre secretário/assessor/diretor/chefe de gabinete etc.) → Indicado da
+  prefeitura. **Nunca** retorna "Equipe FNP" — essa continua exclusiva de
+  promoção manual via grupo do Admin, sem mudança nisso.
+- **Cadastro público**: campo `classe_usuario` removido do
+  `CustomSignupForm` e do template de signup — `signup()` agora chama
+  `classificar_por_cargo(cargo)` em vez de ler escolha manual do POST.
+- **`/perfil/`**: `classe_usuario` removido de `PerfilDadosForm.Meta.fields`
+  (não é mais editável pelo próprio usuário, nem Root/Admin quando vendo
+  o próprio perfil por aqui). Template mostra "Perfil de acesso" como um
+  valor estático (`.field-static`, ícone de cadeado, mesma
+  forma/padding/borda dos outros campos do formulário — não destoa mais,
+  só sinaliza visualmente "travado"), com `title` explicando que é
+  automático e que o Root corrige se precisar.
+- **Root/Administrador FNP**: continuam corrigindo o valor de qualquer
+  usuário via Django Admin (`PerfilInline`, já aceitava o campo sem
+  restrição — nenhuma mudança necessária lá; é o "painel de perfis" que o
+  pedido do usuário mencionava).
+- 7 testes novos (3 casos da heurística de classificação + prefeito/
+  parlamentar/indicado no fluxo de signup real + confirma que o campo
+  sumiu do formulário público + confirma que POST malicioso pra trocar a
+  própria classe não tem efeito + confirma o markup estático no
+  template), verificado também via Playwright (screenshot real de
+  `/perfil/` em light e dark mode, campo "Perfil de acesso" com ícone de
+  cadeado e valor correto, nenhum `<select name="classe_usuario">` em
+  lugar nenhum acessível ao usuário comum).
+
+`check`, `makemigrations --check` (sem migration — só comportamento de
+formulário/template), 120 testes (era 113) e `ruff` limpos. Commitado e
+enviado pra `next` (`b792e00`) — não promovido.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Concluir a configuração de SMTP real** (`naoresponda@fnp.org.br`) —
+  e-mail de solicitação já enviado pro Keven; falta ele criar a conta,
+  ativar 2FA e gerar a senha de app, depois preencher
+  `EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD` no `.env` do droplet e recriar
+  o container (`--force-recreate`, sem rebuild — só variável de
+  ambiente). Ver seção datada "500 em 'Definir senha'... + SMTP real
+  configurado" acima. Fecha de vez o item mais antigo "Configurar
+  `EMAIL_BACKEND` real em produção" logo abaixo.
+- **Promover a sessão de 2026-08-19 (fix do 500 em definir senha +
+  config de SMTP + Perfil de acesso automático) pra `main`/produção/
+  droplet** — tudo só em `next` (`db3f932`, `f7c7868`, `b792e00`) por
+  enquanto, autorização de promoção ainda não veio nesta sessão. O fix
+  do 500 é bug real em produção, vale priorizar assim que autorizado.
 - **Confirmar o deploy no droplet do redesenho do upload de anexo**
   (commit `34b8c86`, já em `main` nos dois repositórios, CI verde) —
   comandos passados pro usuário (`git pull` + `docker compose build/up
@@ -2219,11 +2338,14 @@ resultado assim que confirmado).
   aparecem pra qualquer visitante anônimo em `proposicao_detail.html`,
   sem exigir login. Achado da revarredura de segurança de 2026-08-11 —
   decisão do usuário antes de eu mexer em código (pode ser intencional).
-- **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** —
-  passou de pendência menor pra pré-requisito de segurança: sem isso, não
-  dá pra avançar pra `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais
-  robusto pro achado da fusão de conta, ver auditoria acima) sem quebrar
-  cadastro por e-mail/senha em produção.
+- **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** — **em
+  andamento desde 2026-08-19**: settings.py já pronto pro Gmail/Workspace,
+  só falta a conta `naoresponda@fnp.org.br` existir de fato (ver item no
+  topo desta lista). Depois de resolvido, ainda passa de pendência menor
+  pra pré-requisito de segurança: sem isso, não dá pra avançar pra
+  `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais robusto pro achado
+  da fusão de conta, ver auditoria acima) sem quebrar cadastro por
+  e-mail/senha em produção.
 - **Desativar/excluir o Client Secret antigo do Google OAuth** no Google
   Cloud Console (o criado em 2026-08-04) — o novo já está em produção e
   validado, mas o antigo continua uma credencial ativa em paralelo até
