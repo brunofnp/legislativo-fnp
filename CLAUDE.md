@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro, todas promovidas pra produção/droplet no mesmo dia.** (1) anexos de documentos na proposição, (2) foto/vídeo nos comentários do fórum, (3) seção "Notícias relacionadas", (4) botão de impressão — depois de 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover. `next` → `main` → produção → droplet confirmado saudável (`healthy` + `curl` 200 OK). Ver seção datada própria mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
+> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro + 2 rodadas de refino no mesmo dia, tudo promovido pra produção/droplet até o fim da sessão.** (1) anexos de documentos na proposição — **exige aprovação de Root/Administrador FNP antes de aparecer pro público** (nasce sempre "pendente", sem checagem automática de conteúdo de arquivo, diferente do comentário), (2) foto/vídeo nos comentários do fórum — depois refeito como toolbar estilo rede social (botão "+" de anexar da galeria + botão de câmera com captura de foto OU gravação de vídeo ao vivo via MediaRecorder, substituindo o `<input type="file">` cru que "ficou muito esquisito"), (3) seção "Notícias relacionadas", (4) botão de impressão — 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover; também resolvida a pendência de `client_max_body_size` do Nginx (6M → 30M, vídeo de comentário até 25MB). `next` → `main` → produção → droplet confirmado saudável (`curl` 200 OK, headers de segurança corretos) três vezes na mesma sessão. Ver seção datada própria mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
 
 ---
 
@@ -2070,6 +2070,77 @@ segundos de vida, healthcheck ainda `starting`); ~1 minuto depois,
 `docker compose ps` → `(healthy)`, `curl -sI
 https://legislativo.fnp.org.br/` → `200 OK` com todos os cabeçalhos de
 segurança esperados.
+
+### `client_max_body_size` do Nginx aumentado (6M → 30M), pendência fechada no mesmo dia
+
+A pedido do usuário ("vamos resolver essa pendência agora"), aplicado
+direto no droplet via SSH: linha alterada à mão de `6M` pra `30M` em
+`/etc/nginx/sites-enabled/legislativo.conf` (`sed` de uma linha só,
+nunca `cp` do arquivo inteiro — preserva o bloco SSL do certbot),
+`nginx -t` limpo, `reload` sem erro, `curl` confirmando `200 OK`
+depois. `deploy/nginx-legislativo.conf` (referência local) atualizado
+junto, com o novo valor dimensionado pro maior upload validado no app
+(vídeo de comentário, até 25MB, não mais só a foto de perfil de 5MB).
+
+### Toolbar de mídia no comentário refeita como rede social (2026-08-19, mesma sessão)
+
+Usuário testou a mídia de comentário (mesma sessão, item construído
+horas antes) e reportou que o `<input type="file">` cru abaixo do
+textarea "ficou muito esquisito" — pediu o padrão de qualquer
+mensageiro (referência: WhatsApp): um "+" que abre o seletor de
+arquivo da galeria, e um ícone de câmera que abre captura ao vivo
+(foto ou vídeo, tanto desktop quanto mobile). Reaproveitado o
+mecanismo já existente da foto de perfil (`getUserMedia` + `<canvas>`
+pra foto), com um modo novo — gravação de vídeo ao vivo via
+`MediaRecorder`, com indicador visual de "● Gravando…" e botão que
+alterna entre "Gravar vídeo"/"Parar gravação". Preview compacto (com
+botão de remover) só aparece quando há de fato um arquivo anexado,
+seja por seleção de arquivo ou por captura — resolve o "esquisito" de
+ter um campo de upload sempre visível mesmo vazio. Testado via
+Playwright com o dispositivo de mídia falso do Chromium
+(`--use-fake-device-for-media-stream`): fluxo completo de foto e de
+gravação de vídeo, sem regressão de overflow horizontal nos 4
+breakpoints móveis de sempre, tap target 44px, dark mode.
+
+### Anexo de proposição passa a exigir aprovação antes de ficar público (2026-08-19, mesma sessão)
+
+Pedido do usuário logo depois da entrega da toolbar de mídia:
+documentos anexados numa proposição (item construído mais cedo na
+mesma sessão) precisavam de aprovação de Root/Administrador FNP antes
+de aparecer na página pública — na primeira versão, o anexo ficava
+visível assim que enviado, sem revisão nenhuma. `AnexoProposicao.
+status_moderacao` novo (migration `proposicoes.0005`) — ao contrário
+do comentário (aprovado por padrão, só bloqueado por palavra
+proibida), o anexo **nasce sempre "pendente"**: não existe checagem
+automática de conteúdo de arquivo, só revisão humana. Admin ganhou
+ações em massa aprovar/rejeitar (mesmo padrão do `ComentarioAdmin`) e
+o campo no inline da própria proposição, pra aprovar sem sair da tela
+de edição. Página pública só mostra anexo aprovado; o próprio autor do
+envio continua vendo o que mandou enquanto pendente (badge "Aguardando
+aprovação", pra não parecer que o upload sumiu no vazio), e staff vê
+tudo, inclusive rejeitado. Regra de visibilidade calculada no backend
+(`ProposicaoDetailView._anexos_context`), não em template — mesmo
+princípio de "status calculado no servidor, nunca string-matching em
+template/JS" das Diretrizes de Engenharia.
+
+### Segunda promoção do dia: `next` → `main` → produção → droplet (2026-08-19)
+
+A pedido do usuário ("vamos subir tudo para a next, produção e
+droplet"), `check`/`makemigrations --check`/112 testes/`ruff`
+revalidados antes do push; `main` local (`69d5825`) era fast-forward
+puro com `next` (`3931722`, 1 commit — a exigência de aprovação do
+anexo). Push pra `origin` e `production`; CI verde nos dois de
+primeira (sem repetir o achado do `sqlparse` da promoção anterior no
+mesmo dia — já estava corrigido). Deploy no droplet via SSH: `git pull
+origin main` trouxe a migration nova (`proposicoes.0005_anexoproposicao_
+status_moderacao`), `docker compose build` + `up -d` sem erro; `curl
+-sI https://legislativo.fnp.org.br/` já confirmou `200 OK` com todos
+os cabeçalhos de segurança certos poucos segundos depois do `up -d`
+(mais rápido que o padrão de sempre — o rótulo interno do Docker ainda
+dizia `health: starting`, mas o Nginx já estava recebendo resposta boa
+do Gunicorn por trás, prova de que o `health: starting` é só questão
+de o healthcheck do Docker ainda não ter rodado seu primeiro ciclo, não
+um sinal de problema real).
 
 ### Pendências e próximos passos
 
