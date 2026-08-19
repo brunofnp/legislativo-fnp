@@ -413,69 +413,6 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initHelpModal();
 
-  function initPrintDropdowns() {
-    // <details> não fecha sozinho ao clicar fora -- mesmo tratamento já
-    // usado no menu de editar avatar do perfil, generalizado aqui porque
-    // pode existir 1 dropdown de impressão por card na grade (cards são
-    // recriados via innerHTML no live-update por SSE, então delegação em
-    // document em vez de listener por elemento).
-    document.addEventListener('click', event => {
-      document.querySelectorAll('.print-dropdown[open]').forEach(dropdown => {
-        if (!dropdown.contains(event.target)) {
-          dropdown.removeAttribute('open');
-        }
-      });
-    });
-  }
-
-  initPrintDropdowns();
-
-  function initPrintPersonalizado() {
-    const modal = document.getElementById('print-personalizar-modal');
-    if (!modal) return;
-    const backdrop = document.getElementById('print-personalizar-backdrop');
-    const closeBtn = document.getElementById('print-personalizar-close');
-    const gerarBtn = document.getElementById('print-personalizar-gerar');
-    let imprimirUrl = null;
-
-    function openModal(url) {
-      imprimirUrl = url;
-      modal.classList.remove('hidden');
-    }
-
-    function closeModal() {
-      modal.classList.add('hidden');
-      imprimirUrl = null;
-    }
-
-    document.addEventListener('click', event => {
-      const trigger = event.target.closest('.print-personalizada-btn');
-      if (!trigger) return;
-      const details = trigger.closest('details');
-      if (details) details.removeAttribute('open');
-      openModal(trigger.dataset.imprimirUrl);
-    });
-
-    if (backdrop) backdrop.addEventListener('click', closeModal);
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (gerarBtn) {
-      gerarBtn.addEventListener('click', () => {
-        if (!imprimirUrl) return;
-        const secoes = Array.from(modal.querySelectorAll('input[name="secao"]:checked')).map(input => input.value);
-        window.open(`${imprimirUrl}?formato=personalizada&secoes=${secoes.join(',')}`, '_blank');
-        closeModal();
-      });
-    }
-
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-        closeModal();
-      }
-    });
-  }
-
-  initPrintPersonalizado();
-
   function initShareButtons() {
     // Web Share API (mobile, principalmente) abre a folha nativa direto;
     // sem suporte, cai num menu de fallback (WhatsApp/X/Facebook/copiar

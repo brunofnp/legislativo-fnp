@@ -695,7 +695,6 @@ body {
   color: #193657;
 }
 
-.print-dropdown,
 .share-dropdown {
   position: relative;
 }
@@ -734,19 +733,6 @@ body {
   background: #f1f5f9;
 }
 
-.print-secoes-checkboxes {
-  display: grid;
-  gap: 0.6rem;
-  margin-bottom: 1rem;
-}
-
-.print-secoes-checkboxes label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #334155;
-}
 
 .card-tags-row {
   display: flex;

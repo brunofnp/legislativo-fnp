@@ -842,54 +842,31 @@ class ComentarioMidiaTest(TestCase):
 
 
 class ImprimirProposicaoTest(TestCase):
-    """Página de impressão dedicada (sem topbar/sidebar) -- 3 modos: reduzida
-    (só resumo), completa (todas as seções) e personalizada (?secoes=...)."""
+    """Botão de impressão aponta direto pra fonte oficial (Proposicao.link,
+    câmara/senado) -- as próprias "versões para impressão" (reduzida/
+    completa/personalizada) já existem lá; tentar deep-link pra elas é
+    inviável (URLs vinculadas a jsessionid, não reaproveitáveis fora da
+    sessão de quem navegou até lá). Sem fonte cadastrada, não tem o que
+    imprimir -- o botão nem aparece."""
 
-    def setUp(self):
-        self.proposicao = Proposicao.objects.create(
-            titulo='PL para imprimir',
-            casa='camara',
-            ementa_resumida='Resumo da proposição',
-            posicionamento_fnp='Posição da FNP',
+    def test_botao_aponta_para_o_link_da_fonte_oficial(self):
+        proposicao = Proposicao.objects.create(
+            titulo='PL com fonte', casa='camara', link='https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=123',
         )
-
-    def test_formato_reduzida_mostra_so_o_resumo(self):
-        response = self.client.get(
-            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), {'formato': 'reduzida'},
-        )
-        content = response.content.decode('utf-8')
-        self.assertIn('Resumo da proposição', content)
-        self.assertNotIn('Mérito e subsídios da FNP', content)
-
-    def test_formato_completa_mostra_todas_as_secoes(self):
-        response = self.client.get(
-            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), {'formato': 'completa'},
-        )
-        content = response.content.decode('utf-8')
-        self.assertIn('Resumo da proposição', content)
-        self.assertIn('Mérito e subsídios da FNP', content)
-        self.assertIn('Posição da FNP', content)
-
-    def test_sem_formato_cai_no_padrao_completa(self):
-        response = self.client.get(reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]))
-        content = response.content.decode('utf-8')
-        self.assertIn('Mérito e subsídios da FNP', content)
-
-    def test_formato_personalizada_mostra_so_as_secoes_pedidas(self):
-        response = self.client.get(
-            reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]),
-            {'formato': 'personalizada', 'secoes': 'merito'},
-        )
-        content = response.content.decode('utf-8')
-        self.assertIn('Mérito e subsídios da FNP', content)
-        self.assertNotIn('Resumo da proposição', content)
-
-    def test_botao_de_impressao_aparece_na_pagina_da_proposicao(self):
-        request = _request_with_session(f'/proposicao/{self.proposicao.pk}/')
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
         request.user = Usuario.objects.create(username='vejoimpressao', email='vejoimpressao@fnp.org.br')
-        response = ProposicaoDetailView.as_view()(request, pk=self.proposicao.pk)
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
         content = response.content.decode('utf-8')
-        self.assertIn(reverse('legislativo:imprimir_proposicao', args=[self.proposicao.pk]), content)
+        self.assertIn('https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=123', content)
+        self.assertIn('Imprimir na fonte oficial', content)
+
+    def test_sem_link_da_fonte_botao_nao_aparece(self):
+        proposicao = Proposicao.objects.create(titulo='PL sem fonte', casa='camara')
+        request = _request_with_session(f'/proposicao/{proposicao.pk}/')
+        request.user = Usuario.objects.create(username='semfonte', email='semfonte@fnp.org.br')
+        response = ProposicaoDetailView.as_view()(request, pk=proposicao.pk)
+        content = response.content.decode('utf-8')
+        self.assertNotIn('Imprimir na fonte oficial', content)
 
 
 class CompartilharProposicaoTest(TestCase):

@@ -493,34 +493,6 @@ def marcar_notificacoes_lidas(request):
     return redirect('legislativo:home')
 
 
-SECOES_IMPRESSAO = ['resumo', 'eventos', 'interlocutores', 'movimentacao', 'noticias', 'merito', 'anexos']
-SECOES_IMPRESSAO_REDUZIDA = ['resumo']
-
-
-@require_GET
-def imprimir_proposicao(request, pk):
-    """Página de impressão dedicada (sem topbar/sidebar) -- 3 modos:
-    reduzida (só o resumo), completa (todas as seções) e personalizada
-    (?secoes=resumo,merito,...). Dispara window.print() sozinha ao carregar;
-    o "PDF" é o "Salvar como PDF" nativo do navegador, sem dependência nova
-    no servidor."""
-    proposicao = get_object_or_404(Proposicao, pk=pk)
-    formato = request.GET.get('formato', 'completa')
-    if formato == 'personalizada':
-        pedidas = request.GET.get('secoes', '').split(',')
-        secoes = [s for s in SECOES_IMPRESSAO if s in pedidas]
-    elif formato == 'reduzida':
-        secoes = SECOES_IMPRESSAO_REDUZIDA
-    else:
-        formato = 'completa'
-        secoes = SECOES_IMPRESSAO
-    return render(
-        request,
-        'legislativo/proposicao_print.html',
-        {'proposicao': proposicao, 'secoes': secoes, 'formato': formato},
-    )
-
-
 NIVEIS_RESPOSTA_PREFETCH = 4  # respostas mais profundas que isso ainda funcionam, só sem prefetch (N+1)
 
 
