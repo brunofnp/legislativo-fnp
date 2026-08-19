@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro + 2 rodadas de refino no mesmo dia, tudo promovido pra produção/droplet até o fim da sessão.** (1) anexos de documentos na proposição — **exige aprovação de Root/Administrador FNP antes de aparecer pro público** (nasce sempre "pendente", sem checagem automática de conteúdo de arquivo, diferente do comentário), (2) foto/vídeo nos comentários do fórum — depois refeito como toolbar estilo rede social (botão "+" de anexar da galeria + botão de câmera com captura de foto OU gravação de vídeo ao vivo via MediaRecorder, substituindo o `<input type="file">` cru que "ficou muito esquisito"), (3) seção "Notícias relacionadas", (4) botão de impressão — 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover; também resolvida a pendência de `client_max_body_size` do Nginx (6M → 30M, vídeo de comentário até 25MB). `next` → `main` → produção → droplet confirmado saudável (`curl` 200 OK, headers de segurança corretos) três vezes na mesma sessão. Ver seção datada própria mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
+> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro + 3 rodadas de refino no mesmo dia.** (1) anexos de documentos na proposição — **exige aprovação de Root/Administrador FNP antes de aparecer pro público** (nasce sempre "pendente", sem checagem automática de conteúdo de arquivo, diferente do comentário), com upload redesenhado (ícone de clipe + nome do arquivo escolhido, no lugar do "Escolher arquivo" nativo), (2) foto/vídeo nos comentários do fórum — refeito como toolbar estilo rede social (botão "+" de anexar da galeria + botão de câmera com captura de foto OU gravação de vídeo ao vivo via MediaRecorder, substituindo o `<input type="file">` cru que "ficou muito esquisito"), (3) seção "Notícias relacionadas", (4) botão de impressão — 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da 1ª promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover; também resolvida a pendência de `client_max_body_size` do Nginx (6M → 30M, vídeo de comentário até 25MB). `next` → `main` → produção → droplet confirmado saudável (`curl` 200 OK, headers de segurança corretos) nas 2 primeiras promoções do dia; a 3ª (redesenho do upload de anexo) já está em `main`/CI verde, **deploy no droplet passado pro usuário mas ainda sem confirmação de retorno nesta sessão** — conferir/atualizar antes de considerar o dia todo fechado. Ver seções datadas mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
 
 ---
 
@@ -2142,10 +2142,51 @@ do Gunicorn por trás, prova de que o `health: starting` é só questão
 de o healthcheck do Docker ainda não ter rodado seu primeiro ciclo, não
 um sinal de problema real).
 
+### Upload de anexo redesenhado com ícone de clipe (2026-08-19, mesma sessão)
+
+A partir de uma captura de tela real do formulário de anexo (o mesmo
+"Escolher arquivo / Nenhum arquivo escolhido" nativo que a mídia do
+comentário também tinha, já corrigida antes na mesma sessão), usuário
+pediu o mesmo tratamento aqui: ícone de "clipe" no lugar do botão
+nativo. Reaproveita o mesmo princípio já validado na mídia do
+comentário (`id_arquivo` escondido + botão estilizado que aciona
+`.click()` nele) — clique no clipe abre o seletor de arquivo nativo;
+depois de escolhido, o nome do arquivo aparece em destaque com um "×"
+pra remover, no lugar do texto "Nenhum arquivo escolhido". O aviso "O
+anexo fica visível na página só depois de aprovado pela equipe" (da
+exigência de aprovação implementada horas antes) virou um banner
+discreto com ícone de informação, em vez de texto solto sem
+hierarquia. **Achado no caminho**: o campo de título do anexo
+(`input[type="text"]`) nunca tinha ganhado fundo escuro no dark mode
+(gap pré-existente, não introduzido nesta sessão) — só ficou óbvio
+agora que o formulário estava sendo mexido de qualquer forma; corrigido
+junto. Testado via Playwright (login real com usuário de teste
+descartável, arquivo escolhido via `set_input_files` no input
+escondido, remoção, dark mode, 4 breakpoints móveis sem regressão de
+overflow) — `check`, 112 testes e `ruff` limpos.
+
+### Terceira promoção do dia: `next` → `main` (2026-08-19)
+
+A pedido do usuário ("vamos subir para next, produção e droplet"),
+`check`/`makemigrations --check`/112 testes/`ruff` revalidados antes
+do push; `main` local (`3931722`) era fast-forward puro com `next`
+(`34b8c86`, 1 commit — o redesenho do upload de anexo). Push pra
+`origin` e `production`; CI verde nos dois, sem migration nesta leva
+(só CSS/JS/template). Comandos de deploy passados pro usuário rodar
+via SSH no droplet — **confirmação do `docker compose ps`/`curl` pós-
+deploy ainda não recebida nesta sessão** (atualizar esta seção com o
+resultado assim que confirmado).
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Confirmar o deploy no droplet do redesenho do upload de anexo**
+  (commit `34b8c86`, já em `main` nos dois repositórios, CI verde) —
+  comandos passados pro usuário (`git pull` + `docker compose build/up
+  -d` + `curl` de confirmação), mas a resposta com o resultado ainda
+  não chegou nesta sessão. Sem migration nesta leva, risco baixo, mas
+  confirmar antes de considerar o dia fechado.
 - ~~Aumentar `client_max_body_size` no Nginx do droplet~~ — **resolvido
   em 2026-08-19**: linha alterada à mão de `6M` pra `30M` direto em
   `/etc/nginx/sites-enabled/legislativo.conf` (`sed` de uma linha só,
