@@ -2075,14 +2075,14 @@ segurança esperados.
 
 **Mais urgente agora:**
 
-- **Aumentar `client_max_body_size` no Nginx do droplet** (hoje 6M,
-  `deploy/nginx-legislativo.conf` + a linha já inserida à mão em
-  `/etc/nginx/sites-enabled/legislativo.conf`) — vídeo em comentário
-  do fórum (novo, 2026-08-18/19, até 25MB) não funciona em produção
-  até isso ser aumentado lá. Mesmo procedimento já usado quando o
-  upload de foto de perfil foi liberado: inserir só a linha à mão
-  (nunca `cp` do arquivo inteiro, que apaga o bloco SSL do certbot),
-  `nginx -t`, `reload`.
+- ~~Aumentar `client_max_body_size` no Nginx do droplet~~ — **resolvido
+  em 2026-08-19**: linha alterada à mão de `6M` pra `30M` direto em
+  `/etc/nginx/sites-enabled/legislativo.conf` (`sed` de uma linha só,
+  nunca `cp` do arquivo inteiro — preserva o bloco SSL do certbot),
+  `nginx -t` limpo, `reload` sem erro, `curl` confirmando `200 OK`
+  depois. `deploy/nginx-legislativo.conf` (referência local) atualizado
+  junto. Vídeo em comentário do fórum (até 25MB) já funciona em
+  produção.
 - ~~Promover a auditoria de UX mobile (2026-08-13) + os fixes de
   produção do mesmo dia pra `main`/produção~~ — **feito em 2026-08-13**,
   ver seção datada "Promoção completa `next` → `main` → produção →
