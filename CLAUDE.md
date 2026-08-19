@@ -2283,6 +2283,70 @@ formulário de escolha em qualquer lugar acessível ao usuário comum):
 formulário/template), 120 testes (era 113) e `ruff` limpos. Commitado e
 enviado pra `next` (`b792e00`) — não promovido.
 
+### Documento e áudio no fórum de comentários + comentário só-de-mídia (2026-08-19, mesma sessão)
+
+A pedido do usuário: (1) botão de anexar documento e botão de gravar
+áudio na toolbar do comentário do fórum (já tinha foto/vídeo, ver seção
+"Toolbar de mídia no comentário refeita como rede social" mais acima),
+funcionando em desktop e mobile; (2) comentário deixa de exigir texto
+escrito — pode ser só foto, vídeo, áudio ou documento —, mas continua
+proibido enviar completamente vazio (nem texto, nem mídia).
+
+- **Ambiguidade real resolvida**: a gravação de áudio ao vivo e a de
+  vídeo do fórum usam o mesmo contêiner `.webm` — extensão sozinha não
+  distingue as duas. `Comentario.midia_tipo` (novo, migration
+  `comentarios.0009`) é calculado em `save()` a partir do `content_type`
+  que o navegador manda no upload (autoritativo: `audio/webm` vs
+  `video/webm`), com fallback pra extensão só quando content_type não
+  vem (`apps/comentarios/models.py::_detectar_categoria_midia`).
+  `tipo_midia` (property, usada nos templates) passou a ler esse campo
+  em vez de recalcular por extensão toda vez.
+- Extensões novas permitidas: áudio (mp3/wav/ogg/m4a, 15MB) e documento
+  (pdf/doc/docx/xls/xlsx, 10MB) — mesmo padrão de limite por categoria
+  que imagem/vídeo já tinham.
+- **Toolbar do comentário** ganhou 2 ícones novos (documento — clipe; áudio
+  — microfone), mesmo hidden `<input type="file">` reaproveitado pros 4
+  tipos (`accept` trocado via JS conforme o botão clicado, câmera/áudio
+  continuam com captura ao vivo). Modal de áudio novo (reaproveita as
+  classes `.avatar-camera-modal*` já existentes), com ícone de microfone
+  pulsando + cronômetro enquanto grava (`MediaRecorder`, mesma técnica já
+  usada pro vídeo, cadeia de `mimeType` com fallback `webm→ogg→mp4`).
+  Pré-visualização antes de publicar cobre os 4 tipos agora (imagem/
+  vídeo/áudio tocável/documento com nome do arquivo).
+- **Renderização no fórum**: documento vira link com ícone (mesmo ícone
+  de arquivo já usado nos anexos de proposição) + nome; áudio vira
+  `<audio controls>`. **Testado empiricamente via Playwright** (gravação
+  de áudio real com `--use-fake-device-for-media-stream`, comentário
+  publicado, página recarregada, `<audio>` verificado com
+  `readyState=4`/`duration` correto) que o navegador toca o áudio mesmo
+  o Nginx/Django servindo `.webm` com `Content-Type: video/webm` (mime
+  type padrão da extensão) — não precisou de nenhum ajuste de Nginx.
+- **Comentário só-de-mídia**: `Comentario.texto` ganhou `blank=True`
+  (migration `comentarios.0010`); `ComentarioForm.clean()` novo exige
+  pelo menos um dos dois (texto OU mídia), nunca os dois vazios —
+  mensagem amigável ("Escreva um comentário ou anexe uma foto, vídeo,
+  áudio ou documento.") via o mesmo mecanismo de toast que já existia
+  pra comentário rejeitado por palavra proibida. Template
+  (`_comentario.html`) não renderiza mais um `<p></p>` vazio quando o
+  comentário é só mídia.
+- **Achado de regressão, corrigido no caminho** (não relacionado ao
+  pedido, pego pela própria verificação mobile): `.anexo-upload-row`
+  (upload de anexo com ícone de clipe, construído mais cedo na mesma
+  sessão) causava overflow horizontal real em mobile — item de grid
+  dentro de `.anexo-form` (`display: grid`) sem `min-width: 0`, mesmo
+  padrão de bug já visto várias vezes antes no projeto (texto sem quebra
+  de `.anexo-upload-hint` empurrando a linha inteira pra fora do
+  viewport). Fix de uma linha.
+
+`check`, `makemigrations --check`, 128 testes (era 120, +8) e `ruff`
+limpos. Verificação visual completa via Playwright: fluxo de documento e
+de áudio de ponta a ponta (inclusive o teste empírico de reprodução do
+áudio depois de recarregar a página), comentário vazio rejeitado com a
+mensagem certa, comentário só-imagem publicado sem erro, 3 breakpoints
+móveis (360/390/414px) sem overflow horizontal, dark mode. Commitado e
+enviado pra `next` — **promovido pra `main`/produção/droplet na
+sequência, a pedido do usuário** (ver seção de promoção logo abaixo).
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
