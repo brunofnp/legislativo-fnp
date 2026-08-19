@@ -1649,6 +1649,31 @@ body {
   color: var(--text-muted, #6b7280);
 }
 
+.anexo-status {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.anexo-status-pendente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.anexo-status-rejeitado {
+  background: #fee2e2;
+  color: #b3261e;
+}
+
+.anexo-aviso-moderacao {
+  margin: -0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+}
+
 .anexo-excluir-form {
   margin: 0;
 }

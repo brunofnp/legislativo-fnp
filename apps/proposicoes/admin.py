@@ -38,7 +38,7 @@ class NoticiaInline(admin.TabularInline):
 class AnexoProposicaoInline(admin.TabularInline):
     model = AnexoProposicao
     extra = 0
-    fields = ('titulo', 'arquivo', 'enviado_por', 'criado_em')
+    fields = ('titulo', 'arquivo', 'status_moderacao', 'enviado_por', 'criado_em')
     readonly_fields = ('enviado_por', 'criado_em')
 
 
@@ -115,10 +115,26 @@ class NoticiaAdmin(admin.ModelAdmin):
 
 @admin.register(AnexoProposicao)
 class AnexoProposicaoAdmin(admin.ModelAdmin):
-    list_display = ('nome_exibicao', 'proposicao', 'enviado_por', 'criado_em')
+    # Anexo nasce sempre 'pendente' (sem checagem automática de conteúdo de
+    # arquivo, ao contrário do comentário) -- só aparece na página pública
+    # depois de aprovado aqui (ver ProposicaoDetailView._anexos_context).
+    list_display = ('nome_exibicao', 'proposicao', 'status_moderacao', 'enviado_por', 'criado_em')
+    list_editable = ('status_moderacao',)
+    list_filter = ('status_moderacao',)
     search_fields = ('titulo', 'proposicao__titulo')
     autocomplete_fields = ['proposicao']
     readonly_fields = ('enviado_por', 'criado_em')
+    actions = ['aprovar_selecionados', 'rejeitar_selecionados']
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('proposicao', 'enviado_por')
+
+    @admin.action(description='Aprovar selecionados')
+    def aprovar_selecionados(self, request, queryset):
+        atualizados = queryset.update(status_moderacao='aprovado')
+        self.message_user(request, f'{atualizados} anexo(s) aprovado(s).')
+
+    @admin.action(description='Rejeitar selecionados')
+    def rejeitar_selecionados(self, request, queryset):
+        atualizados = queryset.update(status_moderacao='rejeitado')
+        self.message_user(request, f'{atualizados} anexo(s) rejeitado(s).')

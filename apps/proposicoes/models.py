@@ -166,7 +166,19 @@ class Noticia(models.Model):
 class AnexoProposicao(models.Model):
     """Documentos/ementas anexados por prefeitos, indicados de prefeitura ou
     parlamentares (ver Perfil.classe_usuario) -- complementa o mérito e
-    subsídios da FNP com material trazido pela própria base de usuários."""
+    subsídios da FNP com material trazido pela própria base de usuários.
+
+    Ao contrário do comentário do fórum (que nasce aprovado por padrão, só
+    reprovado automaticamente por palavra proibida), o anexo nasce sempre
+    'pendente' -- não existe checagem automática de conteúdo de arquivo, só
+    revisão humana (Root/Administrador FNP) antes de aparecer na página
+    pública. Ver ProposicaoDetailView._anexos_context."""
+
+    MODERACAO_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('aprovado', 'Aprovado'),
+        ('rejeitado', 'Rejeitado'),
+    ]
 
     proposicao = models.ForeignKey(
         Proposicao,
@@ -185,6 +197,7 @@ class AnexoProposicao(models.Model):
         on_delete=models.SET_NULL,
         related_name='anexos_enviados',
     )
+    status_moderacao = models.CharField(max_length=16, choices=MODERACAO_CHOICES, default='pendente')
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:

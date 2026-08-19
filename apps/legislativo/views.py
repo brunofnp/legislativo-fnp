@@ -524,6 +524,20 @@ class ProposicaoDetailView(View):
             'participantes_count': aprovados.exclude(autor__isnull=True).values('autor_id').distinct().count(),
         }
 
+    def _anexos_context(self, proposicao, usuario):
+        """Anexo nasce sempre 'pendente' (sem checagem automática de
+        conteúdo de arquivo) -- só aparece pra quem não é staff depois de
+        aprovado. O próprio autor do envio continua vendo o dele enquanto
+        pendente (senão pareceria que o upload sumiu), mas não um rejeitado
+        -- mesmo princípio de Comentario (rejeitado nunca fica visível)."""
+        anexos = proposicao.anexos.select_related('enviado_por')
+        if not (usuario.is_authenticated and usuario.is_staff):
+            filtro = Q(status_moderacao='aprovado')
+            if usuario.is_authenticated:
+                filtro |= Q(enviado_por=usuario)
+            anexos = anexos.filter(filtro)
+        return anexos
+
     def _breadcrumb(self):
         return {
             'breadcrumb_parent_label': 'Proposições',
@@ -542,6 +556,7 @@ class ProposicaoDetailView(View):
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
                 'anexo_form': AnexoProposicaoForm(),
+                'anexos': self._anexos_context(proposicao, request.user),
                 'favoritos_ids': get_favoritos_ids(request),
                 **self._breadcrumb(),
                 **self._forum_context(proposicao, request.user),
@@ -579,6 +594,7 @@ class ProposicaoDetailView(View):
                 'page_title': proposicao.titulo,
                 'comentario_form': comentario_form,
                 'anexo_form': AnexoProposicaoForm(),
+                'anexos': self._anexos_context(proposicao, request.user),
                 'favoritos_ids': get_favoritos_ids(request),
                 'success_message': success_message,
                 **self._breadcrumb(),

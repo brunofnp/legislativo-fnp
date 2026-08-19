@@ -731,6 +731,7 @@ class AnexoProposicaoTest(TestCase):
         anexo = self.proposicao.anexos.get()
         self.assertEqual(anexo.titulo, 'Ementa oficial')
         self.assertEqual(anexo.enviado_por, self.usuario)
+        self.assertEqual(anexo.status_moderacao, 'pendente')
 
     def test_extensao_nao_permitida_e_rejeitada(self):
         self.client.force_login(self.usuario)
@@ -777,6 +778,60 @@ class AnexoProposicaoTest(TestCase):
         self.client.force_login(staff)
         self.client.post(reverse('legislativo:excluir_anexo', args=[anexo.pk]))
         self.assertFalse(AnexoProposicao.objects.filter(pk=anexo.pk).exists())
+
+
+class AnexoModeracaoTest(TestCase):
+    """Anexo nasce sempre 'pendente' (sem checagem automática de conteúdo de
+    arquivo, ao contrário do comentário) -- só aparece na página pública
+    depois de aprovado pela equipe (Root/Administrador FNP)."""
+
+    def setUp(self):
+        self.proposicao = Proposicao.objects.create(titulo='PL com anexo pendente', casa='camara')
+        self.autor = Usuario.objects.create(username='autoranexo', email='autoranexo@fnp.org.br')
+        self.pendente = AnexoProposicao.objects.create(
+            proposicao=self.proposicao, arquivo=SimpleUploadedFile('doc.pdf', b'x'),
+            enviado_por=self.autor, titulo='Anexo pendente',
+        )
+
+    def _renderizar_como(self, usuario):
+        request = _request_with_session(f'/proposicao/{self.proposicao.pk}/')
+        request.user = usuario
+        return ProposicaoDetailView.as_view()(request, pk=self.proposicao.pk).content.decode('utf-8')
+
+    def test_anonimo_nao_ve_anexo_pendente(self):
+        from django.contrib.auth.models import AnonymousUser
+
+        content = self._renderizar_como(AnonymousUser())
+        self.assertNotIn('Anexo pendente', content)
+
+    def test_outro_usuario_nao_ve_anexo_pendente(self):
+        outro = Usuario.objects.create(username='outroleitor', email='outroleitor@fnp.org.br')
+        content = self._renderizar_como(outro)
+        self.assertNotIn('Anexo pendente', content)
+
+    def test_autor_ve_o_proprio_anexo_pendente(self):
+        content = self._renderizar_como(self.autor)
+        self.assertIn('Anexo pendente', content)
+        self.assertIn('Aguardando aprovação', content)
+
+    def test_staff_ve_qualquer_anexo_pendente(self):
+        staff = Usuario.objects.create(username='staffmod', email='staffmod@fnp.org.br', is_staff=True)
+        content = self._renderizar_como(staff)
+        self.assertIn('Anexo pendente', content)
+
+    def test_anexo_aprovado_aparece_pra_todo_mundo(self):
+        self.pendente.status_moderacao = 'aprovado'
+        self.pendente.save(update_fields=['status_moderacao'])
+        from django.contrib.auth.models import AnonymousUser
+
+        content = self._renderizar_como(AnonymousUser())
+        self.assertIn('Anexo pendente', content)
+
+    def test_admin_aprova_em_massa(self):
+        from apps.proposicoes.admin import AnexoProposicaoAdmin
+
+        self.assertIn('aprovar_selecionados', AnexoProposicaoAdmin.actions)
+        self.assertIn('rejeitar_selecionados', AnexoProposicaoAdmin.actions)
 
 
 class ComentarioMidiaTest(TestCase):
