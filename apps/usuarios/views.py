@@ -1,6 +1,11 @@
+import logging
+import smtplib
+
 from allauth.account.forms import ResetPasswordForm
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -18,14 +23,29 @@ def definir_senha_social(request):
         return redirect('account_change_password')
 
     enviado = False
+    erro_envio = False
     if request.method == 'POST':
         form = ResetPasswordForm(data={'email': request.user.email})
         if form.is_valid():
-            form.save(request)
-            enviado = True
+            try:
+                form.save(request)
+                enviado = True
+            except (smtplib.SMTPException, OSError):
+                # EMAIL_BACKEND de produção sem SMTP real configurado (ver
+                # Pendências no CLAUDE.md) derrubava esta view com 500 --
+                # mesmo raciocínio já aplicado em
+                # apps.usuarios.signals.notificar_cadastro_pendente: falha
+                # de e-mail nunca pode quebrar a página, só avisar o usuário.
+                logger.exception('Falha ao enviar e-mail de definição de senha para %s', request.user.email)
+                erro_envio = True
 
     return render(
         request,
         'account/definir_senha_social.html',
-        {'page_title': 'Definir senha', 'enviado': enviado, 'mostrar_sidebar': True},
+        {
+            'page_title': 'Definir senha',
+            'enviado': enviado,
+            'erro_envio': erro_envio,
+            'mostrar_sidebar': True,
+        },
     )

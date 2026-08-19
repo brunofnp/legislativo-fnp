@@ -975,6 +975,10 @@ body {
   margin: 0 0 1.1rem;
 }
 
+.exclusao-texto-erro {
+  color: #dc2626;
+}
+
 .exclusao-lista {
   text-align: left;
   margin: 0 auto 1.5rem;

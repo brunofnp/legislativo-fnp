@@ -1202,6 +1202,32 @@ class DefinirSenhaSocialTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('password/change', response.url)
 
+    def test_falha_no_envio_de_email_mostra_erro_em_vez_de_500(self):
+        """EMAIL_BACKEND de produção sem SMTP real configurado (pendência
+        conhecida, ver CLAUDE.md) derrubava esta view com 500 -- agora a
+        falha é tratada e mostrada como mensagem amigável na mesma página."""
+        from unittest.mock import patch
+
+        from apps.usuarios.views import definir_senha_social
+
+        usuario = Usuario.objects.create(username='soogoogle3', email='soogoogle3@fnp.org.br')
+        usuario.set_unusable_password()
+        usuario.save()
+
+        request = _post_request_with_session('/contas/password/set/')
+        request.user = usuario
+
+        with patch(
+            'apps.usuarios.views.ResetPasswordForm.save',
+            side_effect=ConnectionRefusedError('recusado'),
+        ):
+            response = definir_senha_social(request)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('Não foi possível enviar o e-mail agora', content)
+        self.assertNotIn('Confira seu e-mail', content)
+
 
 class UsuarioPublicoTest(TestCase):
     def test_pagina_publica_mostra_proposicoes_comentadas(self):

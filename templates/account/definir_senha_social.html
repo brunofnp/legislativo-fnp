@@ -24,6 +24,9 @@
       </span>
       <h2 class="exclusao-titulo">Sua conta ainda não tem uma senha</h2>
       <p class="exclusao-texto">Você entra hoje só pelo Google. Por segurança, pra criar a primeira senha local dessa conta a gente confirma pelo e-mail cadastrado — assim ninguém com acesso só à sua sessão consegue criar uma senha sem sua permissão.</p>
+      {% if erro_envio %}
+        <p class="exclusao-texto exclusao-texto-erro">Não foi possível enviar o e-mail agora. Tente novamente em alguns minutos ou avise o suporte se o problema continuar.</p>
+      {% endif %}
       <form method="post" class="exclusao-acoes">
         {% csrf_token %}
         <button type="submit" class="fbtn auth-submit">Enviar link de confirmação por e-mail</button>
