@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexto do Projeto Legislativo FNP
 
 > Arquivo de contexto para sessões com Claude Code. Atualizado automaticamente a cada 3h enquanto há sessão ativa (mantém este arquivo fiel ao código para evitar redescoberta/gasto de tokens em sessões futuras).
-> Última atualização: 2026-08-13 — **Auditoria de UX mobile completa (3 fases) + 5 rodadas de fixes de produção no mesmo dia, tudo promovido pra produção/droplet até o fim da sessão.** (1) topbar sumindo em páginas allauth, (2) overflow no fórum/página de detalhe, (3) comentários reorganizados estilo Facebook, (4) Voltar/Início no cabeçalho público (usuário anônimo), (5) cabeçalho autenticado mobile redesenhado (1 linha só, ordem Aa/tema/ajuda/notificações/perfil/Sair, ícones menores que 44px WCAG de propósito pra caber tudo) com campo de busca sempre visível substituindo o modal Ctrl+K e a busca duplicada no meio da home, mais 2 bugs de sidebar recolhida (rótulos sumindo na gaveta mobile, logo cortado no desktop) achados via captura de tela real de produção. `next` → `main` → produção → droplet confirmado saudável (`healthy` + `curl` 200 OK) duas vezes na mesma sessão (meio e fim). Sessão anterior (2026-08-11) foi um dia inteiro de auditoria de segurança + correções — ver seção datada própria mais abaixo pro resumo daquela.
+> Última atualização: 2026-08-19 — **6 funcionalidades novas na proposição/comentário/cadastro, todas promovidas pra produção/droplet no mesmo dia.** (1) anexos de documentos na proposição, (2) foto/vídeo nos comentários do fórum, (3) seção "Notícias relacionadas", (4) botão de impressão — depois de 2 rodadas de ajuste a partir de feedback real, virou um menu com hover que aponta direto pras versões de impressão de verdade da Câmara/Senado (não mais uma página de impressão nossa), (5) botão de compartilhar (Web Share API + fallback WhatsApp/X/Facebook/copiar link), (6) classe de usuário (Equipe FNP/Prefeito/Indicado da prefeitura/Parlamentar). No caminho da promoção, o CI pegou 4 CVEs novas em `sqlparse` (dependência transitiva do Django, não usada direto no projeto) — corrigido antes de re-promover. `next` → `main` → produção → droplet confirmado saudável (`healthy` + `curl` 200 OK). Ver seção datada própria mais abaixo pro detalhe de cada item. Sessão anterior (2026-08-13/14) foi a auditoria de UX mobile + fixes de produção — ver seções datadas mais abaixo.
 
 ---
 
@@ -1943,10 +1943,146 @@ Promovido `next` (`6f3c493`) → `main` → produção → droplet na
 sequência, sem migration; CI verde nos dois repositórios; `docker
 compose ps` → `(healthy)`, `curl` → `200 OK`.
 
+### 6 funcionalidades novas: anexos, mídia no fórum, notícias, impressão, compartilhar, classe de usuário (2026-08-18/19)
+
+A pedido do usuário, 6 pedidos numerados de uma vez (a partir de duas
+capturas de tela — card de detalhe em produção, e uma tela do app
+legado usada só como referência de estilo pra seção de notícias).
+Trabalho planejado antes de mexer em código (`EnterPlanMode`, dado o
+volume — 3 apps tocados, 3 migrations novas) e implementado em 6
+commits sequenciais e testáveis, ordem do mais contido ao mais amplo:
+
+- **Classe de usuário** (`Perfil.classe_usuario`, migration
+  `usuarios.0007`) — Equipe FNP/Prefeito/Indicado da prefeitura/
+  Parlamentar. Autodeclarado no cadastro público, mas **sem "Equipe
+  FNP" nas opções do formulário de signup** (equipe interna é
+  promovida via grupo do Admin, não autodeclarada); editável depois em
+  `/perfil/` com as 4 opções. `UsuarioAdmin` ganhou filtro e coluna por
+  classe (`perfil__classe_usuario`, mesmo padrão já usado por
+  `status_aprovacao`) — uso principal é dar atenção diferenciada por
+  tipo de usuário no Admin.
+- **Notícias relacionadas** (novo `panel-block` em
+  `proposicao_detail.html`, entre Última movimentação e Mérito) —
+  reaproveita o model `Noticia` (já existia, já tinha inline no Admin,
+  nunca teve template). Badge de fonte derivado do domínio da URL via
+  filtro novo `apps.legislativo.templatetags.legislativo_extras.dominio`,
+  sem campo novo no banco.
+- **Anexos de documentos/ementas** (`AnexoProposicao`, novo, migration
+  `proposicoes.0004`) — PDF/Word/Excel/imagem até 10MB, validado por
+  extensão (`FileExtensionValidator`) e tamanho. Qualquer usuário
+  aprovado envia; autor do próprio envio ou staff excluem (mesmo
+  modelo de `excluir_comentario`). Inline no Admin da proposição +
+  registro próprio; `Administrador FNP` ganhou permissão via
+  `setup_roles.py`.
+- **Foto/vídeo nos comentários do fórum** (`Comentario.midia`, novo,
+  migration `comentarios.0008`) — imagem até 8MB ou vídeo até 25MB,
+  1 arquivo opcional por comentário, sem moderação de conteúdo além da
+  que já existe pro texto. **Pendência de infra**: o Nginx do droplet
+  tem `client_max_body_size 6M` hoje — vídeo só funciona em produção
+  depois de aumentar esse limite lá (mesmo procedimento já usado
+  quando o upload de foto de perfil foi liberado), ver Pendências.
+- **Botão de impressão** — o item que mais mudou de forma na sessão,
+  2 rodadas a partir de feedback real do usuário:
+  1. Primeira versão: página de impressão própria
+     (`proposicao_print.html`), renderizando os campos do nosso banco,
+     com 3 modos (reduzida/completa/personalizada) escolhidos num menu
+     `<details>`.
+  2. Usuário testou e apontou que queria a impressão de fato — "não a
+     página", e "estritamente do link direto da câmara ou da fonte
+     real" —, mostrando como referência o menu "Versões para
+     impressão" que a própria ficha da Câmara já tem. **Página de
+     impressão própria removida por completo** (view, template, CSS,
+     modal — tudo sem uso); botão vira um link direto pro
+     `Proposicao.link`.
+  3. Usuário testou nesse meio-termo e voltou com os 3 links reais que
+     o site da Câmara usa (`prop_imp?...&tp=reduzida`,
+     `tp=completa`, `prop_visual_impress?...`) e pediu que o menu
+     abrisse ao passar o mouse (como no site de referência) e cada
+     opção fosse direto pra versão de impressão de verdade — "para
+     cada proposição", cada uma com sua fonte. Novo módulo
+     `apps/proposicoes/print_urls.py`
+     (`urls_impressao_oficial(link)`) deriva os links reais a partir
+     só do `Proposicao.link` já cadastrado: Câmara tem 3 formatos,
+     todos dependendo só do `idProposicao` — extraído tanto de
+     `?idProposicao=<id>` (formato usado por `sync_camara.py`) quanto
+     de `/propostas-legislativas/<id>` (formato que sobrou do legado
+     importado, confirmado que é o mesmo número comparando as duas
+     formas nos dados reais); o `jsessionid` que a Câmara anexa nessas
+     URLs é dispensável (só fallback de rastreio de sessão pra
+     navegador sem cookie, confirmado testando sem ele). Senado só tem
+     1 formato (PDF único, mesma URL da matéria com `/pdf` no final —
+     Senado não tem a distinção reduzida/completa/personalizada).
+     Fonte não reconhecida cai num fallback de 1 item (link direto pra
+     fonte); sem `link` nenhuma, o botão não aparece (nada pra
+     imprimir). Menu abre via `:hover`/`:focus-within` em CSS puro,
+     sem JS — mesmo princípio de zero-dependência já usado nos outros
+     dropdowns do site (`<details>`), mas hover não mapeia bem pra
+     `<details>`, daí a divergência de padrão aqui.
+- **Botão de compartilhar** — Web Share API quando disponível (abre a
+  folha nativa do sistema, principalmente mobile), com fallback num
+  menu (WhatsApp/X/Facebook/copiar link via Clipboard API). 100%
+  client-side, sem view nova.
+
+**Achado de verificação visual** (Playwright, 4 breakpoints, mesmo
+checklist das últimas sessões): os ícones novos de impressão/
+compartilhar nasceram em 36px no mobile — abaixo do mínimo de 44px
+(WCAG) que o `.favorito-btn` e outros elementos já respeitam desde a
+auditoria de mobile de 2026-08-13. Corrigido no mesmo commit da
+verificação, antes de qualquer promoção.
+
+`check`, `makemigrations --check`, `ruff --select F401,F811,F841` e
+106 testes (era 84 no início da sessão) limpos a cada commit dos 7 no
+total (6 funcionalidades + 1 fix de tap target). Verificação visual via
+Playwright em cada etapa visualmente relevante (não só no fim) —
+screenshot real do dropdown de impressão em hover, do modal antigo (já
+removido), da renderização de imagem/vídeo no comentário, do card com
+os 3 ícones de ação lado a lado — nos dois casos reais do banco local
+(uma proposição da Câmara, uma do Senado), confirmando que as URLs
+derivadas batem exatamente com os links que o usuário validou
+manualmente no site da Câmara.
+
+### Promoção `next` → `main` → produção → droplet, achado de segurança no caminho (2026-08-19)
+
+A pedido do usuário ("vamos subir tudo pra next e para a produção e
+droplet"), `check`/`makemigrations --check`/106 testes/`ruff`
+revalidados antes do push; `main` local (`6f3c493`) era fast-forward
+puro com `next` (`edb8307`, 9 commits — as 6 funcionalidades acima).
+Push pra `origin` e `production` — **CI vermelho pela primeira vez
+numa promoção desta sessão**: `pip-audit` (rodava limpo até então)
+achou 4 CVEs novas em `sqlparse` 0.5.5 (`PYSEC-2026-3696` a `-3699`,
+corrigidas na 0.6.0) — dependência transitiva do Django (formatação de
+SQL no Admin), sem uso direto no projeto, achado só porque essa foi a
+primeira vez que o CI rodou desde que as vulnerabilidades foram
+divulgadas (não relacionado a nenhuma mudança desta sessão). Corrigido
+regenerando `requirements.lock` (`pip-compile --generate-hashes
+--upgrade-package sqlparse`, só esse pacote mudou no diff), validado
+local (`pip-audit -r requirements.lock` limpo, 106 testes OK), commit
+separado em `next` primeiro, depois `main` de novo — CI verde nos dois
+repositórios na sequência.
+
+Deploy no droplet via SSH: `git pull origin main` trouxe as 27
+alterações (3 migrations novas, mais o fix do lockfile), `docker
+compose build` (28s de instalação de dependências, sem cache stale —
+código novo de verdade), `docker compose up -d` subiu sem erro. Uma
+checagem de `curl` rodada muito em seguida do `up -d` bateu `502 Bad
+Gateway` de novo (mesmo padrão de sempre — container com poucos
+segundos de vida, healthcheck ainda `starting`); ~1 minuto depois,
+`docker compose ps` → `(healthy)`, `curl -sI
+https://legislativo.fnp.org.br/` → `200 OK` com todos os cabeçalhos de
+segurança esperados.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
+- **Aumentar `client_max_body_size` no Nginx do droplet** (hoje 6M,
+  `deploy/nginx-legislativo.conf` + a linha já inserida à mão em
+  `/etc/nginx/sites-enabled/legislativo.conf`) — vídeo em comentário
+  do fórum (novo, 2026-08-18/19, até 25MB) não funciona em produção
+  até isso ser aumentado lá. Mesmo procedimento já usado quando o
+  upload de foto de perfil foi liberado: inserir só a linha à mão
+  (nunca `cp` do arquivo inteiro, que apaga o bloco SSL do certbot),
+  `nginx -t`, `reload`.
 - ~~Promover a auditoria de UX mobile (2026-08-13) + os fixes de
   produção do mesmo dia pra `main`/produção~~ — **feito em 2026-08-13**,
   ver seção datada "Promoção completa `next` → `main` → produção →
