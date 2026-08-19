@@ -223,12 +223,40 @@
             </div>
             <label class="field-label" for="{{ comentario_form.texto.id_for_label }}">Comentário</label>
             {{ comentario_form.texto }}
-            <label class="field-label" for="{{ comentario_form.midia.id_for_label }}">Foto ou vídeo (opcional)</label>
-            {{ comentario_form.midia }}
-            <button class="fbtn" type="submit">Publicar comentário</button>
+
+            <div class="comment-midia-preview hidden" id="comment-midia-preview">
+              <img id="comment-midia-preview-img" class="hidden" alt="Pré-visualização da imagem anexada" />
+              <video id="comment-midia-preview-video" class="hidden" muted playsinline controls></video>
+              <button type="button" class="comment-midia-remove-btn" id="comment-midia-remove-btn" aria-label="Remover anexo">×</button>
+            </div>
+
+            <div class="comment-toolbar">
+              <button type="button" class="comment-toolbar-btn" id="comment-anexar-btn" aria-label="Anexar foto ou vídeo" title="Anexar foto ou vídeo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              </button>
+              <button type="button" class="comment-toolbar-btn" id="comment-camera-btn" aria-label="Usar câmera" title="Usar câmera">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+              <div class="comment-midia-widget-hidden">{{ comentario_form.midia }}</div>
+              <button class="fbtn comment-publicar-btn" type="submit">Publicar comentário</button>
+            </div>
           </form>
         </div>
       </aside>
     </div>
   </article>
+
+  <div class="avatar-camera-modal hidden" id="comment-camera-modal">
+    <div class="avatar-camera-modal-backdrop" id="comment-camera-modal-backdrop"></div>
+    <div class="avatar-camera-modal-panel">
+      <video id="comment-camera-video" autoplay playsinline muted></video>
+      <span class="comment-camera-gravando hidden" id="comment-camera-gravando">● Gravando…</span>
+      <p class="avatar-camera-erro hidden" id="comment-camera-erro">Não foi possível acessar a câmera. Verifique se o navegador tem permissão de câmera pra este site.</p>
+      <div class="avatar-camera-modal-actions">
+        <button type="button" id="comment-camera-cancelar" class="fbtn avatar-camera-cancelar-btn">Cancelar</button>
+        <button type="button" id="comment-camera-foto" class="fbtn">Tirar foto</button>
+        <button type="button" id="comment-camera-video-btn" class="fbtn">Gravar vídeo</button>
+      </div>
+    </div>
+  </div>
 {% endblock %}

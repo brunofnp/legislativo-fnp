@@ -751,6 +751,160 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initPerfilAvatarEdit();
 
+  function initComentarioMidia() {
+    // Toolbar estilo rede social no comentário do fórum: "+" abre o
+    // seletor de arquivo nativo (foto/vídeo da galeria), câmera abre um
+    // modal com captura ao vivo -- foto (frame único, mesmo princípio do
+    // avatar) ou vídeo gravado na hora via MediaRecorder. Substitui o
+    // <input type="file"> cru que ficava solto abaixo do textarea.
+    const fileInput = document.getElementById('id_midia');
+    const anexarBtn = document.getElementById('comment-anexar-btn');
+    const cameraBtn = document.getElementById('comment-camera-btn');
+    if (!fileInput || !anexarBtn || !cameraBtn) return;
+
+    const preview = document.getElementById('comment-midia-preview');
+    const previewImg = document.getElementById('comment-midia-preview-img');
+    const previewVideo = document.getElementById('comment-midia-preview-video');
+    const removeBtn = document.getElementById('comment-midia-remove-btn');
+
+    function mostrarPreview(arquivo) {
+      if (!arquivo) return;
+      const url = URL.createObjectURL(arquivo);
+      const ehVideo = arquivo.type.startsWith('video/');
+      previewImg.classList.toggle('hidden', ehVideo);
+      previewVideo.classList.toggle('hidden', !ehVideo);
+      if (ehVideo) {
+        previewVideo.src = url;
+      } else {
+        previewImg.src = url;
+      }
+      preview.classList.remove('hidden');
+    }
+
+    function limparMidia() {
+      fileInput.value = '';
+      preview.classList.add('hidden');
+      previewImg.src = '';
+      previewVideo.src = '';
+    }
+
+    anexarBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => mostrarPreview(fileInput.files && fileInput.files[0]));
+    if (removeBtn) removeBtn.addEventListener('click', limparMidia);
+
+    // ---- Câmera: foto (canvas) ou vídeo (MediaRecorder) ----
+    const modal = document.getElementById('comment-camera-modal');
+    const video = document.getElementById('comment-camera-video');
+    const erro = document.getElementById('comment-camera-erro');
+    const gravandoIndicador = document.getElementById('comment-camera-gravando');
+    const fotoBtn = document.getElementById('comment-camera-foto');
+    const videoBtn = document.getElementById('comment-camera-video-btn');
+    const cancelarBtn = document.getElementById('comment-camera-cancelar');
+    const backdrop = document.getElementById('comment-camera-modal-backdrop');
+    if (!modal || !video) return;
+
+    let stream = null;
+    let recorder = null;
+    let chunks = [];
+    let gravando = false;
+
+    function pararStream() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    }
+
+    function fecharModal() {
+      if (recorder && gravando) recorder.stop();
+      pararStream();
+      gravando = false;
+      gravandoIndicador.classList.add('hidden');
+      videoBtn.textContent = 'Gravar vídeo';
+      modal.classList.add('hidden');
+    }
+
+    async function abrirModal() {
+      modal.classList.remove('hidden');
+      erro.classList.add('hidden');
+      video.classList.remove('hidden');
+      fotoBtn.disabled = false;
+      videoBtn.disabled = false;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+        video.srcObject = stream;
+      } catch (error) {
+        erro.classList.remove('hidden');
+        video.classList.add('hidden');
+        fotoBtn.disabled = true;
+        videoBtn.disabled = true;
+      }
+    }
+
+    function enviarArquivo(arquivo) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(arquivo);
+      fileInput.files = dataTransfer.files;
+      mostrarPreview(arquivo);
+      fecharModal();
+    }
+
+    cameraBtn.addEventListener('click', abrirModal);
+    if (cancelarBtn) cancelarBtn.addEventListener('click', fecharModal);
+    if (backdrop) backdrop.addEventListener('click', fecharModal);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !modal.classList.contains('hidden')) fecharModal();
+    });
+
+    if (fotoBtn) {
+      fotoBtn.addEventListener('click', () => {
+        if (!stream || !video.videoWidth) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob(blob => {
+          if (!blob) return;
+          enviarArquivo(new File([blob], 'foto-camera.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      });
+    }
+
+    if (videoBtn) {
+      videoBtn.addEventListener('click', () => {
+        if (!stream) return;
+        if (gravando) {
+          recorder.stop();
+          return;
+        }
+        const candidatos = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+        const mimeType = candidatos.find(tipo => window.MediaRecorder && MediaRecorder.isTypeSupported(tipo)) || '';
+        chunks = [];
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        recorder.ondataavailable = event => {
+          if (event.data && event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onstop = () => {
+          gravando = false;
+          gravandoIndicador.classList.add('hidden');
+          videoBtn.textContent = 'Gravar vídeo';
+          const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+          const extensao = (recorder.mimeType || 'video/webm').includes('mp4') ? 'mp4' : 'webm';
+          enviarArquivo(new File([blob], `video-camera.${extensao}`, { type: blob.type }));
+        };
+        recorder.start();
+        gravando = true;
+        gravandoIndicador.classList.remove('hidden');
+        videoBtn.textContent = 'Parar gravação';
+      });
+    }
+  }
+
+  initComentarioMidia();
+
   function setToast(message) {
     if (!toast) return;
     toast.textContent = message;
