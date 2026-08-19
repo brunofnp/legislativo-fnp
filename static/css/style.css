@@ -1697,6 +1697,11 @@ body {
   padding: 0.5rem 0.6rem;
   border: 1px solid #d1d5db;
   border-radius: 1rem;
+  /* Item de grid dentro de .anexo-form (display:grid) -- sem isso, o
+     texto sem quebra de .anexo-upload-hint/-filename empurra a linha
+     inteira pra fora do viewport em mobile (mesmo bug de "grid/flex item
+     não encolhe abaixo do conteúdo" de outras seções do site). */
+  min-width: 0;
 }
 
 .anexo-upload-info {
@@ -2214,6 +2219,78 @@ body {
   background: #000;
 }
 
+.comment-midia-preview audio {
+  display: block;
+  width: 100%;
+}
+
+/* Pré-visualização de áudio/documento é mais larga que a de foto/vídeo
+   (não é um quadrado 180px) -- classe adicionada via JS conforme o tipo. */
+.comment-midia-preview-wide {
+  max-width: 320px;
+  width: 100%;
+}
+
+.comment-midia-preview-documento {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.75rem;
+  background: var(--bg-surface-alt, #f8fafc);
+}
+
+.comment-midia-preview-documento svg {
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.comment-midia-preview-documento span {
+  font-size: 0.85rem;
+  color: var(--text-primary, #1e293b);
+  overflow-wrap: break-word;
+}
+
+.comment-midia-audio {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 0.5rem;
+}
+
+.comment-midia-documento {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.7rem;
+  text-decoration: none;
+  color: var(--text-primary, #1e293b);
+  font-weight: 600;
+  font-size: 0.85rem;
+  max-width: 100%;
+}
+
+.comment-midia-documento:hover {
+  border-color: #193657;
+}
+
+.comment-midia-documento svg {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.comment-midia-documento span {
+  overflow-wrap: break-word;
+}
+
 .comment-midia-remove-btn {
   position: absolute;
   top: -0.5rem;
@@ -2239,6 +2316,44 @@ body {
   color: #fff;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.comment-audio-modal-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.comment-audio-modal-panel .comment-camera-gravando {
+  position: static;
+}
+
+.comment-audio-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 999px;
+  background: var(--bg-surface-alt, #f1f5f9);
+  color: #193657;
+}
+
+.comment-audio-visual svg {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.comment-audio-visual.gravando {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  animation: comment-audio-pulso 1.4s ease-in-out infinite;
+}
+
+@keyframes comment-audio-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35); }
+  50% { box-shadow: 0 0 0 0.85rem rgba(220, 38, 38, 0); }
 }
 
 .site-footer {
@@ -3882,6 +3997,18 @@ body {
   .comment-toolbar-btn {
     width: 2.75rem;
     height: 2.75rem;
+  }
+
+  /* 4 ícones (foto/vídeo, câmera, documento, áudio) + botão de publicar não
+     cabem numa linha só em telas estreitas -- publicar quebra pra linha
+     própria em vez de espremer os ícones. */
+  .comment-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .comment-publicar-btn {
+    margin-left: 0;
+    flex-basis: 100%;
   }
 
   /* Área de toque mínima de 44px, mesma diretriz acima -- desktop usa

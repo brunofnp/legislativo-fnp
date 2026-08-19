@@ -242,6 +242,11 @@
             <div class="comment-midia-preview hidden" id="comment-midia-preview">
               <img id="comment-midia-preview-img" class="hidden" alt="Pré-visualização da imagem anexada" />
               <video id="comment-midia-preview-video" class="hidden" muted playsinline controls></video>
+              <audio id="comment-midia-preview-audio" class="hidden" controls></audio>
+              <div class="comment-midia-preview-documento hidden" id="comment-midia-preview-documento">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14.5 2v5.5H20"/></svg>
+                <span id="comment-midia-preview-documento-nome"></span>
+              </div>
               <button type="button" class="comment-midia-remove-btn" id="comment-midia-remove-btn" aria-label="Remover anexo">×</button>
             </div>
 
@@ -251,6 +256,12 @@
               </button>
               <button type="button" class="comment-toolbar-btn" id="comment-camera-btn" aria-label="Usar câmera" title="Usar câmera">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+              <button type="button" class="comment-toolbar-btn" id="comment-documento-btn" aria-label="Anexar documento" title="Anexar documento">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+              <button type="button" class="comment-toolbar-btn" id="comment-audio-btn" aria-label="Gravar áudio" title="Gravar áudio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
               </button>
               <div class="comment-midia-widget-hidden">{{ comentario_form.midia }}</div>
               <button class="fbtn comment-publicar-btn" type="submit">Publicar comentário</button>
@@ -271,6 +282,21 @@
         <button type="button" id="comment-camera-cancelar" class="fbtn avatar-camera-cancelar-btn">Cancelar</button>
         <button type="button" id="comment-camera-foto" class="fbtn">Tirar foto</button>
         <button type="button" id="comment-camera-video-btn" class="fbtn">Gravar vídeo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="avatar-camera-modal hidden" id="comment-audio-modal">
+    <div class="avatar-camera-modal-backdrop" id="comment-audio-modal-backdrop"></div>
+    <div class="avatar-camera-modal-panel comment-audio-modal-panel">
+      <div class="comment-audio-visual" id="comment-audio-visual">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+      </div>
+      <span class="comment-camera-gravando hidden" id="comment-audio-gravando">● Gravando… <span id="comment-audio-timer">0:00</span></span>
+      <p class="avatar-camera-erro hidden" id="comment-audio-erro">Não foi possível acessar o microfone. Verifique se o navegador tem permissão de áudio pra este site.</p>
+      <div class="avatar-camera-modal-actions">
+        <button type="button" id="comment-audio-cancelar" class="fbtn avatar-camera-cancelar-btn">Cancelar</button>
+        <button type="button" id="comment-audio-toggle" class="fbtn">Iniciar gravação</button>
       </div>
     </div>
   </div>

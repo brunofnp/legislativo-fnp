@@ -755,40 +755,70 @@ window.addEventListener('DOMContentLoaded', function () {
     // Toolbar estilo rede social no comentário do fórum: "+" abre o
     // seletor de arquivo nativo (foto/vídeo da galeria), câmera abre um
     // modal com captura ao vivo -- foto (frame único, mesmo princípio do
-    // avatar) ou vídeo gravado na hora via MediaRecorder. Substitui o
-    // <input type="file"> cru que ficava solto abaixo do textarea.
+    // avatar) ou vídeo gravado na hora via MediaRecorder. Documento e
+    // áudio reaproveitam o mesmo <input type="file"> escondido (accept
+    // trocado por JS conforme o botão clicado) e o mesmo modal de captura
+    // ao vivo (áudio grava com MediaRecorder, sem stream de vídeo).
+    // Substitui o <input type="file"> cru que ficava solto abaixo do textarea.
     const fileInput = document.getElementById('id_midia');
     const anexarBtn = document.getElementById('comment-anexar-btn');
     const cameraBtn = document.getElementById('comment-camera-btn');
+    const documentoBtn = document.getElementById('comment-documento-btn');
+    const audioBtn = document.getElementById('comment-audio-btn');
     if (!fileInput || !anexarBtn || !cameraBtn) return;
+
+    const ACCEPT_FOTO_VIDEO = 'image/*,video/*';
+    const ACCEPT_DOCUMENTO = '.pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,'
+      + 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,'
+      + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
     const preview = document.getElementById('comment-midia-preview');
     const previewImg = document.getElementById('comment-midia-preview-img');
     const previewVideo = document.getElementById('comment-midia-preview-video');
+    const previewAudio = document.getElementById('comment-midia-preview-audio');
+    const previewDocumento = document.getElementById('comment-midia-preview-documento');
+    const previewDocumentoNome = document.getElementById('comment-midia-preview-documento-nome');
     const removeBtn = document.getElementById('comment-midia-remove-btn');
 
     function mostrarPreview(arquivo) {
       if (!arquivo) return;
       const url = URL.createObjectURL(arquivo);
+      const ehImagem = arquivo.type.startsWith('image/');
       const ehVideo = arquivo.type.startsWith('video/');
-      previewImg.classList.toggle('hidden', ehVideo);
+      const ehAudio = arquivo.type.startsWith('audio/');
+      const ehDocumento = !ehImagem && !ehVideo && !ehAudio;
+      previewImg.classList.toggle('hidden', !ehImagem);
       previewVideo.classList.toggle('hidden', !ehVideo);
-      if (ehVideo) {
-        previewVideo.src = url;
-      } else {
-        previewImg.src = url;
-      }
+      previewAudio.classList.toggle('hidden', !ehAudio);
+      previewDocumento.classList.toggle('hidden', !ehDocumento);
+      preview.classList.toggle('comment-midia-preview-wide', ehAudio || ehDocumento);
+      if (ehImagem) previewImg.src = url;
+      else if (ehVideo) previewVideo.src = url;
+      else if (ehAudio) previewAudio.src = url;
+      else previewDocumentoNome.textContent = arquivo.name;
       preview.classList.remove('hidden');
     }
 
     function limparMidia() {
       fileInput.value = '';
       preview.classList.add('hidden');
+      preview.classList.remove('comment-midia-preview-wide');
       previewImg.src = '';
       previewVideo.src = '';
+      previewAudio.src = '';
+      previewDocumentoNome.textContent = '';
     }
 
-    anexarBtn.addEventListener('click', () => fileInput.click());
+    anexarBtn.addEventListener('click', () => {
+      fileInput.accept = ACCEPT_FOTO_VIDEO;
+      fileInput.click();
+    });
+    if (documentoBtn) {
+      documentoBtn.addEventListener('click', () => {
+        fileInput.accept = ACCEPT_DOCUMENTO;
+        fileInput.click();
+      });
+    }
     fileInput.addEventListener('change', () => mostrarPreview(fileInput.files && fileInput.files[0]));
     if (removeBtn) removeBtn.addEventListener('click', limparMidia);
 
@@ -841,12 +871,13 @@ window.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    // Só injeta o arquivo capturado no input e atualiza a pré-visualização --
+    // fechar o modal certo (câmera ou áudio) é responsabilidade de quem chama.
     function enviarArquivo(arquivo) {
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(arquivo);
       fileInput.files = dataTransfer.files;
       mostrarPreview(arquivo);
-      fecharModal();
     }
 
     cameraBtn.addEventListener('click', abrirModal);
@@ -869,6 +900,7 @@ window.addEventListener('DOMContentLoaded', function () {
         canvas.toBlob(blob => {
           if (!blob) return;
           enviarArquivo(new File([blob], 'foto-camera.jpg', { type: 'image/jpeg' }));
+          fecharModal();
         }, 'image/jpeg', 0.92);
       });
     }
@@ -894,12 +926,125 @@ window.addEventListener('DOMContentLoaded', function () {
           const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
           const extensao = (recorder.mimeType || 'video/webm').includes('mp4') ? 'mp4' : 'webm';
           enviarArquivo(new File([blob], `video-camera.${extensao}`, { type: blob.type }));
+          fecharModal();
         };
         recorder.start();
         gravando = true;
         gravandoIndicador.classList.remove('hidden');
         videoBtn.textContent = 'Parar gravação';
       });
+    }
+
+    // ---- Áudio: gravação ao vivo via MediaRecorder (mic sozinho, sem vídeo) ----
+    const audioModal = document.getElementById('comment-audio-modal');
+    const audioErro = document.getElementById('comment-audio-erro');
+    const audioGravandoIndicador = document.getElementById('comment-audio-gravando');
+    const audioTimer = document.getElementById('comment-audio-timer');
+    const audioVisual = document.getElementById('comment-audio-visual');
+    const audioToggleBtn = document.getElementById('comment-audio-toggle');
+    const audioCancelarBtn = document.getElementById('comment-audio-cancelar');
+    const audioBackdrop = document.getElementById('comment-audio-modal-backdrop');
+
+    if (audioBtn && audioModal) {
+      let audioStream = null;
+      let audioRecorder = null;
+      let audioChunks = [];
+      let audioGravando = false;
+      let audioTimerInterval = null;
+      let audioSegundos = 0;
+
+      function pararAudioStream() {
+        if (audioStream) {
+          audioStream.getTracks().forEach(track => track.stop());
+          audioStream = null;
+        }
+      }
+
+      function formatarTempo(segundos) {
+        const m = Math.floor(segundos / 60);
+        const s = segundos % 60;
+        return `${m}:${String(s).padStart(2, '0')}`;
+      }
+
+      function pararTimer() {
+        if (audioTimerInterval) {
+          clearInterval(audioTimerInterval);
+          audioTimerInterval = null;
+        }
+      }
+
+      function fecharAudioModal() {
+        if (audioRecorder && audioGravando) audioRecorder.stop();
+        pararAudioStream();
+        pararTimer();
+        audioGravando = false;
+        audioSegundos = 0;
+        audioGravandoIndicador.classList.add('hidden');
+        audioVisual.classList.remove('gravando');
+        audioToggleBtn.textContent = 'Iniciar gravação';
+        audioModal.classList.add('hidden');
+      }
+
+      async function abrirAudioModal() {
+        audioModal.classList.remove('hidden');
+        audioErro.classList.add('hidden');
+        audioToggleBtn.disabled = false;
+        try {
+          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (error) {
+          audioErro.classList.remove('hidden');
+          audioToggleBtn.disabled = true;
+        }
+      }
+
+      audioBtn.addEventListener('click', abrirAudioModal);
+      if (audioCancelarBtn) audioCancelarBtn.addEventListener('click', fecharAudioModal);
+      if (audioBackdrop) audioBackdrop.addEventListener('click', fecharAudioModal);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !audioModal.classList.contains('hidden')) fecharAudioModal();
+      });
+
+      if (audioToggleBtn) {
+        audioToggleBtn.addEventListener('click', () => {
+          if (!audioStream) return;
+          if (audioGravando) {
+            audioRecorder.stop();
+            return;
+          }
+          const candidatos = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4'];
+          const mimeType = candidatos.find(tipo => window.MediaRecorder && MediaRecorder.isTypeSupported(tipo)) || '';
+          audioChunks = [];
+          audioRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
+          audioRecorder.ondataavailable = event => {
+            if (event.data && event.data.size > 0) audioChunks.push(event.data);
+          };
+          audioRecorder.onstop = () => {
+            audioGravando = false;
+            pararTimer();
+            audioGravandoIndicador.classList.add('hidden');
+            audioVisual.classList.remove('gravando');
+            audioToggleBtn.textContent = 'Iniciar gravação';
+            const blob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/webm' });
+            const tipoEscolhido = audioRecorder.mimeType || 'audio/webm';
+            let extensao = 'webm';
+            if (tipoEscolhido.includes('ogg')) extensao = 'ogg';
+            else if (tipoEscolhido.includes('mp4')) extensao = 'm4a';
+            enviarArquivo(new File([blob], `audio-gravacao.${extensao}`, { type: blob.type }));
+            fecharAudioModal();
+          };
+          audioRecorder.start();
+          audioGravando = true;
+          audioSegundos = 0;
+          audioTimer.textContent = formatarTempo(0);
+          audioGravandoIndicador.classList.remove('hidden');
+          audioVisual.classList.add('gravando');
+          audioToggleBtn.textContent = 'Parar e anexar';
+          audioTimerInterval = setInterval(() => {
+            audioSegundos += 1;
+            audioTimer.textContent = formatarTempo(audioSegundos);
+          }, 1000);
+        });
+      }
     }
   }
 

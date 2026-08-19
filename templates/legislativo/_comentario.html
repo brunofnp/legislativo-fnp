@@ -15,7 +15,7 @@
           <strong>Anônimo</strong>
         {% endif %}
       </div>
-      <p>{{ comentario.texto }}</p>
+      {% if comentario.texto %}<p>{{ comentario.texto }}</p>{% endif %}
       {% if comentario.midia %}
         {% if comentario.tipo_midia == 'imagem' %}
           <a href="{{ comentario.midia.url }}" target="_blank" rel="noopener" class="comment-midia-link">
@@ -23,6 +23,13 @@
           </a>
         {% elif comentario.tipo_midia == 'video' %}
           <video src="{{ comentario.midia.url }}" controls class="comment-midia-video"></video>
+        {% elif comentario.tipo_midia == 'audio' %}
+          <audio src="{{ comentario.midia.url }}" controls class="comment-midia-audio"></audio>
+        {% elif comentario.tipo_midia == 'documento' %}
+          <a href="{{ comentario.midia.url }}" target="_blank" rel="noopener" class="comment-midia-documento">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14.5 2v5.5H20"/></svg>
+            <span>{{ comentario.midia_nome_arquivo }}</span>
+          </a>
         {% endif %}
       {% endif %}
     </div>

@@ -585,6 +585,8 @@ class ProposicaoDetailView(View):
                     return redirect('legislativo:proposicao_detail', pk=pk)
                 success_message = 'Seu comentário não foi publicado por conter um termo não permitido nesta plataforma.'
                 comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
+            elif comentario_form.non_field_errors():
+                success_message = ' '.join(comentario_form.non_field_errors())
 
         return render(
             request,

@@ -957,6 +957,79 @@ class ComentarioMidiaTest(TestCase):
         self.assertFalse(comentario.midia)
         self.assertIsNone(comentario.tipo_midia)
 
+    def test_comentario_com_documento_e_publicado(self):
+        arquivo = SimpleUploadedFile('ata-reuniao.pdf', b'%PDF-1.4 conteudo falso', content_type='application/pdf')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertEqual(comentario.tipo_midia, 'documento')
+        self.assertEqual(comentario.midia_nome_arquivo.split('.')[-1], 'pdf')
+
+    def test_comentario_com_audio_e_publicado(self):
+        arquivo = SimpleUploadedFile('recado.mp3', b'conteudo de audio falso', content_type='audio/mpeg')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertEqual(comentario.tipo_midia, 'audio')
+
+    def test_audio_gravado_ao_vivo_em_webm_nao_e_confundido_com_video(self):
+        """Gravação de áudio e de vídeo do fórum usam o mesmo contêiner
+        .webm -- só o content_type que o navegador manda distingue as duas
+        (ver _detectar_categoria_midia)."""
+        arquivo = SimpleUploadedFile('audio-gravacao.webm', b'conteudo falso', content_type='audio/webm;codecs=opus')
+        response = self._postar(arquivo)
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertEqual(comentario.tipo_midia, 'audio')
+
+    def test_documento_maior_que_o_limite_e_rejeitado(self):
+        from django.core.exceptions import ValidationError
+
+        from apps.comentarios.models import COMENTARIO_DOCUMENTO_TAMANHO_MAXIMO_MB, validar_tamanho_midia_comentario
+
+        arquivo = SimpleUploadedFile('grande.pdf', b'x', content_type='application/pdf')
+        arquivo.size = COMENTARIO_DOCUMENTO_TAMANHO_MAXIMO_MB * 1024 * 1024 + 1
+        with self.assertRaises(ValidationError):
+            validar_tamanho_midia_comentario(arquivo)
+
+    def test_audio_maior_que_o_limite_e_rejeitado(self):
+        from django.core.exceptions import ValidationError
+
+        from apps.comentarios.models import COMENTARIO_AUDIO_TAMANHO_MAXIMO_MB, validar_tamanho_midia_comentario
+
+        arquivo = SimpleUploadedFile('grande.mp3', b'x', content_type='audio/mpeg')
+        arquivo.size = COMENTARIO_AUDIO_TAMANHO_MAXIMO_MB * 1024 * 1024 + 1
+        with self.assertRaises(ValidationError):
+            validar_tamanho_midia_comentario(arquivo)
+
+    def test_comentario_so_com_midia_sem_texto_e_publicado(self):
+        arquivo = SimpleUploadedFile('recado.mp3', b'conteudo de audio falso', content_type='audio/mpeg')
+        response = self.client.post(
+            reverse('legislativo:proposicao_detail', args=[self.proposicao.pk]),
+            {'texto': '', 'parent': '', 'midia': arquivo},
+        )
+        self.assertEqual(response.status_code, 302)
+        comentario = self.proposicao.comentarios.get()
+        self.assertEqual(comentario.texto, '')
+        self.assertEqual(comentario.tipo_midia, 'audio')
+
+    def test_comentario_totalmente_vazio_e_rejeitado(self):
+        response = self.client.post(
+            reverse('legislativo:proposicao_detail', args=[self.proposicao.pk]),
+            {'texto': '', 'parent': ''},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.proposicao.comentarios.count(), 0)
+        self.assertIn('Escreva um comentário ou anexe', response.content.decode('utf-8'))
+
+    def test_comentario_so_com_espacos_e_rejeitado(self):
+        response = self.client.post(
+            reverse('legislativo:proposicao_detail', args=[self.proposicao.pk]),
+            {'texto': '   ', 'parent': ''},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.proposicao.comentarios.count(), 0)
+
 
 class UrlsImpressaoOficialTest(TestCase):
     """Links diretos de impressão na fonte oficial -- Câmara tem 3 formatos

@@ -9,17 +9,59 @@ from apps.proposicoes.models import Proposicao
 
 COMENTARIO_IMAGEM_TAMANHO_MAXIMO_MB = 8
 COMENTARIO_VIDEO_TAMANHO_MAXIMO_MB = 25
+COMENTARIO_AUDIO_TAMANHO_MAXIMO_MB = 15
+COMENTARIO_DOCUMENTO_TAMANHO_MAXIMO_MB = 10
 COMENTARIO_MIDIA_EXTENSOES_IMAGEM = ['jpg', 'jpeg', 'png', 'gif']
 COMENTARIO_MIDIA_EXTENSOES_VIDEO = ['mp4', 'webm', 'mov']
-COMENTARIO_MIDIA_EXTENSOES_PERMITIDAS = COMENTARIO_MIDIA_EXTENSOES_IMAGEM + COMENTARIO_MIDIA_EXTENSOES_VIDEO
+COMENTARIO_MIDIA_EXTENSOES_AUDIO = ['mp3', 'wav', 'ogg', 'm4a']
+COMENTARIO_MIDIA_EXTENSOES_DOCUMENTO = ['pdf', 'doc', 'docx', 'xls', 'xlsx']
+COMENTARIO_MIDIA_EXTENSOES_PERMITIDAS = (
+    COMENTARIO_MIDIA_EXTENSOES_IMAGEM
+    + COMENTARIO_MIDIA_EXTENSOES_VIDEO
+    + COMENTARIO_MIDIA_EXTENSOES_AUDIO
+    + COMENTARIO_MIDIA_EXTENSOES_DOCUMENTO
+)
+
+
+def _detectar_categoria_midia(arquivo):
+    """'imagem'/'video'/'audio'/'documento' -- prioriza o content_type que o
+    navegador manda no upload (autoritativo pra áudio gravado ao vivo: tanto
+    a gravação de áudio quanto a de vídeo do fórum usam contêiner .webm, a
+    extensão sozinha não distingue uma da outra) com fallback pra extensão
+    (cobre upload direto de arquivo, sem content_type de upload disponível)."""
+    content_type = getattr(arquivo, 'content_type', '') or ''
+    # content_type manda quando disponível -- é o que distingue áudio de
+    # vídeo gravado ao vivo (mesmo contêiner .webm nos dois). Extensão só
+    # decide quando content_type não veio (ex.: registro salvo antes desta
+    # mudança, sem re-upload).
+    if content_type.startswith('image/'):
+        return 'imagem'
+    if content_type.startswith('video/'):
+        return 'video'
+    if content_type.startswith('audio/'):
+        return 'audio'
+
+    # content_type genérico (application/octet-stream, text/plain -- o
+    # default do próprio Django quando o navegador não manda nada
+    # específico) não é confiável o bastante pra decidir sozinho; extensão
+    # resolve os quatro casos, com "documento" como fallback final.
+    extensao = os.path.splitext(arquivo.name)[1].lstrip('.').lower()
+    if extensao in COMENTARIO_MIDIA_EXTENSOES_IMAGEM:
+        return 'imagem'
+    if extensao in COMENTARIO_MIDIA_EXTENSOES_VIDEO:
+        return 'video'
+    if extensao in COMENTARIO_MIDIA_EXTENSOES_AUDIO:
+        return 'audio'
+    return 'documento'
 
 
 def validar_tamanho_midia_comentario(arquivo):
-    extensao = os.path.splitext(arquivo.name)[1].lstrip('.').lower()
-    limite_mb = (
-        COMENTARIO_VIDEO_TAMANHO_MAXIMO_MB if extensao in COMENTARIO_MIDIA_EXTENSOES_VIDEO
-        else COMENTARIO_IMAGEM_TAMANHO_MAXIMO_MB
-    )
+    categoria = _detectar_categoria_midia(arquivo)
+    limite_mb = {
+        'video': COMENTARIO_VIDEO_TAMANHO_MAXIMO_MB,
+        'audio': COMENTARIO_AUDIO_TAMANHO_MAXIMO_MB,
+        'documento': COMENTARIO_DOCUMENTO_TAMANHO_MAXIMO_MB,
+    }.get(categoria, COMENTARIO_IMAGEM_TAMANHO_MAXIMO_MB)
     if arquivo.size > limite_mb * 1024 * 1024:
         raise ValidationError(f'Arquivo muito grande (máx. {limite_mb}MB).')
 
@@ -47,13 +89,21 @@ class Comentario(models.Model):
         on_delete=models.CASCADE,
         related_name='comentarios',
     )
-    texto = models.TextField()
+    # blank=True -- comentário só de mídia (foto/vídeo/áudio/documento) é
+    # válido sem texto (ver ComentarioForm.clean(), que ainda exige pelo
+    # menos um dos dois: texto ou mídia).
+    texto = models.TextField(blank=True)
     midia = models.FileField(
         upload_to='comentarios_midia/%Y/%m/',
         blank=True,
         null=True,
         validators=[validar_tamanho_midia_comentario, FileExtensionValidator(COMENTARIO_MIDIA_EXTENSOES_PERMITIDAS)],
     )
+    # Calculado em save() a partir do content_type do upload (ver
+    # _detectar_categoria_midia) -- nunca escolhido/confiado do lado do
+    # cliente. Existe porque extensão sozinha é ambígua pra áudio: a
+    # gravação de áudio e a de vídeo do fórum usam o mesmo contêiner .webm.
+    midia_tipo = models.CharField(max_length=16, blank=True, editable=False)
     parent = models.ForeignKey(
         'self',
         null=True,
@@ -77,16 +127,17 @@ class Comentario(models.Model):
     def __str__(self):
         return f'Comentário de {self.autor or "Anônimo"} em {self.proposicao}'
 
+    def save(self, *args, **kwargs):
+        self.midia_tipo = _detectar_categoria_midia(self.midia.file) if self.midia else ''
+        super().save(*args, **kwargs)
+
     @property
     def tipo_midia(self):
-        if not self.midia:
-            return None
-        extensao = os.path.splitext(self.midia.name)[1].lstrip('.').lower()
-        if extensao in COMENTARIO_MIDIA_EXTENSOES_VIDEO:
-            return 'video'
-        if extensao in COMENTARIO_MIDIA_EXTENSOES_IMAGEM:
-            return 'imagem'
-        return None
+        return self.midia_tipo or None
+
+    @property
+    def midia_nome_arquivo(self):
+        return os.path.basename(self.midia.name) if self.midia else ''
 
 
 class ComentarioLike(models.Model):

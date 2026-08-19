@@ -182,11 +182,13 @@ class ComentarioForm(forms.ModelForm):
         widgets = {
             'texto': forms.Textarea(attrs={'rows': 4, 'class': 'input-wide'}),
             'parent': forms.HiddenInput(),
-            'midia': forms.ClearableFileInput(attrs={'accept': 'image/*,video/*'}),
+            'midia': forms.ClearableFileInput(
+                attrs={'accept': 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx'},
+            ),
         }
         labels = {
             'texto': 'Comentário',
-            'midia': 'Foto ou vídeo (opcional)',
+            'midia': 'Anexo (opcional)',
         }
 
     def __init__(self, *args, proposicao=None, **kwargs):
@@ -200,6 +202,17 @@ class ComentarioForm(forms.ModelForm):
         self.fields['parent'].queryset = (
             Comentario.objects.filter(proposicao=proposicao) if proposicao else Comentario.objects.none()
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # texto é opcional (comentário só de foto/vídeo/áudio/documento é
+        # válido), mas precisa vir pelo menos um dos dois -- nunca um
+        # comentário inteiramente vazio.
+        texto = cleaned_data.get('texto', '').strip()
+        midia = cleaned_data.get('midia')
+        if not texto and not midia:
+            raise forms.ValidationError('Escreva um comentário ou anexe uma foto, vídeo, áudio ou documento.')
+        return cleaned_data
 
 
 class AnexoProposicaoForm(forms.ModelForm):
