@@ -2347,29 +2347,107 @@ móveis (360/390/414px) sem overflow horizontal, dark mode. Commitado e
 enviado pra `next` — **promovido pra `main`/produção/droplet na
 sequência, a pedido do usuário** (ver seção de promoção logo abaixo).
 
+### SMTP bloqueado pela DigitalOcean — resolvido via Gmail API (2026-08-20)
+
+Depois do fix do 500 em "Definir senha" (sessão anterior, mesmo dia),
+usuário testou de verdade em produção e o SMTP continuava sem funcionar.
+Investigação em camadas, cada uma eliminando uma hipótese:
+
+1. **Primeiro erro**: `OSError: [Errno 101] Network is unreachable` —
+   causa real era o container Docker não ter rota IPv6, e `smtp.gmail.com`
+   ter endereço IPv6 (AAAA) cadastrado; o socket tentava conectar por lá
+   primeiro e falhava na hora, antes de sequer tentar IPv4 (o Sentry nunca
+   bateu nisso porque `sentry.io` só tem IPv4). Fix aplicado em
+   `setup/settings.py` (`socket.getaddrinfo` forçado pra `AF_INET` em
+   produção) — não afeta Postgres (psycopg2 não usa o socket do Python)
+   nem dev.
+2. **Segundo erro, depois do fix acima**: `TimeoutError: [Errno 110]
+   Connection timed out` — progresso real (agora tentava IPv4 de
+   verdade), mas travava até estourar o timeout. Testado em camadas
+   direto no droplet (fora do Docker): `ufw` libera saída por padrão
+   (`allow (outgoing)`), o Cloud Firewall da DigitalOcean
+   (`FirewallSistemaFNP`) libera "All TCP"/"All UDP" pra todos os
+   destinos — nenhum dos dois é o bloqueio. Teste de conexão TCP direta
+   (`/dev/tcp/smtp.gmail.com/587` e `/465`) deu timeout nas duas, enquanto
+   `/dev/tcp/www.google.com/443` conectou na hora — isolou o problema:
+   é bloqueio de porta de SMTP especificamente, numa camada acima do
+   `ufw`/Cloud Firewall (a própria DigitalOcean bloqueia por padrão portas
+   de e-mail de saída em toda conta nova, prática antispam documentada
+   por eles). **Chamado de suporte aberto com a DO** pedindo liberação —
+   ainda sem resposta, mas não é mais bloqueante (ver item 3).
+3. **Solução efetiva, sem esperar a DO**: como HTTPS (443) funciona
+   normal, a Gmail API contorna o bloqueio por completo (fala HTTPS, não
+   SMTP). Implementado `apps/legislativo/email_backends.py::
+   GmailApiEmailBackend` — autentica via Service Account do Google Cloud
+   (`legislativo-fnp-email-sender`, projeto `sistema-fnp` — **isolado do
+   Service Account que já existia pra outro sistema da FNP**,
+   `gmai-sender-sistemafnp`, decisão consciente do usuário de não
+   compartilhar credencial entre sistemas mesmo dividindo o projeto do
+   Google Cloud) com **Domain-wide Delegation** autorizada no Admin
+   Console do Workspace (Segurança → Controle de acesso e dados →
+   Delegação em todo o domínio), escopo único
+   `https://www.googleapis.com/auth/gmail.send`, impersonando
+   `naoresponda@fnp.org.br`. `GMAIL_SERVICE_ACCOUNT_JSON_B64` (conteúdo
+   do JSON da chave em base64, uma linha só) + `GMAIL_SENDER_EMAIL` +
+   `EMAIL_BACKEND=apps.legislativo.email_backends.GmailApiEmailBackend`
+   no `.env` de produção — `EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD` (SMTP)
+   continuam no código como alternativa válida pra outro ambiente sem
+   esse bloqueio, só não são mais o caminho usado no `fnp-web`.
+4. **Testado em 2 camadas antes de promover**: local primeiro (usando o
+   `.json` baixado, sem nunca colar o conteúdo no chat — só o caminho do
+   arquivo), envio real confirmado (`SUCESSO -- id da mensagem:
+   1a020a611ee5fb25`); depois em produção de verdade, via SSH direto no
+   droplet (usuário autorizou acesso SSH direto nesta sessão — chave
+   `~/.ssh/id_ed25519_fnp_web` já configurada localmente de sessão
+   anterior), `send_mail()` real via `manage.py shell` → `enviado sem
+   excecao`, e-mail confirmado chegando. `docker compose ps` → healthy,
+   `curl` → `200 OK`.
+5. **Transferência da chave pro droplet sem nunca passar pelo chat**: com
+   autorização do usuário pra conectar via SSH, o conteúdo em base64 foi
+   gerado localmente e enviado direto pro `.env` do droplet via
+   `ssh ... "cat >> .env" < arquivo_local` — o valor nunca apareceu em
+   nenhuma saída de comando nem foi impresso em tela.
+6. 4 testes novos (`GmailApiEmailBackendTest`, mock completo da API do
+   Google — nunca faz chamada de rede real nem usa credencial de
+   verdade): envio com sucesso, lista vazia não monta credenciais, falha
+   com/sem `fail_silently`. `check`, `makemigrations --check`, 132 testes
+   (era 128) e `ruff` limpos; `pip-audit` no `requirements.lock`
+   regenerado (google-api-python-client/google-auth novos) limpo.
+
+Promovido `next` → `main` → produção → droplet no mesmo fôlego (autorização
+explícita do usuário — "Pode fazer" — pra eu conduzir o SSH direto).
+**Pendência de segurança nova**: senha do `doadmin` apareceu em texto puro
+no chat de novo nesta sessão (resultado de query colado sem querer) —
+rotacionada mais uma vez já é rotina neste projeto, mas ainda não feito
+desta vez, ver Pendências.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
 
-- **Concluir a configuração de SMTP real** (`naoresponda@fnp.org.br`) —
-  e-mail de solicitação já enviado pro Keven; falta ele criar a conta,
-  ativar 2FA e gerar a senha de app, depois preencher
-  `EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD` no `.env` do droplet e recriar
-  o container (`--force-recreate`, sem rebuild — só variável de
-  ambiente). Ver seção datada "500 em 'Definir senha'... + SMTP real
-  configurado" acima. Fecha de vez o item mais antigo "Configurar
-  `EMAIL_BACKEND` real em produção" logo abaixo.
-- **Promover a sessão de 2026-08-19 (fix do 500 em definir senha +
-  config de SMTP + Perfil de acesso automático) pra `main`/produção/
-  droplet** — tudo só em `next` (`db3f932`, `f7c7868`, `b792e00`) por
-  enquanto, autorização de promoção ainda não veio nesta sessão. O fix
-  do 500 é bug real em produção, vale priorizar assim que autorizado.
-- **Confirmar o deploy no droplet do redesenho do upload de anexo**
-  (commit `34b8c86`, já em `main` nos dois repositórios, CI verde) —
-  comandos passados pro usuário (`git pull` + `docker compose build/up
-  -d` + `curl` de confirmação), mas a resposta com o resultado ainda
-  não chegou nesta sessão. Sem migration nesta leva, risco baixo, mas
-  confirmar antes de considerar o dia fechado.
+- ~~Concluir a configuração de SMTP real~~ — **resolvido de vez em
+  2026-08-20, por um caminho diferente do planejado**: a DigitalOcean
+  bloqueia por padrão as portas de SMTP de saída (587/465) em toda conta
+  nova (achado só testando de verdade — `ufw`/Cloud Firewall liberam
+  tudo, o bloqueio é numa camada acima). Chamado de suporte aberto com a
+  DO pra liberar (ainda sem resposta, **não é mais bloqueante**), mas a
+  solução efetiva foi trocar pra **Gmail API** (fala HTTPS/443, sempre
+  liberado) — `apps/legislativo/email_backends.py::GmailApiEmailBackend`,
+  testado local e em produção de verdade, e-mail confirmado chegando.
+  Ver seção datada "SMTP bloqueado pela DigitalOcean — resolvido via
+  Gmail API" acima pro histórico completo.
+- ~~Promover a sessão de 2026-08-19 pra `main`/produção/droplet~~ e
+  ~~Confirmar o deploy do redesenho do upload de anexo~~ — **ambos
+  resolvidos**, várias promoções feitas ao longo de 2026-08-19/20 (ver
+  seções datadas "Segunda/Terceira promoção do dia" e as de 2026-08-20
+  acima) — tudo que estava represado já está em produção confirmada
+  saudável.
+- **Rotacionar a senha do `doadmin` mais uma vez** — apareceu em texto
+  puro no chat de novo nesta sessão (resultado de uma query de
+  diagnóstico colado sem querer, 2026-08-20). Mesmo roteiro já feito
+  antes (painel DO → Databases → fnp-database → Users & Databases →
+  "..." ao lado de doadmin → Reset Password) — não afeta nenhum serviço
+  nosso, só a role `legislativo` é usada em produção.
 - ~~Aumentar `client_max_body_size` no Nginx do droplet~~ — **resolvido
   em 2026-08-19**: linha alterada à mão de `6M` pra `30M` direto em
   `/etc/nginx/sites-enabled/legislativo.conf` (`sed` de uma linha só,
@@ -2402,14 +2480,12 @@ sequência, a pedido do usuário** (ver seção de promoção logo abaixo).
   aparecem pra qualquer visitante anônimo em `proposicao_detail.html`,
   sem exigir login. Achado da revarredura de segurança de 2026-08-11 —
   decisão do usuário antes de eu mexer em código (pode ser intencional).
-- **Configurar `EMAIL_BACKEND` real em produção (SMTP/SES/etc.)** — **em
-  andamento desde 2026-08-19**: settings.py já pronto pro Gmail/Workspace,
-  só falta a conta `naoresponda@fnp.org.br` existir de fato (ver item no
-  topo desta lista). Depois de resolvido, ainda passa de pendência menor
-  pra pré-requisito de segurança: sem isso, não dá pra avançar pra
-  `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix mais robusto pro achado
-  da fusão de conta, ver auditoria acima) sem quebrar cadastro por
-  e-mail/senha em produção.
+- ~~Configurar `EMAIL_BACKEND` real em produção~~ — **resolvido em
+  2026-08-20** via Gmail API (ver item no topo desta lista). Com isso,
+  dá pra reconsiderar `ACCOUNT_EMAIL_VERIFICATION='mandatory'` (o fix
+  mais robusto pro achado da fusão de conta, ver auditoria de segurança
+  acima) — decisão de produto ainda não tomada, mas o pré-requisito
+  técnico não é mais um bloqueio.
 - **Desativar/excluir o Client Secret antigo do Google OAuth** no Google
   Cloud Console (o criado em 2026-08-04) — o novo já está em produção e
   validado, mas o antigo continua uma credencial ativa em paralelo até
