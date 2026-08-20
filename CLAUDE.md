@@ -2418,8 +2418,49 @@ Promovido `next` → `main` → produção → droplet no mesmo fôlego (autoriz
 explícita do usuário — "Pode fazer" — pra eu conduzir o SSH direto).
 **Pendência de segurança nova**: senha do `doadmin` apareceu em texto puro
 no chat de novo nesta sessão (resultado de query colado sem querer) —
-rotacionada mais uma vez já é rotina neste projeto, mas ainda não feito
-desta vez, ver Pendências.
+**já rotacionada pelo usuário ainda na mesma sessão**, não é mais
+pendência.
+
+### "example.com" nos e-mails transacionais corrigido (2026-08-20, mesma sessão)
+
+Usuário testou o e-mail de redefinição de senha de verdade (fluxo
+`ResetPasswordForm`, já validado no fix do 500 mais cedo no mesmo dia) e
+recebeu com assunto `[example.com] E-mail de redefinição de senha` e
+corpo mencionando "example.com" — achado real por trás: `django.contrib.
+sites` cria o `Site` (pk=`SITE_ID`) com `domain`/`name='example.com'` por
+padrão, e isso **nunca tinha sido atualizado** desde o início do projeto.
+`django-allauth` usa esses dois campos pra montar o texto institucional
+de **todo** e-mail transacional (confirmação de cadastro, redefinição de
+senha, etc.) — não é bug isolado do e-mail de senha, afetava todos.
+
+Fix: migration `legislativo.0007_atualiza_site_dominio` (`RunPython`)
+atualiza pra `domain='legislativo.fnp.org.br'`, `name='Painel Legislativo
+FNP'`. **Detalhe que gerou um teste falhando primeiro**: a migração
+inicial usava `.filter(pk=1).update(...)`, que funciona num banco já
+existente (dev local, produção) mas **não funciona num banco recriado do
+zero** (banco de teste) — a linha do `Site` só é criada por um sinal
+`post_migrate` do próprio Django, que roda *depois* de todas as
+migrations terminarem; `.update()` sozinho não acha nenhuma linha nesse
+momento e falha silenciosamente, sem erro. Corrigido pra
+`update_or_create`, que cobre os dois casos. Aproveitado pra corrigir
+também um deslize gramatical da tradução pt-br do allauth ("Olá **da**
+Painel Legislativo FNP!", artigo feminino não encaixa) via override de
+`templates/account/email/base_message.txt` (template-base que todo
+e-mail do allauth estende — corrige o texto pra todos de uma vez, sem
+depender de gênero gramatical do nome do site).
+
+O link em si (`password_reset_url`) já estava certo antes do fix — vem
+do host da requisição real, não do `Site` — só o texto de marca
+institucional ao redor é que estava errado.
+
+2 testes novos (`SiteBrandingTest`): `Site` não é mais example.com, e-mail
+de redefinição de senha renderizado de verdade não menciona example.com.
+`check`, `makemigrations --check`, 134 testes (era 132) e `ruff` limpos.
+Testado local (renderização direta do e-mail via `ResetPasswordForm`,
+antes/depois do fix) e depois confirmado em produção via SSH (`Site.
+objects.get(pk=1)` retornando os valores certos, `docker compose ps` →
+healthy, `curl` → 200 OK). Promovido `next` → `main` → produção → droplet
+no mesmo fôlego, autorização explícita do usuário.
 
 ### Pendências e próximos passos
 
