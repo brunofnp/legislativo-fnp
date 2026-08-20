@@ -1,6 +1,8 @@
+import base64
 import io
 import json
 import tempfile
+from unittest import mock
 
 from django.contrib import admin
 from django.contrib.auth.models import Group
@@ -1588,3 +1590,92 @@ class TentativaLoginTest(TestCase):
         self.assertFalse(tentativa.sucesso)
         self.assertIsNone(tentativa.usuario)
         self.assertEqual(tentativa.email, 'comauditoria@fnp.org.br')
+
+
+class GmailApiEmailBackendTest(TestCase):
+    """Backend alternativo ao SMTP (bloqueado por padrão pela DigitalOcean
+    nas portas 587/465, ver CLAUDE.md) -- envia via Gmail API sobre HTTPS.
+    Testado com mock da API do Google, sem credenciais reais nem chamada
+    de rede."""
+
+    def _service_account_json_b64(self):
+        payload = {
+            'type': 'service_account',
+            'client_email': 'legislativo-fnp-email-sender@teste.iam.gserviceaccount.com',
+            'token_uri': 'https://oauth2.googleapis.com/token',
+        }
+        return base64.b64encode(json.dumps(payload).encode()).decode()
+
+    def _backend(self, **kwargs):
+        from apps.legislativo.email_backends import GmailApiEmailBackend
+
+        return GmailApiEmailBackend(**kwargs)
+
+    @override_settings(GMAIL_SENDER_EMAIL='naoresponda@fnp.org.br')
+    def test_envia_mensagem_com_sucesso(self):
+        from django.core.mail import EmailMessage
+
+        with (
+            override_settings(GMAIL_SERVICE_ACCOUNT_JSON_B64=self._service_account_json_b64()),
+            mock.patch('apps.legislativo.email_backends.service_account.Credentials.from_service_account_info') as m_creds,
+            mock.patch('apps.legislativo.email_backends.build') as m_build,
+        ):
+            m_creds.return_value.with_subject.return_value = mock.Mock()
+            servico = m_build.return_value
+            execute_mock = servico.users.return_value.messages.return_value.send.return_value.execute
+            execute_mock.return_value = {'id': 'abc123'}
+
+            mensagem = EmailMessage('Assunto', 'Corpo', 'naoresponda@fnp.org.br', ['destino@exemplo.com'])
+            enviados = self._backend().send_messages([mensagem])
+
+            self.assertEqual(enviados, 1)
+            m_creds.return_value.with_subject.assert_called_once_with('naoresponda@fnp.org.br')
+            servico.users.return_value.messages.return_value.send.assert_called_once()
+            _, chamada_kwargs = servico.users.return_value.messages.return_value.send.call_args
+            self.assertEqual(chamada_kwargs['userId'], 'me')
+            self.assertIn('raw', chamada_kwargs['body'])
+            execute_mock.assert_called_once()
+
+    def test_lista_vazia_nao_monta_credenciais(self):
+        with mock.patch('apps.legislativo.email_backends.build') as m_build:
+            enviados = self._backend().send_messages([])
+
+        self.assertEqual(enviados, 0)
+        m_build.assert_not_called()
+
+    @override_settings(GMAIL_SENDER_EMAIL='naoresponda@fnp.org.br')
+    def test_falha_com_fail_silently_nao_propaga(self):
+        from django.core.mail import EmailMessage
+
+        with (
+            override_settings(GMAIL_SERVICE_ACCOUNT_JSON_B64=self._service_account_json_b64()),
+            mock.patch('apps.legislativo.email_backends.service_account.Credentials.from_service_account_info') as m_creds,
+            mock.patch('apps.legislativo.email_backends.build') as m_build,
+        ):
+            m_creds.return_value.with_subject.return_value = mock.Mock()
+            m_build.return_value.users.return_value.messages.return_value.send.return_value.execute.side_effect = (
+                Exception('falha simulada da API')
+            )
+
+            mensagem = EmailMessage('Assunto', 'Corpo', 'naoresponda@fnp.org.br', ['destino@exemplo.com'])
+            enviados = self._backend(fail_silently=True).send_messages([mensagem])
+
+        self.assertEqual(enviados, 0)
+
+    @override_settings(GMAIL_SENDER_EMAIL='naoresponda@fnp.org.br')
+    def test_falha_sem_fail_silently_propaga(self):
+        from django.core.mail import EmailMessage
+
+        with (
+            override_settings(GMAIL_SERVICE_ACCOUNT_JSON_B64=self._service_account_json_b64()),
+            mock.patch('apps.legislativo.email_backends.service_account.Credentials.from_service_account_info') as m_creds,
+            mock.patch('apps.legislativo.email_backends.build') as m_build,
+        ):
+            m_creds.return_value.with_subject.return_value = mock.Mock()
+            m_build.return_value.users.return_value.messages.return_value.send.return_value.execute.side_effect = (
+                Exception('falha simulada da API')
+            )
+
+            mensagem = EmailMessage('Assunto', 'Corpo', 'naoresponda@fnp.org.br', ['destino@exemplo.com'])
+            with self.assertRaises(Exception):
+                self._backend(fail_silently=False).send_messages([mensagem])

@@ -267,6 +267,17 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
+# Gmail API (apps.legislativo.email_backends.GmailApiEmailBackend) -- rota
+# alternativa ao SMTP acima, usada em produção porque a DigitalOcean
+# bloqueia por padrão as portas de SMTP de saída (587/465) e HTTPS (443,
+# usado pela API) funciona normalmente. GMAIL_SERVICE_ACCOUNT_JSON_B64 é o
+# conteúdo inteiro do arquivo JSON da chave do Service Account, em base64
+# numa linha só (evita problema de aspas/quebra de linha num .env comum).
+# Precisa de Domain-wide Delegation autorizada no Admin Console do
+# Workspace pro escopo gmail.send -- ver CLAUDE.md.
+GMAIL_SERVICE_ACCOUNT_JSON_B64 = os.getenv('GMAIL_SERVICE_ACCOUNT_JSON_B64', '')
+GMAIL_SENDER_EMAIL = os.getenv('GMAIL_SENDER_EMAIL', EMAIL_HOST_USER)
+
 if not DEBUG:
     # O container Docker do droplet não tem rota IPv6 -- smtp.gmail.com
     # tem endereço IPv6 (AAAA) cadastrado, e o socket tentava conectar por
