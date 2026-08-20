@@ -2442,12 +2442,11 @@ desta vez, ver Pendências.
   seções datadas "Segunda/Terceira promoção do dia" e as de 2026-08-20
   acima) — tudo que estava represado já está em produção confirmada
   saudável.
-- **Rotacionar a senha do `doadmin` mais uma vez** — apareceu em texto
-  puro no chat de novo nesta sessão (resultado de uma query de
-  diagnóstico colado sem querer, 2026-08-20). Mesmo roteiro já feito
-  antes (painel DO → Databases → fnp-database → Users & Databases →
-  "..." ao lado de doadmin → Reset Password) — não afeta nenhum serviço
-  nosso, só a role `legislativo` é usada em produção.
+- ~~Rotacionar a senha do `doadmin` mais uma vez~~ — **resolvido em
+  2026-08-20**, mesmo dia do achado. Apareceu em texto puro no chat
+  (query de diagnóstico colada sem querer) e foi rotacionada pelo painel
+  DO ainda na sessão — não exigiu mudança em nenhum serviço nosso, só a
+  role `legislativo` é usada em produção.
 - ~~Aumentar `client_max_body_size` no Nginx do droplet~~ — **resolvido
   em 2026-08-19**: linha alterada à mão de `6M` pra `30M` direto em
   `/etc/nginx/sites-enabled/legislativo.conf` (`sed` de uma linha só,
