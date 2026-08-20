@@ -1679,3 +1679,37 @@ class GmailApiEmailBackendTest(TestCase):
             mensagem = EmailMessage('Assunto', 'Corpo', 'naoresponda@fnp.org.br', ['destino@exemplo.com'])
             with self.assertRaises(Exception):
                 self._backend(fail_silently=False).send_messages([mensagem])
+
+
+class SiteBrandingTest(TestCase):
+    """django.contrib.sites cria o Site com domain/name='example.com' por
+    padrão -- django-allauth usa esses dois campos pra montar o texto de
+    todo e-mail transacional (assunto com prefixo "[example.com]", corpo
+    "Olá da example.com!"). Migration legislativo.0007 corrige isso --
+    achado real, reportado pelo usuário num e-mail de verdade."""
+
+    def test_site_nao_e_mais_example_com(self):
+        from django.conf import settings
+        from django.contrib.sites.models import Site
+
+        site = Site.objects.get(pk=settings.SITE_ID)
+        self.assertNotEqual(site.domain, 'example.com')
+        self.assertNotEqual(site.name, 'example.com')
+        self.assertEqual(site.domain, 'legislativo.fnp.org.br')
+        self.assertEqual(site.name, 'Painel Legislativo FNP')
+
+    def test_email_de_redefinicao_de_senha_nao_menciona_example_com(self):
+        from allauth.account.forms import ResetPasswordForm
+
+        usuario = Usuario.objects.create_user(username='brandtest', email='brandtest@fnp.org.br', password='x')
+        request = _post_request_with_session('/contas/senha/redefinir/')
+        mail.outbox.clear()
+
+        form = ResetPasswordForm(data={'email': usuario.email})
+        self.assertTrue(form.is_valid())
+        form.save(request)
+
+        mensagem = mail.outbox[-1]
+        self.assertNotIn('example.com', mensagem.subject)
+        self.assertNotIn('example.com', mensagem.body)
+        self.assertIn('Painel Legislativo FNP', mensagem.subject)
