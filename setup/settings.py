@@ -267,6 +267,25 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
+if not DEBUG:
+    # O container Docker do droplet não tem rota IPv6 -- smtp.gmail.com
+    # tem endereço IPv6 (AAAA) cadastrado, e o socket tentava conectar por
+    # lá primeiro, falhando na hora com "Network is unreachable" antes de
+    # sequer tentar o endereço IPv4 (achado ao testar o SMTP real pela
+    # primeira vez, 2026-08-20; o Sentry nunca bateu nisso porque
+    # sentry.io só tem endereço IPv4). Força IPv4 pra qualquer conexão de
+    # saída deste processo -- não afeta Postgres (psycopg2 usa
+    # networking próprio em C, não o socket do Python) nem dev (backend
+    # console, sem conexão de rede real).
+    import socket as _socket
+
+    _getaddrinfo_original = _socket.getaddrinfo
+
+    def _getaddrinfo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+        return _getaddrinfo_original(host, port, _socket.AF_INET, type, proto, flags)
+
+    _socket.getaddrinfo = _getaddrinfo_ipv4
+
 # Remetente dos e-mails que o próprio app manda (fora do fluxo interno do
 # allauth) -- ex.: aviso de cadastro pendente, ver
 # apps/usuarios/signals.py::notificar_cadastro_pendente. Sem isso o Django
