@@ -2479,6 +2479,47 @@ objects.get(pk=1)` retornando os valores certos, `docker compose ps` →
 healthy, `curl` → 200 OK). Promovido `next` → `main` → produção → droplet
 no mesmo fôlego, autorização explícita do usuário.
 
+### Player de áudio/vídeo estilo WhatsApp no fórum, com controle de velocidade (2026-08-21)
+
+Usuário reportou por captura de tela (produção real) que o `<audio
+controls>` nativo do áudio de comentário aparecia comprimido/ilegível em
+telas estreitas -- Chrome esconde volume/velocidade atrás de um menu "3
+pontinhos" quando o elemento não tem largura suficiente, ficando só um
+"–" e "⋮" visíveis, sem botão de play. Pediu substituir por algo estilo
+WhatsApp, com controle de velocidade (0.5x/1x/1.5x/2x) tanto pro áudio
+quanto pro vídeo, sempre acessível sem precisar abrir menu nenhum.
+
+- **Áudio**: `<audio controls>` nativo removido, substituído por player
+  100% customizado (`.comment-audio-player`) -- botão de play/pause
+  redondo, barra de progresso clicável (clique pula pra posição), tempo
+  atual/duração, e botão de velocidade sempre visível ao lado. Um
+  `Audio()` é criado via JS (não fica como elemento `<audio>` no DOM), só
+  o visual é construído em HTML/CSS -- `initComentarioAudioPlayers()`
+  novo em `main.js`. Tocar um áudio pausa qualquer outro que estivesse
+  tocando na mesma página (mesmo padrão de app de mensagem).
+- **Vídeo**: mantido `<video controls>` nativo (play/seek/fullscreen já
+  funcionam bem e têm melhor suporte a gesto touch no mobile que uma
+  reimplementação customizada) -- só ganhou um botão de velocidade
+  sobreposto no canto (`.comment-video-speed-btn`), sempre visível, sem
+  precisar abrir o menu de configurações do player nativo.
+- **Achado no caminho, real bug de CSS**: o botão de velocidade "ativo"
+  (≠1x) ficava com fundo branco + texto branco -- ilegível -- porque uma
+  regra `.comment-audio-player .comment-media-speed-btn` (só ajustando
+  `background`) tinha a mesma especificidade que
+  `.comment-media-speed-btn.velocidade-ativa` e vinha depois no arquivo,
+  vencendo a cascata sem querer. Corrigido reordenando (regra de estado
+  ativo sempre por último). Achado só testando de verdade com Playwright
+  (clique real + espera da transição CSS + inspeção de computed style),
+  não visível só lendo o código.
+- Testado com arquivo de áudio real (WAV gerado localmente) e vídeo real
+  (gravação ao vivo via câmera falsa do Chromium) -- publicado, recarregado,
+  play/pause/seek/velocidade conferidos de ponta a ponta, em desktop
+  (1280px) e mobile (390px), sem overflow horizontal.
+
+`check`, `makemigrations --check` (sem migration -- só front-end), 134
+testes e `ruff` limpos. Commitado e enviado pra `next` -- aguardando
+autorização pra promover.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
