@@ -1169,6 +1169,21 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initComentarioVideoSpeed();
 
+  function initComentarioMidiaSemClickDireito() {
+    // Dificulta baixar mídia de outro usuário no fórum (pedido do
+    // usuário) -- não é uma restrição de verdade (qualquer navegador
+    // ainda consegue salvar o que está reproduzindo, é limitação da
+    // própria web, não do nosso código), só tira a conveniência do menu
+    // de clique direito "Salvar imagem/vídeo como...". Complementa o
+    // controlsList="nodownload" do <video> (ver _comentario.html).
+    const seletor = '.comment-midia-imagem, .comment-midia-video, .comment-audio-player';
+    document.querySelectorAll(seletor).forEach(el => {
+      el.addEventListener('contextmenu', event => event.preventDefault());
+    });
+  }
+
+  initComentarioMidiaSemClickDireito();
+
   function initAnexoUpload() {
     // Mesmo raciocínio da mídia do comentário: substitui o "Escolher
     // arquivo / Nenhum arquivo escolhido" nativo por um botão de clipe +

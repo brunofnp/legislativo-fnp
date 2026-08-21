@@ -23,7 +23,7 @@
           </a>
         {% elif comentario.tipo_midia == 'video' %}
           <div class="comment-video-wrapper">
-            <video src="{{ comentario.midia.url }}" controls preload="metadata" class="comment-midia-video"></video>
+            <video src="{{ comentario.midia.url }}" controls controlsList="nodownload noremoteplayback" disablePictureInPicture preload="metadata" class="comment-midia-video"></video>
             <button type="button" class="comment-media-speed-btn comment-video-speed-btn" aria-label="Velocidade de reprodução">1x</button>
           </div>
         {% elif comentario.tipo_midia == 'audio' %}
