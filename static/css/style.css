@@ -2037,7 +2037,137 @@ body {
   max-width: 100%;
   max-height: 320px;
   border-radius: 0.75rem;
+}
+
+.comment-video-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
   margin-top: 0.5rem;
+}
+
+/* Botão de velocidade sempre visível, ao lado dos controles nativos --
+   o Chrome/Firefox escondem "Playback speed" dentro do menu de
+   configurações (o "3 pontinhos") do <video controls>, exigindo 2
+   cliques. Isso deixa a troca de velocidade num clique só, sem digging. */
+.comment-video-speed-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+/* Botão de velocidade compartilhado (áudio e vídeo) -- cicla
+   0.5x/1x/1.5x/2x, sempre acessível, nunca escondido atrás de menu. */
+.comment-media-speed-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #193657;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+
+.comment-video-speed-btn {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.comment-media-speed-btn:hover {
+  border-color: #193657;
+}
+
+.comment-video-speed-btn:hover {
+  border-color: #fff;
+}
+
+/* Player de áudio estilo WhatsApp: botão redondo de play/pause, barra de
+   progresso clicável, tempo e velocidade -- substitui o <audio controls>
+   nativo, que no Chrome esconde volume/velocidade atrás do "3 pontinhos"
+   quando o elemento é estreito. */
+.comment-audio-player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-surface-alt, #f1f5f9);
+}
+
+.comment-audio-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.3rem;
+  height: 2.3rem;
+  border: none;
+  border-radius: 999px;
+  background: #193657;
+  color: #fff;
+  cursor: pointer;
+}
+
+.comment-audio-toggle-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.comment-audio-toggle-btn .icon-play {
+  margin-left: 0.15rem;
+}
+
+.comment-audio-seek {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+}
+
+.comment-audio-seek-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: #193657;
+  pointer-events: none;
+}
+
+.comment-audio-time {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #6b7280);
+  min-width: 2.6rem;
+}
+
+.comment-audio-player .comment-media-speed-btn {
+  flex-shrink: 0;
+  background: var(--bg-surface, #fff);
+}
+
+/* Precisa vir DEPOIS de .comment-audio-player .comment-media-speed-btn
+   (mesma especificidade -- quem vem por último no arquivo vence), senão
+   o botão ativo fica com fundo branco + texto branco, ilegível. */
+.comment-media-speed-btn.velocidade-ativa {
+  background: #193657;
+  color: #fff;
+  border-color: #193657;
 }
 
 .comment-reply-btn {
@@ -2252,13 +2382,6 @@ body {
   font-size: 0.85rem;
   color: var(--text-primary, #1e293b);
   overflow-wrap: break-word;
-}
-
-.comment-midia-audio {
-  display: block;
-  width: 100%;
-  max-width: 320px;
-  margin-top: 0.5rem;
 }
 
 .comment-midia-documento {
@@ -3994,9 +4117,15 @@ body {
 
   .favorito-btn,
   .icon-action-btn,
-  .comment-toolbar-btn {
+  .comment-toolbar-btn,
+  .comment-audio-toggle-btn {
     width: 2.75rem;
     height: 2.75rem;
+  }
+
+  .comment-media-speed-btn {
+    min-height: 2.75rem;
+    padding: 0.25rem 0.75rem;
   }
 
   /* 4 ícones (foto/vídeo, câmera, documento, áudio) + botão de publicar não
@@ -4172,6 +4301,20 @@ body {
 [data-theme="dark"] .comment-toolbar-btn {
   border-color: var(--border-color);
   color: var(--text-secondary);
+}
+
+[data-theme="dark"] .comment-audio-player {
+  background: var(--bg-surface-alt);
+}
+
+[data-theme="dark"] .comment-audio-seek {
+  background: var(--border-color);
+}
+
+[data-theme="dark"] .comment-audio-player .comment-media-speed-btn {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 [data-theme="dark"] .search-suggestions {

@@ -22,9 +22,22 @@
             <img src="{{ comentario.midia.url }}" alt="" class="comment-midia-imagem" loading="lazy" />
           </a>
         {% elif comentario.tipo_midia == 'video' %}
-          <video src="{{ comentario.midia.url }}" controls class="comment-midia-video"></video>
+          <div class="comment-video-wrapper">
+            <video src="{{ comentario.midia.url }}" controls preload="metadata" class="comment-midia-video"></video>
+            <button type="button" class="comment-media-speed-btn comment-video-speed-btn" aria-label="Velocidade de reprodução">1x</button>
+          </div>
         {% elif comentario.tipo_midia == 'audio' %}
-          <audio src="{{ comentario.midia.url }}" controls class="comment-midia-audio"></audio>
+          <div class="comment-audio-player" data-audio-src="{{ comentario.midia.url }}">
+            <button type="button" class="comment-audio-toggle-btn" aria-label="Reproduzir áudio">
+              <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="icon-pause hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+            </button>
+            <div class="comment-audio-seek">
+              <div class="comment-audio-seek-fill"></div>
+            </div>
+            <span class="comment-audio-time">0:00</span>
+            <button type="button" class="comment-media-speed-btn comment-audio-speed-btn" aria-label="Velocidade de reprodução">1x</button>
+          </div>
         {% elif comentario.tipo_midia == 'documento' %}
           <a href="{{ comentario.midia.url }}" target="_blank" rel="noopener" class="comment-midia-documento">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14.5 2v5.5H20"/></svg>

@@ -1050,6 +1050,125 @@ window.addEventListener('DOMContentLoaded', function () {
 
   initComentarioMidia();
 
+  const VELOCIDADES_REPRODUCAO = [0.5, 1, 1.5, 2];
+
+  function proximaVelocidade(atual) {
+    const indiceAtual = VELOCIDADES_REPRODUCAO.indexOf(atual);
+    return VELOCIDADES_REPRODUCAO[(indiceAtual + 1) % VELOCIDADES_REPRODUCAO.length];
+  }
+
+  function formatarTempoMidia(segundos) {
+    if (!isFinite(segundos) || segundos < 0) return '0:00';
+    const minutos = Math.floor(segundos / 60);
+    const segundosRestantes = Math.floor(segundos % 60);
+    return `${minutos}:${String(segundosRestantes).padStart(2, '0')}`;
+  }
+
+  function initComentarioAudioPlayers() {
+    // Player de áudio estilo WhatsApp -- substitui o <audio controls>
+    // nativo, que no Chrome esconde velocidade/volume atrás do menu "3
+    // pontinhos" quando o elemento é estreito (achado real do usuário).
+    // Um <audio> é criado via JS (não fica no DOM) só pra tocar o arquivo;
+    // o visual inteiro (botão de play, barra de progresso, tempo,
+    // velocidade) é construído aqui.
+    const elementos = document.querySelectorAll('.comment-audio-player');
+    if (!elementos.length) return;
+
+    const players = [];
+
+    elementos.forEach(playerEl => {
+      const src = playerEl.dataset.audioSrc;
+      if (!src) return;
+
+      const audio = new Audio(src);
+      audio.preload = 'metadata';
+
+      const toggleBtn = playerEl.querySelector('.comment-audio-toggle-btn');
+      const iconPlay = playerEl.querySelector('.icon-play');
+      const iconPause = playerEl.querySelector('.icon-pause');
+      const seek = playerEl.querySelector('.comment-audio-seek');
+      const seekFill = playerEl.querySelector('.comment-audio-seek-fill');
+      const timeEl = playerEl.querySelector('.comment-audio-time');
+      const speedBtn = playerEl.querySelector('.comment-audio-speed-btn');
+      if (!toggleBtn || !seek || !seekFill || !timeEl) return;
+
+      function pausarVisual() {
+        iconPlay.classList.remove('hidden');
+        iconPause.classList.add('hidden');
+      }
+
+      players.push({ audio, pausarVisual });
+
+      audio.addEventListener('loadedmetadata', () => {
+        timeEl.textContent = formatarTempoMidia(audio.duration);
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (audio.duration) {
+          seekFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+        }
+        timeEl.textContent = formatarTempoMidia(audio.currentTime);
+      });
+
+      audio.addEventListener('ended', () => {
+        pausarVisual();
+        seekFill.style.width = '0%';
+        audio.currentTime = 0;
+        timeEl.textContent = formatarTempoMidia(audio.duration);
+      });
+
+      toggleBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          players.forEach(p => { if (p.audio !== audio) { p.audio.pause(); p.pausarVisual(); } });
+          audio.play();
+          iconPlay.classList.add('hidden');
+          iconPause.classList.remove('hidden');
+        } else {
+          audio.pause();
+          pausarVisual();
+        }
+      });
+
+      seek.addEventListener('click', event => {
+        if (!audio.duration) return;
+        const rect = seek.getBoundingClientRect();
+        const fracao = (event.clientX - rect.left) / rect.width;
+        audio.currentTime = Math.max(0, Math.min(1, fracao)) * audio.duration;
+      });
+
+      if (speedBtn) {
+        speedBtn.addEventListener('click', () => {
+          const nova = proximaVelocidade(audio.playbackRate);
+          audio.playbackRate = nova;
+          speedBtn.textContent = `${nova}x`;
+          speedBtn.classList.toggle('velocidade-ativa', nova !== 1);
+        });
+      }
+    });
+  }
+
+  initComentarioAudioPlayers();
+
+  function initComentarioVideoSpeed() {
+    // Botão de velocidade sempre visível ao lado do <video controls>
+    // nativo -- o navegador esconde "Playback speed" dentro do menu de
+    // configurações (2 cliques), isso aqui é 1 clique só, cicla
+    // 0.5x/1x/1.5x/2x.
+    document.querySelectorAll('.comment-video-wrapper').forEach(wrapper => {
+      const video = wrapper.querySelector('video');
+      const btn = wrapper.querySelector('.comment-video-speed-btn');
+      if (!video || !btn) return;
+      btn.addEventListener('click', () => {
+        const nova = proximaVelocidade(video.playbackRate);
+        video.playbackRate = nova;
+        btn.textContent = `${nova}x`;
+        btn.classList.toggle('velocidade-ativa', nova !== 1);
+      });
+    });
+  }
+
+  initComentarioVideoSpeed();
+
   function initAnexoUpload() {
     // Mesmo raciocínio da mídia do comentário: substitui o "Escolher
     // arquivo / Nenhum arquivo escolhido" nativo por um botão de clipe +
