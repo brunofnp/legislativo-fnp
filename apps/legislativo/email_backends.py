@@ -1,7 +1,7 @@
 """Backend de e-mail que envia via Gmail API (HTTPS) em vez de SMTP direto.
 
 A DigitalOcean bloqueia por padrão as portas de SMTP de saída (587/465) em
-toda conta nova -- confirmado testando diretamente no droplet (`ufw` e o
+toda conta nova, confirmado testando diretamente no droplet (`ufw` e o
 Cloud Firewall liberam tudo, mas mesmo assim as duas portas dão timeout,
 enquanto HTTPS/443 funciona normalmente). Em vez de esperar suporte da DO
 liberar, a Gmail API contorna o problema por completo, já que fala HTTPS.
@@ -9,7 +9,7 @@ liberar, a Gmail API contorna o problema por completo, já que fala HTTPS.
 Depende de um Service Account no Google Cloud com Domain-wide Delegation
 autorizada no Admin Console do Workspace (Segurança > Controle de acesso e
 dados > Delegação em todo o domínio), escopo `gmail.send`, impersonando
-GMAIL_SENDER_EMAIL -- sem isso o Google recusa a autenticação."""
+GMAIL_SENDER_EMAIL. Sem isso o Google recusa a autenticação."""
 
 import base64
 import json
@@ -50,7 +50,7 @@ class GmailApiEmailBackend(BaseEmailBackend):
         credentials = service_account.Credentials.from_service_account_info(
             credentials_info, scopes=SCOPES,
         ).with_subject(settings.GMAIL_SENDER_EMAIL)
-        # cache_discovery=False -- evita o googleapiclient tentar escrever
+        # cache_discovery=False evita o googleapiclient tentar escrever
         # um arquivo de cache no disco (falha silenciosa em container com
         # filesystem restrito, gera só um warning confuso no log).
         return build('gmail', 'v1', credentials=credentials, cache_discovery=False)
