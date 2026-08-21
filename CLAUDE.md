@@ -2520,6 +2520,32 @@ quanto pro vídeo, sempre acessível sem precisar abrir menu nenhum.
 testes e `ruff` limpos. Commitado e enviado pra `next` -- aguardando
 autorização pra promover.
 
+### Dificultar baixar mídia de outro usuário no fórum (2026-08-21, mesma sessão)
+
+Pedido do usuário: só quem postou a mídia (foto/áudio/vídeo/documento) e
+Root/Administrador FNP deveriam poder "baixar" a mídia de um comentário
+-- outros participantes da discussão, não. Antes de implementar,
+perguntei qual das 3 leituras possíveis fazia sentido, porque tecnicamente
+**não dá pra impedir "baixar" sem impedir "ver/ouvir"** também -- qualquer
+navegador que reproduz um áudio/vídeo/imagem consegue salvar o que está
+reproduzindo (limitação da própria web, não do nosso código); só pra
+documento (que já é um link de download de verdade, sem player inline)
+uma restrição de acesso de verdade seria possível sem quebrar a
+visualização. Usuário escolheu a opção mais simples: **manter tudo
+visível/reproduzível pra todo mundo como já é** (é o propósito do
+recurso), só reduzir a conveniência de baixar --
+`controlsList="nodownload noremoteplayback"` tira o botão nativo de
+download/cast do `<video>`; clique direito desativado via JS (nunca
+inline, CSP do projeto bloqueia `onXXX=` em atributo HTML) em foto/vídeo/
+player de áudio. **Não é restrição de permissão de verdade** -- só
+dificulta o caminho mais óbvio, documentado como tal pro usuário antes de
+implementar, pra não dar falsa sensação de segurança.
+
+`check`, `makemigrations --check`, 134 testes e `ruff` limpos. Testado via
+Playwright: `controlsList` presente no vídeo, evento `contextmenu`
+prevenido de verdade (checado via `dispatchEvent` retornando `false`) em
+imagem e vídeo publicados de teste. Commitado e enviado pra `next`.
+
 ### Pendências e próximos passos
 
 **Mais urgente agora:**
