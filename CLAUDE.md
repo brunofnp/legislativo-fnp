@@ -281,6 +281,23 @@ git pull production main
 git push production main
 ```
 
+### Deploy no droplet via SSH direto
+
+Desde 2026-08-20, Claude Code tem acesso SSH direto ao droplet `fnp-web`
+(`ssh -i ~/.ssh/id_ed25519_fnp_web root@142.93.205.222`, chave já
+configurada na máquina local) — **autorizado explicitamente pelo
+usuário** ("Pode fazer" / "Pode continuar assim", 2026-08-20/21). Uso
+esse acesso pra rodar o deploy de verdade (`git pull` + `docker compose
+build` + `up -d` + conferência de log/`curl`/`docker compose ps`) sempre
+que a promoção pra produção/droplet for autorizada — sem precisar passar
+comando por comando pro usuário rodar no console web da DigitalOcean.
+Continua valendo a regra de nunca promover `next`→`main`/produção sem
+pedido explícito a cada vez; o que mudou foi só *quem* executa os
+comandos depois de autorizado. Nunca expor conteúdo de credencial (senha,
+chave de API, `.env`) na saída de comando — quando precisar levar um
+segredo pro `.env` do servidor, usar `ssh ... "cat >> .env" < arquivo_local`
+(o valor nunca aparece no stdout/stderr de nenhum lado).
+
 ---
 
 ## CI e validação
