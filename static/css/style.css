@@ -2802,6 +2802,38 @@ body {
     bottom: 0.75rem;
     max-width: none;
   }
+
+  /* Cards de estatística em grid 2 colunas no celular -- a pilha de 5
+     cards cheios de espaço vazio virava um scroll comprido antes de
+     chegar no conteúdo de verdade (achado do usuário, captura de tela
+     de produção). TOTAL (a métrica de resumo, já marcada como "active"
+     por padrão) ocupa a linha inteira e fica um pouco maior; as outras
+     4 formam um grid 2x2 compacto logo abaixo. */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .stats-grid .stat-card:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .stat-card {
+    padding: 0.9rem 1rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .stat-num {
+    font-size: 1.5rem;
+  }
+
+  .stats-grid .stat-card:first-child .stat-num {
+    font-size: 2.25rem;
+  }
 }
 
 /* ==================== App shell (usuario autenticado) ==================== */
