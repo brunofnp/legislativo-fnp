@@ -603,7 +603,12 @@ body {
 .card-top-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  /* center, não flex-start -- o botão de favoritar (44px, alvo de toque
+     WCAG) e os badges de prioridade (~30px) tinham alturas diferentes;
+     alinhados pelo topo, os badges ficavam visualmente ~7px acima do
+     centro dos ícones ao lado (achado medindo bounding boxes, não só
+     olhando a imagem). */
+  align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.85rem;
 }
@@ -4008,7 +4013,12 @@ body {
      -- só assim avatar/sino conseguem ficar na mesma linha do título. */
   .app-topbar {
     flex-wrap: wrap;
-    padding: 0.6rem 0.75rem;
+    /* 0.5rem (8px) nas laterais -- não 0.75rem -- pra alinhar com a
+       margem de conteúdo usada no resto da página (.page-shell/.card/
+       .stats-grid, todos em 8px no mobile); antes a logo do topbar
+       ficava 4px mais recuada que o título/cards logo abaixo (achado
+       medindo bounding boxes). */
+    padding: 0.6rem 0.5rem;
     column-gap: 0.3rem;
     row-gap: 0.6rem;
   }
