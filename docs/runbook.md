@@ -2,8 +2,10 @@
 
 ## Ambiente local (Windows) — usar Python 3.12, não 3.14
 
-Django 4.2 só suporta oficialmente até Python 3.12. No Python 3.14 (verificado
-nesta máquina), um bug interno do próprio Django (`copy.copy()` sobre
+Registrado quando o projeto ainda usava Django 4.2 (hoje é 5.2 LTS — ver
+`requirements.txt`; o bug abaixo **não foi reverificado** no 5.2, então o
+`.venv` em 3.12 continua sendo o caminho seguro). No Python 3.14 (verificado
+nesta máquina, com Django 4.2), um bug interno do próprio Django (`copy.copy()` sobre
 `RequestContext` em `django/template/context.py`) quebra **toda tela de
 listagem do Admin e a maioria das telas de adicionar/editar**, com
 `AttributeError: 'super' object has no attribute 'dicts'`. Não é um bug deste

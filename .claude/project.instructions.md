@@ -1,9 +1,4 @@
 # Claude project configuration
 
-Este projeto deve seguir a arquitetura do Radar Brasil:
-- apps Django por domínio
-- templates compartilhados em `base_templates/`
-- `setup/` como pacote de configuração do projeto
-- `static/` para CSS, JS e imagens
-
-O objetivo inicial é construir a base do Painel Legislativo FNP com modelos, admin e views públicas.
+Contexto, regras e estado atual do projeto: `CLAUDE.md` (raiz).
+Piso de qualidade: `CONSTRAINTS.md`. Diário das sessões: `docs/historico-sessoes.md`.
