@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Pendentes de aprovação | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Painel Legislativo</span>
+      <h1>Pendentes de aprovação</h1>
+      <p>Proposições cadastradas pela equipe, aguardando a decisão da coordenação.</p>
+    </div>
+  </section>
+
+  <section class="pendentes-lista">
+    {% if pendentes %}
+      {% for p in pendentes %}
+        <article class="pendente-item">
+          <div class="pendente-info">
+            <h2><a href="{% url 'legislativo:proposicao_detail' p.pk %}">{{ p.titulo }}</a></h2>
+            {% if p.ementa_resumida %}<p class="pendente-ementa">{{ p.ementa_resumida|truncatewords:40 }}</p>{% endif %}
+            <p class="pendente-meta">
+              {{ p.get_casa_display }}{% if p.status_tramitacao %} · {{ p.status_tramitacao }}{% endif %}
+              {% if p.submetido_por %} · enviada por {{ p.submetido_por.get_display_name }}{% endif %}
+              {% if p.link %} · <a href="{{ p.link }}" target="_blank" rel="noopener">ficha de tramitação</a>{% endif %}
+            </p>
+          </div>
+          <div class="pendente-acoes">
+            <form method="post" action="{% url 'legislativo:aprovar_proposicao' p.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-primary">Aprovar</button>
+            </form>
+            <form method="post" action="{% url 'legislativo:rejeitar_proposicao' p.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger">Rejeitar</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p>Nenhuma proposição pendente de aprovação.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

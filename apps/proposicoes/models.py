@@ -49,6 +49,14 @@ class Tema(models.Model):
         return self.nome
 
 
+class ProposicaoQuerySet(models.QuerySet):
+    def publicadas(self):
+        return self.filter(status_publicacao=Proposicao.PUBLICADA)
+
+    def pendentes(self):
+        return self.filter(status_publicacao=Proposicao.PENDENTE)
+
+
 class Proposicao(models.Model):
     CASA_CHOICES = [
         ('camara', 'Câmara'),
@@ -62,6 +70,20 @@ class Proposicao(models.Model):
     ]
     # Campos de mérito: toda edição gera uma linha em EdicaoMeritoHistorico, nunca sobrescreve silenciosamente.
     CAMPOS_MERITO = ('posicionamento_fnp', 'acoes_incidencia', 'riscos_oportunidades')
+
+    # Workflow de publicação (cadastro pelo painel): submissão de colaborador
+    # comum entra 'pendente' e só aparece no painel público depois de aprovada
+    # pela coordenação. Ingest/Admin/legado nascem 'publicada' (default).
+    PENDENTE = 'pendente'
+    PUBLICADA = 'publicada'
+    REJEITADA = 'rejeitada'
+    STATUS_PUBLICACAO_CHOICES = [
+        (PENDENTE, 'Pendente'),
+        (PUBLICADA, 'Publicada'),
+        (REJEITADA, 'Rejeitada'),
+    ]
+
+    objects = ProposicaoQuerySet.as_manager()
 
     titulo = models.CharField(max_length=1024)
     casa = models.CharField(max_length=32, choices=CASA_CHOICES)
@@ -94,6 +116,27 @@ class Proposicao(models.Model):
     acoes_incidencia = models.TextField(blank=True)
     riscos_oportunidades = models.TextField(blank=True)
     visualizacoes = models.PositiveIntegerField(default=0)
+    status_publicacao = models.CharField(
+        max_length=16,
+        choices=STATUS_PUBLICACAO_CHOICES,
+        default=PUBLICADA,
+    )
+    submetido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='proposicoes_submetidas',
+    )
+    aprovado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='proposicoes_aprovadas',
+    )
+    aprovado_em = models.DateTimeField(null=True, blank=True)
+    motivo_rejeicao = models.TextField(blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

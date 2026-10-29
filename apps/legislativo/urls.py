@@ -11,6 +11,8 @@ from .views import (
     api_proposicao_sse,
     api_proposicoes,
     api_proposicoes_cards,
+    aprovar_proposicao,
+    cadastrar_proposicao,
     cadastro_pendente,
     curtir_comentario,
     denunciar_comentario,
@@ -20,6 +22,8 @@ from .views import (
     ler_notificacao,
     marcar_notificacoes_lidas,
     politica_privacidade,
+    proposicoes_pendentes,
+    rejeitar_proposicao,
     solicitar_exclusao,
     toggle_favorito,
     usuario_publico,
@@ -29,6 +33,10 @@ app_name = 'legislativo'
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
+    path('proposicoes/cadastrar/', cadastrar_proposicao, name='cadastrar_proposicao'),
+    path('proposicoes/pendentes/', proposicoes_pendentes, name='proposicoes_pendentes'),
+    path('proposicao/<int:pk>/aprovar/', aprovar_proposicao, name='aprovar_proposicao'),
+    path('proposicao/<int:pk>/rejeitar/', rejeitar_proposicao, name='rejeitar_proposicao'),
     path('proposicao/<int:pk>/', ProposicaoDetailView.as_view(), name='proposicao_detail'),
     path('proposicao/<int:pk>/favoritar/', toggle_favorito, name='toggle_favorito'),
     path('proposicao/<int:pk>/anexos/enviar/', enviar_anexo, name='enviar_anexo'),
