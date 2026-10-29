@@ -15,7 +15,7 @@ USUARIO_GROUP_NAME = 'Usuário'
 
 # Root não recebe permissões explícitas: is_superuser já ignora toda checagem de permissão.
 ADMINISTRADOR_PERMISSOES = {
-    Proposicao: ['view', 'change'],
+    Proposicao: ['view', 'change', 'delete'],
     Comentario: ['view', 'change', 'delete'],
     Macrotema: ['view', 'add', 'change'],
     Tema: ['view', 'add', 'change'],

@@ -180,6 +180,30 @@ class SetupRolesCommandTest(TestCase):
         self.assertTrue(usuario.groups.filter(name='Root').exists())
 
 
+class ExcluirProposicaoPermissaoTest(TestCase):
+    """Root e Administrador FNP podem excluir proposição pelo Admin; usuário
+    comum não -- exclusão é ação restrita, pedido explícito do usuário."""
+
+    def test_administrador_fnp_ganha_permissao_de_excluir_proposicao(self):
+        call_command('setup_roles')
+        usuario = Usuario.objects.create(username='adm', email='adm@fnp.org.br')
+        usuario.groups.add(Group.objects.get(name='Administrador FNP'))
+
+        self.assertTrue(usuario.has_perm('proposicoes.delete_proposicao'))
+
+    def test_usuario_comum_nao_pode_excluir_proposicao(self):
+        call_command('setup_roles')
+        usuario = Usuario.objects.create(username='comum', email='comumy@fnp.org.br')
+
+        self.assertFalse(usuario.has_perm('proposicoes.delete_proposicao'))
+
+    def test_root_pode_excluir_proposicao(self):
+        usuario = Usuario.objects.create(
+            username='root3', email='root3@fnp.org.br', is_superuser=True, is_staff=True,
+        )
+        self.assertTrue(usuario.has_perm('proposicoes.delete_proposicao'))
+
+
 class EdicaoMeritoHistoricoIngestTest(TestCase):
     def test_reingestao_com_campo_de_merito_alterado_grava_historico(self):
         registro = [{'Proposição': 'PL 999/2025', 'Casa': 'Camara', 'Posicionamento da FNP': 'Posição inicial'}]
