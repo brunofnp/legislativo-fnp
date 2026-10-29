@@ -26,6 +26,7 @@ from .views import (
     rejeitar_proposicao,
     solicitar_exclusao,
     toggle_favorito,
+    toggle_seguir,
     usuario_publico,
 )
 
@@ -39,6 +40,7 @@ urlpatterns = [
     path('proposicao/<int:pk>/rejeitar/', rejeitar_proposicao, name='rejeitar_proposicao'),
     path('proposicao/<int:pk>/', ProposicaoDetailView.as_view(), name='proposicao_detail'),
     path('proposicao/<int:pk>/favoritar/', toggle_favorito, name='toggle_favorito'),
+    path('proposicao/<int:pk>/seguir/', toggle_seguir, name='toggle_seguir'),
     path('proposicao/<int:pk>/anexos/enviar/', enviar_anexo, name='enviar_anexo'),
     path('anexo/<int:pk>/excluir/', excluir_anexo, name='excluir_anexo'),
     path('comentario/<int:pk>/denunciar/', denunciar_comentario, name='denunciar_comentario'),

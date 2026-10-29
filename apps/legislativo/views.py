@@ -18,7 +18,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.comentarios.models import Comentario, ComentarioLike, DenunciaComentario, Notificacao
 from apps.comentarios.moderacao import classificar_comentario
 from apps.proposicoes.fontes import buscar_proposicao
-from apps.proposicoes.models import AnexoProposicao, Macrotema, Proposicao, Tema
+from apps.proposicoes.models import AnexoProposicao, Macrotema, Proposicao, ProposicaoSeguida, Tema
 from apps.usuarios.models import Perfil, Usuario
 
 from .forms import AnexoProposicaoForm, CadastroProposicaoForm, ComentarioForm, PerfilDadosForm, PerfilForm
@@ -397,6 +397,22 @@ def toggle_favorito(request, pk):
     if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
     return redirect('legislativo:home')
+
+
+@login_required
+@require_POST
+def toggle_seguir(request, pk):
+    """Segue/deixa de seguir uma proposição (watchlist por conta, base do
+    alerta individual) -- separado do favoritar por sessão."""
+    proposicao = get_object_or_404(Proposicao.objects.publicadas(), pk=pk)
+    seguida, criada = ProposicaoSeguida.objects.get_or_create(usuario=request.user, proposicao=proposicao)
+    if not criada:
+        seguida.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=pk)
 
 
 @login_required
