@@ -29,6 +29,20 @@
       <span>Participações</span>
     </a>
 
+    {% if pode_cadastrar_proposicao %}
+      <p class="sidebar-section-label">Legislativo</p>
+      <a href="{% url 'legislativo:cadastrar_proposicao' %}" class="sidebar-link {% if request.resolver_match.url_name == 'cadastrar_proposicao' %}active{% endif %}" data-label="Cadastrar proposição">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Cadastrar proposição</span>
+      </a>
+      {% if eh_aprovador_legislativo %}
+      <a href="{% url 'legislativo:proposicoes_pendentes' %}" class="sidebar-link {% if request.resolver_match.url_name == 'proposicoes_pendentes' %}active{% endif %}" data-label="Pendentes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+        <span>Pendentes{% if proposicoes_pendentes_count %} ({{ proposicoes_pendentes_count }}){% endif %}</span>
+      </a>
+      {% endif %}
+    {% endif %}
+
     {% if user.is_staff %}
       <p class="sidebar-section-label">Administração</p>
       <a href="/admin/" class="sidebar-link" data-label="Painel Admin">

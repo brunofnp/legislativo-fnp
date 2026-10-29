@@ -1713,3 +1713,173 @@ class SiteBrandingTest(TestCase):
         self.assertNotIn('example.com', mensagem.subject)
         self.assertNotIn('example.com', mensagem.body)
         self.assertIn('Painel Legislativo FNP', mensagem.subject)
+
+
+# --- Cadastro de proposicao (com aprovacao) ----------------------------------
+
+from django.core.exceptions import PermissionDenied  # noqa: E402
+
+from apps.proposicoes import fontes  # noqa: E402
+
+from .views import (  # noqa: E402
+    aprovar_proposicao,
+    cadastrar_proposicao,
+    get_proposicao_visivel,
+    proposicoes_pendentes,
+    rejeitar_proposicao,
+)
+
+_DADOS_FONTE = {
+    'titulo': 'PL 123/2025',
+    'casa': 'camara',
+    'status_tramitacao': 'Em tramitacao',
+    'local': 'CCJ',
+    'ultima_movimentacao': 'mov',
+    'ementa_resumida': 'ementa de teste',
+    'link': 'https://www.camara.leg.br/ficha',
+}
+
+
+class CadastroProposicaoTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.colaborador = Usuario.objects.create_user(
+            username='colab', email='colab@fnp.org.br', password='x'
+        )
+        self.colaborador.perfil.classe_usuario = Perfil.EQUIPE_FNP
+        self.colaborador.perfil.status_aprovacao = Perfil.APROVADO
+        self.colaborador.perfil.save()
+
+        self.aprovador = Usuario.objects.create_user(
+            username='aprov', email='aprov@fnp.org.br', password='x', is_staff=True
+        )
+        self.publico = Usuario.objects.create_user(
+            username='pref', email='pref@cidade.gov.br', password='x'
+        )
+
+    def _cadastrar(self, user, dados, tipo='PL', numero=123, ano=2025):
+        with mock.patch('apps.legislativo.views.buscar_proposicao', return_value=dados):
+            request = _post_request_with_session(
+                '/proposicoes/cadastrar/', {'tipo': tipo, 'numero': numero, 'ano': ano}
+            )
+            request.user = user
+            return cadastrar_proposicao(request)
+
+    def test_colaborador_cadastra_como_pendente(self):
+        resp = self._cadastrar(self.colaborador, _DADOS_FONTE)
+        self.assertEqual(resp.status_code, 200)
+        p = Proposicao.objects.get(titulo='PL 123/2025')
+        self.assertEqual(p.status_publicacao, Proposicao.PENDENTE)
+        self.assertEqual(p.submetido_por_id, self.colaborador.id)
+        self.assertEqual(p.ementa_resumida, 'ementa de teste')
+
+    def test_aprovador_publica_direto(self):
+        self._cadastrar(self.aprovador, _DADOS_FONTE)
+        p = Proposicao.objects.get(titulo='PL 123/2025')
+        self.assertEqual(p.status_publicacao, Proposicao.PUBLICADA)
+        self.assertEqual(p.aprovado_por_id, self.aprovador.id)
+        self.assertIsNotNone(p.aprovado_em)
+
+    def test_nao_encontrada_nao_cria(self):
+        resp = self._cadastrar(self.colaborador, None)
+        self.assertFalse(Proposicao.objects.filter(titulo='PL 123/2025').exists())
+        self.assertIn('encontrada', resp.content.decode().lower())
+
+    def test_idempotente_nao_duplica_e_preserva_status(self):
+        Proposicao.objects.create(
+            titulo='PL 123/2025', casa='camara',
+            status_publicacao=Proposicao.PUBLICADA, status_tramitacao='antigo',
+        )
+        self._cadastrar(self.colaborador, _DADOS_FONTE)
+        self.assertEqual(Proposicao.objects.filter(titulo='PL 123/2025').count(), 1)
+        p = Proposicao.objects.get(titulo='PL 123/2025')
+        self.assertEqual(p.status_publicacao, Proposicao.PUBLICADA)
+        self.assertEqual(p.status_tramitacao, 'Em tramitacao')
+
+    def test_publico_externo_nao_cadastra(self):
+        with self.assertRaises(PermissionDenied):
+            self._cadastrar(self.publico, _DADOS_FONTE)
+
+    def test_views_publicas_escondem_pendente(self):
+        Proposicao.objects.create(titulo='PL 1/2025', casa='camara', status_publicacao=Proposicao.PUBLICADA)
+        Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        titulos = set(get_filtered_proposicoes('', '').values_list('titulo', flat=True))
+        self.assertIn('PL 1/2025', titulos)
+        self.assertNotIn('PL 2/2025', titulos)
+
+    def test_detalhe_pendente_404_para_publico(self):
+        p = Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        request = _request_with_session('/proposicao/%d/' % p.pk)
+        request.user = self.publico
+        with self.assertRaises(Http404):
+            get_proposicao_visivel(request, p.pk)
+
+    def test_detalhe_pendente_visivel_para_aprovador(self):
+        p = Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        request = _request_with_session('/proposicao/%d/' % p.pk)
+        request.user = self.aprovador
+        self.assertEqual(get_proposicao_visivel(request, p.pk).pk, p.pk)
+
+    def test_aprovar_publica(self):
+        p = Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        request = _post_request_with_session('/proposicao/%d/aprovar/' % p.pk)
+        request.user = self.aprovador
+        resp = aprovar_proposicao(request, p.pk)
+        self.assertEqual(resp.status_code, 302)
+        p.refresh_from_db()
+        self.assertEqual(p.status_publicacao, Proposicao.PUBLICADA)
+        self.assertEqual(p.aprovado_por_id, self.aprovador.id)
+
+    def test_rejeitar_registra_motivo(self):
+        p = Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        request = _post_request_with_session('/proposicao/%d/rejeitar/' % p.pk, {'motivo': 'fora de escopo'})
+        request.user = self.aprovador
+        rejeitar_proposicao(request, p.pk)
+        p.refresh_from_db()
+        self.assertEqual(p.status_publicacao, Proposicao.REJEITADA)
+        self.assertEqual(p.motivo_rejeicao, 'fora de escopo')
+
+    def test_nao_aprovador_nao_aprova(self):
+        p = Proposicao.objects.create(titulo='PL 2/2025', casa='camara', status_publicacao=Proposicao.PENDENTE)
+        request = _post_request_with_session('/proposicao/%d/aprovar/' % p.pk)
+        request.user = self.colaborador
+        with self.assertRaises(PermissionDenied):
+            aprovar_proposicao(request, p.pk)
+
+    def test_pendentes_lista_so_para_aprovador(self):
+        request = _request_with_session('/proposicoes/pendentes/')
+        request.user = self.colaborador
+        with self.assertRaises(PermissionDenied):
+            proposicoes_pendentes(request)
+
+
+class FontesTest(TestCase):
+    def test_buscar_camara_normaliza(self):
+        lista = mock.Mock()
+        lista.json.return_value = {'dados': [{'id': 99, 'ementa': 'ementa X'}]}
+        lista.raise_for_status = mock.Mock()
+        det = mock.Mock()
+        det.json.return_value = {'dados': {'statusProposicao': {
+            'descricaoSituacao': 'Pronta', 'siglaOrgao': 'CCJ',
+            'descricaoTramitacao': 'tram', 'dataHora': '2026-01-02T10:00:00',
+        }}}
+        det.raise_for_status = mock.Mock()
+        with mock.patch('apps.proposicoes.fontes.requests.get', side_effect=[lista, det]):
+            dados = fontes.buscar_camara('PL', 1, 2025)
+        self.assertEqual(dados['titulo'], 'PL 1/2025')
+        self.assertEqual(dados['casa'], 'camara')
+        self.assertIn('fichadetramitacao', dados['link'])
+        self.assertEqual(dados['ementa_resumida'], 'ementa X')
+
+    def test_buscar_camara_nao_encontrada(self):
+        vazio = mock.Mock()
+        vazio.json.return_value = {'dados': []}
+        vazio.raise_for_status = mock.Mock()
+        with mock.patch('apps.proposicoes.fontes.requests.get', return_value=vazio):
+            self.assertIsNone(fontes.buscar_camara('PL', 1, 2025))
+
+    def test_buscar_proposicao_fallback_senado(self):
+        with mock.patch('apps.proposicoes.fontes.buscar_camara', return_value=None), \
+             mock.patch('apps.proposicoes.fontes.buscar_senado', return_value={'titulo': 'PL 1/2025', 'casa': 'senado'}):
+            dados = fontes.buscar_proposicao('PL', 1, 2025)
+        self.assertEqual(dados['casa'], 'senado')

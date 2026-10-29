@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.text import slugify
 
 from apps.comentarios.models import Comentario
+from apps.proposicoes.fontes import TIPOS
 from apps.proposicoes.models import AnexoProposicao
 from apps.usuarios.classificacao import classificar_por_cargo
 from apps.usuarios.models import Municipio, Perfil, Usuario
@@ -226,5 +227,23 @@ class AnexoProposicaoForm(forms.ModelForm):
             'arquivo': 'Arquivo',
             'titulo': 'Título',
         }
+
+
+class CadastroProposicaoForm(forms.Form):
+    """Cadastro enxuto: só tipo + número + ano. O resto (ementa, status,
+    última movimentação, link da ficha) é buscado na fonte oficial
+    (ver apps.proposicoes.fontes.buscar_proposicao)."""
+
+    tipo = forms.ChoiceField(choices=[(t, t) for t in TIPOS], label='Tipo')
+    numero = forms.IntegerField(min_value=1, label='Número')
+    ano = forms.IntegerField(min_value=1988, label='Ano')
+
+    def clean_ano(self):
+        from datetime import date
+
+        ano = self.cleaned_data['ano']
+        if ano > date.today().year + 1:
+            raise forms.ValidationError('Ano inválido.')
+        return ano
 
 

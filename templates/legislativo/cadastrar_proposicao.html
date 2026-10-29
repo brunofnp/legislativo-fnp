@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastrar proposição | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Painel Legislativo</span>
+      <h1>Cadastrar proposição</h1>
+      <p>Informe o tipo, o número e o ano. O sistema busca o resto na fonte oficial (Câmara e Senado) e preenche a ficha.</p>
+    </div>
+  </section>
+
+  <section class="form-section">
+    {% if erro %}
+      <div class="alert alert-erro" role="alert">{{ erro }}</div>
+    {% endif %}
+    {% if resultado %}
+      <div class="alert alert-sucesso" role="status">
+        {% if resultado.ja_existia %}
+          <strong>{{ resultado.proposicao.titulo }}</strong> já estava no painel — a ficha foi atualizada.
+        {% elif resultado.visivel %}
+          <strong>{{ resultado.proposicao.titulo }}</strong> cadastrada e publicada.
+        {% else %}
+          <strong>{{ resultado.proposicao.titulo }}</strong> enviada para aprovação da coordenação.
+        {% endif %}
+        {% if resultado.visivel %}
+          <a href="{% url 'legislativo:proposicao_detail' resultado.proposicao.pk %}">Ver no painel</a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="form-cadastro-proposicao">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="form-row">
+        <label for="{{ form.tipo.id_for_label }}">{{ form.tipo.label }}</label>
+        {{ form.tipo }}
+        {{ form.tipo.errors }}
+      </div>
+      <div class="form-row">
+        <label for="{{ form.numero.id_for_label }}">{{ form.numero.label }}</label>
+        {{ form.numero }}
+        {{ form.numero.errors }}
+      </div>
+      <div class="form-row">
+        <label for="{{ form.ano.id_for_label }}">{{ form.ano.label }}</label>
+        {{ form.ano }}
+        {{ form.ano.errors }}
+      </div>
+      <button type="submit" class="btn btn-primary">Buscar e cadastrar</button>
+    </form>
+  </section>
+{% endblock %}

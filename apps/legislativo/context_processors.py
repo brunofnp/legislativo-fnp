@@ -11,6 +11,25 @@ def notificacoes(request):
     }
 
 
+def acoes_legislativo(request):
+    """Flags de navegação do cadastro/aprovação de proposições — exibe
+    'Cadastrar' para a Equipe FNP e 'Pendentes (N)' para os aprovadores."""
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        return {}
+
+    from apps.proposicoes.models import Proposicao
+
+    from .views import eh_aprovador, pode_cadastrar
+
+    aprovador = eh_aprovador(user)
+    return {
+        'pode_cadastrar_proposicao': pode_cadastrar(user),
+        'eh_aprovador_legislativo': aprovador,
+        'proposicoes_pendentes_count': Proposicao.objects.pendentes().count() if aprovador else 0,
+    }
+
+
 def ajuda_pagina(request):
     """Conteúdo do modal "Ajuda desta página" -- global (aplica em qualquer
     template renderizado, incluindo o Django Admin) porque é registrado nos

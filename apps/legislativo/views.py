@@ -2,9 +2,10 @@ import json
 import time
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import BooleanField, Count, Exists, F, Max, OuterRef, Prefetch, Q, Value
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import Http404, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -16,10 +17,11 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.comentarios.models import Comentario, ComentarioLike, DenunciaComentario, Notificacao
 from apps.comentarios.moderacao import classificar_comentario
+from apps.proposicoes.fontes import buscar_proposicao
 from apps.proposicoes.models import AnexoProposicao, Macrotema, Proposicao, Tema
-from apps.usuarios.models import Usuario
+from apps.usuarios.models import Perfil, Usuario
 
-from .forms import AnexoProposicaoForm, ComentarioForm, PerfilDadosForm, PerfilForm
+from .forms import AnexoProposicaoForm, CadastroProposicaoForm, ComentarioForm, PerfilDadosForm, PerfilForm
 from .throttling import rate_limited
 
 FAVORITOS_SESSION_KEY = 'favoritos'
@@ -33,6 +35,33 @@ def get_favoritos_ids(request):
 
 def get_recentes_ids(request):
     return request.session.get(RECENTES_SESSION_KEY, [])
+
+
+def pode_cadastrar(user):
+    """Quem pode cadastrar proposição pelo painel: Equipe FNP ou aprovador
+    (Root/Administrador FNP, via is_staff — cobre o consultor externo que
+    esteja no grupo Administrador FNP)."""
+    if not user.is_authenticated:
+        return False
+    if user.is_staff:
+        return True
+    perfil = getattr(user, 'perfil', None)
+    return bool(perfil and perfil.classe_usuario == Perfil.EQUIPE_FNP)
+
+
+def eh_aprovador(user):
+    """Coordenação do Legislativo (Root/Administrador FNP) — aprova/rejeita e
+    publica direto ao cadastrar."""
+    return user.is_authenticated and user.is_staff
+
+
+def get_proposicao_visivel(request, pk):
+    """Proposição acessível ao público só se publicada; pendente/rejeitada só
+    para aprovadores (que precisam pré-visualizar)."""
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+    if proposicao.status_publicacao != Proposicao.PUBLICADA and not eh_aprovador(request.user):
+        raise Http404()
+    return proposicao
 
 
 def notificar_participantes_da_discussao(proposicao, comentario):
@@ -77,7 +106,7 @@ FILTRO_LABELS = {
 
 
 def get_filtered_proposicoes(query, tema_slug, filtro=None):
-    proposicoes = Proposicao.objects.select_related('macrotema').prefetch_related('temas').all()
+    proposicoes = Proposicao.objects.publicadas().select_related('macrotema').prefetch_related('temas')
     if tema_slug:
         # tema_slug pode ser o slug de um Tema (subcategoria) ou de um
         # Macrotema (classificação editorial ampla) -- o chip exibido no
@@ -111,7 +140,7 @@ def get_home_sections(query, tema_slug, page_number=1, filtro=None):
     ordenadas = filtered.order_by('-urgente', '-pauta', '-aprovada', 'parada', 'prioridade_fnp', '-criado_em')
     page_obj = Paginator(ordenadas, PROPOSICOES_POR_PAGINA).get_page(page_number)
 
-    base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
+    base = Proposicao.objects.publicadas().select_related('macrotema').prefetch_related('temas')
 
     urgentes = base.filter(urgente=True).order_by('-criado_em')[:6]
 
@@ -164,7 +193,7 @@ class HomeView(View):
         urgentes = sections['urgentes']
         em_alta = sections['em_alta']
 
-        base = Proposicao.objects.select_related('macrotema').prefetch_related('temas')
+        base = Proposicao.objects.publicadas().select_related('macrotema').prefetch_related('temas')
 
         recentes_ids = get_recentes_ids(request)
         recentes_map = {p.pk: p for p in base.filter(pk__in=recentes_ids)}
@@ -285,7 +314,7 @@ def api_proposicoes_cards(request):
 
 @require_GET
 def api_proposicao_detail(request, pk):
-    proposicao = get_object_or_404(Proposicao, pk=pk)
+    proposicao = get_proposicao_visivel(request, pk)
     data = {
         'id': proposicao.pk,
         'titulo': proposicao.titulo,
@@ -356,7 +385,7 @@ def api_proposicao_sse(request):
 
 @require_POST
 def toggle_favorito(request, pk):
-    proposicao = get_object_or_404(Proposicao, pk=pk)
+    proposicao = get_object_or_404(Proposicao.objects.publicadas(), pk=pk)
     favoritos = request.session.get(FAVORITOS_SESSION_KEY, [])
     if proposicao.pk in favoritos:
         favoritos.remove(proposicao.pk)
@@ -460,7 +489,7 @@ class FavoritosListView(View):
         favoritos_ids = get_favoritos_ids(request)
         favoritos_map = {
             p.pk: p
-            for p in Proposicao.objects.select_related('macrotema').prefetch_related('temas').filter(pk__in=favoritos_ids)
+            for p in Proposicao.objects.publicadas().select_related('macrotema').prefetch_related('temas').filter(pk__in=favoritos_ids)
         }
         proposicoes = [favoritos_map[pk] for pk in favoritos_ids if pk in favoritos_map]
         return render(
@@ -545,7 +574,7 @@ class ProposicaoDetailView(View):
         }
 
     def get(self, request, pk):
-        proposicao = get_object_or_404(Proposicao, pk=pk)
+        proposicao = get_proposicao_visivel(request, pk)
         registrar_visualizacao(request, proposicao)
         comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
         return render(
@@ -564,7 +593,7 @@ class ProposicaoDetailView(View):
         )
 
     def post(self, request, pk):
-        proposicao = get_object_or_404(Proposicao, pk=pk)
+        proposicao = get_proposicao_visivel(request, pk)
         comentario_form = ComentarioForm(initial={'parent': None}, proposicao=proposicao)
         success_message = None
 
@@ -619,7 +648,7 @@ class ParticipacaoListView(View):
 
     def get(self, request):
         proposicoes = (
-            Proposicao.objects.select_related('macrotema')
+            Proposicao.objects.publicadas().select_related('macrotema')
             .prefetch_related('temas')
             .filter(comentarios__autor=request.user, comentarios__status_moderacao='aprovado')
             .distinct()
@@ -640,7 +669,7 @@ class ParticipacaoListView(View):
 def usuario_publico(request, pk):
     usuario = get_object_or_404(Usuario.objects.select_related('perfil__municipio'), pk=pk)
     proposicoes = (
-        Proposicao.objects.select_related('macrotema')
+        Proposicao.objects.publicadas().select_related('macrotema')
         .prefetch_related('temas')
         .filter(comentarios__autor=usuario, comentarios__status_moderacao='aprovado')
         .distinct()
@@ -656,6 +685,124 @@ def usuario_publico(request, pk):
             'page_title': usuario.get_display_name(),
         },
     )
+
+
+CAMPOS_TECNICOS_FONTE = ('casa', 'status_tramitacao', 'local', 'ultima_movimentacao', 'ementa_resumida', 'link')
+
+
+@login_required
+def cadastrar_proposicao(request):
+    if not pode_cadastrar(request.user):
+        raise PermissionDenied()
+
+    form = CadastroProposicaoForm(request.POST or None)
+    resultado = None
+    erro = None
+
+    if request.method == 'POST':
+        if rate_limited('cadastro_proposicao', request, limit=20, window_seconds=600):
+            erro = 'Muitos cadastros em sequência. Aguarde alguns minutos e tente novamente.'
+        elif form.is_valid():
+            dados = buscar_proposicao(
+                form.cleaned_data['tipo'],
+                form.cleaned_data['numero'],
+                form.cleaned_data['ano'],
+            )
+            if not dados:
+                erro = 'Proposição não encontrada na Câmara nem no Senado. Confira o tipo, o número e o ano.'
+            else:
+                campos = {campo: dados[campo] for campo in CAMPOS_TECNICOS_FONTE}
+                existente = Proposicao.objects.filter(titulo=dados['titulo']).first()
+                if existente:
+                    # Já está no painel -- só atualiza a ficha técnica, nunca
+                    # mexe no status de publicação nem na curadoria da FNP.
+                    for campo, valor in campos.items():
+                        if valor:
+                            setattr(existente, campo, valor)
+                    existente.save()
+                    resultado = {
+                        'proposicao': existente,
+                        'ja_existia': True,
+                        'visivel': existente.status_publicacao == Proposicao.PUBLICADA,
+                    }
+                else:
+                    aprovador = eh_aprovador(request.user)
+                    proposicao = Proposicao(
+                        titulo=dados['titulo'],
+                        submetido_por=request.user,
+                        status_publicacao=Proposicao.PUBLICADA if aprovador else Proposicao.PENDENTE,
+                        **campos,
+                    )
+                    if aprovador:
+                        proposicao.aprovado_por = request.user
+                        proposicao.aprovado_em = timezone.now()
+                    proposicao.save()
+                    resultado = {
+                        'proposicao': proposicao,
+                        'ja_existia': False,
+                        'visivel': aprovador,
+                    }
+                form = CadastroProposicaoForm()
+
+    return render(
+        request,
+        'legislativo/cadastrar_proposicao.html',
+        {
+            'form': form,
+            'resultado': resultado,
+            'erro': erro,
+            'page_title': 'Cadastrar proposição',
+            'mostrar_sidebar': True,
+        },
+    )
+
+
+@login_required
+def proposicoes_pendentes(request):
+    if not eh_aprovador(request.user):
+        raise PermissionDenied()
+    pendentes = (
+        Proposicao.objects.pendentes()
+        .select_related('submetido_por', 'macrotema')
+        .order_by('-criado_em')
+    )
+    return render(
+        request,
+        'legislativo/proposicoes_pendentes.html',
+        {
+            'pendentes': pendentes,
+            'page_title': 'Pendentes de aprovação',
+            'mostrar_sidebar': True,
+        },
+    )
+
+
+@login_required
+@require_POST
+def aprovar_proposicao(request, pk):
+    if not eh_aprovador(request.user):
+        raise PermissionDenied()
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+    proposicao.status_publicacao = Proposicao.PUBLICADA
+    proposicao.aprovado_por = request.user
+    proposicao.aprovado_em = timezone.now()
+    proposicao.motivo_rejeicao = ''
+    proposicao.save()
+    return redirect('legislativo:proposicoes_pendentes')
+
+
+@login_required
+@require_POST
+def rejeitar_proposicao(request, pk):
+    if not eh_aprovador(request.user):
+        raise PermissionDenied()
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+    proposicao.status_publicacao = Proposicao.REJEITADA
+    proposicao.aprovado_por = request.user
+    proposicao.aprovado_em = timezone.now()
+    proposicao.motivo_rejeicao = request.POST.get('motivo', '').strip()
+    proposicao.save()
+    return redirect('legislativo:proposicoes_pendentes')
 
 
 @login_required
