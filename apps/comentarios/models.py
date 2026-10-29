@@ -247,6 +247,15 @@ class Participacao(models.Model):
 
 
 class Notificacao(models.Model):
+    # 'comentario' é o default (toda notificação que já existia era de fórum,
+    # e a migração marca as antigas assim); só 'movimentacao' gera e-mail.
+    TIPO_COMENTARIO = 'comentario'
+    TIPO_MOVIMENTACAO = 'movimentacao'
+    TIPO_CHOICES = [
+        (TIPO_COMENTARIO, 'Comentário'),
+        (TIPO_MOVIMENTACAO, 'Movimentação'),
+    ]
+
     destinatario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -264,8 +273,10 @@ class Notificacao(models.Model):
         null=True,
         blank=True,
     )
+    tipo = models.CharField(max_length=16, choices=TIPO_CHOICES, default=TIPO_COMENTARIO)
     mensagem = models.CharField(max_length=255)
     lida = models.BooleanField(default=False)
+    enviado_email = models.BooleanField(default=False)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:

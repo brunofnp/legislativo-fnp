@@ -1883,3 +1883,105 @@ class FontesTest(TestCase):
              mock.patch('apps.proposicoes.fontes.buscar_senado', return_value={'titulo': 'PL 1/2025', 'casa': 'senado'}):
             dados = fontes.buscar_proposicao('PL', 1, 2025)
         self.assertEqual(dados['casa'], 'senado')
+
+
+# --- Alerta individual (seguir + notificacao + e-mail) -----------------------
+
+from apps.comentarios.models import Notificacao as _Notificacao  # noqa: E402
+from apps.proposicoes.models import ProposicaoSeguida as _ProposicaoSeguida  # noqa: E402
+
+from .views import notificar_participantes_da_discussao as _notificar_discussao  # noqa: E402
+from .views import toggle_seguir as _toggle_seguir  # noqa: E402
+
+
+class AlertaIndividualTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.seguidor = Usuario.objects.create_user(username='seg', email='seg@fnp.org.br', password='x')
+        self.prop = Proposicao.objects.create(
+            titulo='PL 500/2025', casa='camara', status_tramitacao='A',
+            status_publicacao=Proposicao.PUBLICADA,
+        )
+
+    def _seguir(self):
+        _ProposicaoSeguida.objects.create(usuario=self.seguidor, proposicao=self.prop)
+
+    def test_toggle_seguir_cria_e_remove(self):
+        req = _post_request_with_session('/proposicao/%d/seguir/' % self.prop.pk)
+        req.user = self.seguidor
+        _toggle_seguir(req, self.prop.pk)
+        self.assertTrue(_ProposicaoSeguida.objects.filter(usuario=self.seguidor, proposicao=self.prop).exists())
+        req2 = _post_request_with_session('/proposicao/%d/seguir/' % self.prop.pk)
+        req2.user = self.seguidor
+        _toggle_seguir(req2, self.prop.pk)
+        self.assertFalse(_ProposicaoSeguida.objects.filter(usuario=self.seguidor, proposicao=self.prop).exists())
+
+    def test_movimentacao_gera_notificacao(self):
+        self._seguir()
+        self.prop.status_tramitacao = 'Novo status'
+        self.prop.save()
+        notifs = _Notificacao.objects.filter(
+            destinatario=self.seguidor, proposicao=self.prop, tipo=_Notificacao.TIPO_MOVIMENTACAO
+        )
+        self.assertEqual(notifs.count(), 1)
+
+    def test_mudanca_fora_de_alerta_nao_notifica(self):
+        self._seguir()
+        self.prop.ementa_resumida = 'mudou so a ementa'
+        self.prop.save()
+        self.assertEqual(_Notificacao.objects.filter(tipo=_Notificacao.TIPO_MOVIMENTACAO).count(), 0)
+
+    def test_proposicao_nova_nao_notifica(self):
+        self._seguir()
+        Proposicao.objects.create(titulo='PL 999/2025', casa='camara', urgente=True)
+        self.assertEqual(_Notificacao.objects.filter(tipo=_Notificacao.TIPO_MOVIMENTACAO).count(), 0)
+
+    def test_email_so_para_optante(self):
+        self.seguidor.perfil.receber_email_atualizacoes = True
+        self.seguidor.perfil.save()
+        self._seguir()
+        mail.outbox = []
+        self.prop.pauta = True
+        self.prop.save()
+        self.assertEqual(len(mail.outbox), 1)
+        n = _Notificacao.objects.get(tipo=_Notificacao.TIPO_MOVIMENTACAO, destinatario=self.seguidor)
+        self.assertTrue(n.enviado_email)
+
+    def test_email_desligado_nao_envia(self):
+        self._seguir()
+        mail.outbox = []
+        self.prop.pauta = True
+        self.prop.save()
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_falha_email_nao_quebra_save(self):
+        self.seguidor.perfil.receber_email_atualizacoes = True
+        self.seguidor.perfil.save()
+        self._seguir()
+        with mock.patch('apps.comentarios.emails.enviar_email_alerta', side_effect=Exception('smtp down')):
+            self.prop.urgente = True
+            self.prop.save()
+        n = _Notificacao.objects.get(tipo=_Notificacao.TIPO_MOVIMENTACAO, destinatario=self.seguidor)
+        self.assertFalse(n.enviado_email)
+
+    def test_opt_in_no_perfil_persiste(self):
+        from .forms import PerfilDadosForm
+        form = PerfilDadosForm(
+            {'telefone': '', 'cargo': '', 'setor_responsavel': '', 'receber_email_atualizacoes': True},
+            instance=self.seguidor.perfil,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.seguidor.perfil.refresh_from_db()
+        self.assertTrue(self.seguidor.perfil.receber_email_atualizacoes)
+
+    def test_notificacao_comentario_continua_comentario_e_sem_email(self):
+        outro = Usuario.objects.create_user(username='c1', email='c1@cidade.gov.br', password='x')
+        Comentario.objects.create(proposicao=self.prop, autor=outro, texto='oi', status_moderacao='aprovado')
+        novo = Comentario.objects.create(proposicao=self.prop, autor=self.seguidor, texto='resp', status_moderacao='aprovado')
+        mail.outbox = []
+        _notificar_discussao(self.prop, novo)
+        n = _Notificacao.objects.filter(destinatario=outro).first()
+        self.assertIsNotNone(n)
+        self.assertEqual(n.tipo, _Notificacao.TIPO_COMENTARIO)
+        self.assertEqual(len(mail.outbox), 0)

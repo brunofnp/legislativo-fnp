@@ -149,12 +149,13 @@ class PerfilDadosForm(forms.ModelForm):
         # apps.usuarios.classificacao.classificar_por_cargo) e só editável
         # depois pelo Root/Administrador FNP via Django Admin, nunca pelo
         # próprio usuário nesta tela de autoedição.
-        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel']
+        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel', 'receber_email_atualizacoes']
         labels = {
             'foto': 'Foto de perfil',
             'telefone': 'Telefone',
             'cargo': 'Cargo',
             'setor_responsavel': 'Setor responsável',
+            'receber_email_atualizacoes': 'Receber atualizações por e-mail',
         }
         widgets = {
             'telefone': forms.TextInput(attrs={'class': 'input-wide', 'type': 'tel'}),

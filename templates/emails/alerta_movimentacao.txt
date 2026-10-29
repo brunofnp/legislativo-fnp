@@ -1,0 +1,15 @@
+Olá, {{ usuario.get_display_name }}.
+
+A proposição {{ proposicao.titulo }}, que você segue no Painel Legislativo da FNP, teve movimentação.
+
+{% if proposicao.status_tramitacao %}Status: {{ proposicao.status_tramitacao }}
+{% endif %}{% if proposicao.ultima_movimentacao %}Última movimentação: {{ proposicao.ultima_movimentacao }}
+{% endif %}
+Ver no painel: {{ detalhe_url }}
+{% if proposicao.link %}Ficha de tramitação: {{ proposicao.link }}
+{% endif %}
+--
+Você recebe este e-mail porque ativou as atualizações por e-mail no Painel Legislativo.
+Para desativar, acesse seu perfil: {{ perfil_url }}
+
+Frente Nacional de Prefeitas e Prefeitos

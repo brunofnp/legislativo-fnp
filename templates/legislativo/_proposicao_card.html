@@ -13,6 +13,20 @@
           <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in favoritos_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
         </button>
       </form>
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'legislativo:toggle_seguir' proposicao.pk %}" class="seguir-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+        <button
+          type="submit"
+          class="favorito-btn seguir-btn {% if proposicao.pk in seguidas_ids %}active{% endif %}"
+          aria-label="{% if proposicao.pk in seguidas_ids %}Deixar de seguir{% else %}Seguir e receber alertas{% endif %}"
+          title="{% if proposicao.pk in seguidas_ids %}Seguindo{% else %}Seguir{% endif %}"
+        >
+          <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in seguidas_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+      </form>
+      {% endif %}
       {% include 'legislativo/_print_share_actions.html' %}
     </div>
 

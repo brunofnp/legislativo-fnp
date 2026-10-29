@@ -27,6 +27,7 @@ def acoes_legislativo(request):
         'pode_cadastrar_proposicao': pode_cadastrar(user),
         'eh_aprovador_legislativo': aprovador,
         'proposicoes_pendentes_count': Proposicao.objects.pendentes().count() if aprovador else 0,
+        'seguidas_ids': set(user.proposicoes_seguidas.values_list('proposicao_id', flat=True)),
     }
 
 

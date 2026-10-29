@@ -132,6 +132,10 @@ class Perfil(models.Model):
         upload_to='avatars/', blank=True, null=True, validators=[validar_tamanho_foto_perfil],
     )
     foto_google_url = models.URLField(blank=True)
+    receber_email_atualizacoes = models.BooleanField(
+        default=False,
+        help_text='Receber por e-mail as atualizações das proposições que você segue.',
+    )
     exclusao_solicitada_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:

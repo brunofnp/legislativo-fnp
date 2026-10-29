@@ -258,3 +258,32 @@ class AnexoProposicao(models.Model):
     @property
     def extensao(self):
         return os.path.splitext(self.arquivo.name)[1].lstrip('.').lower()
+
+
+class ProposicaoSeguida(models.Model):
+    """Watchlist por conta (logado) -- separada do favoritar por sessão.
+    Base do alerta individual: quando a proposição se move, cada seguidor
+    recebe uma Notificacao (e e-mail, se tiver optado)."""
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='proposicoes_seguidas',
+    )
+    proposicao = models.ForeignKey(
+        Proposicao,
+        on_delete=models.CASCADE,
+        related_name='seguidores',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Proposição seguida'
+        verbose_name_plural = 'Proposições seguidas'
+        ordering = ['-criado_em']
+        constraints = [
+            models.UniqueConstraint(fields=['usuario', 'proposicao'], name='seguir_unico_por_usuario'),
+        ]
+
+    def __str__(self):
+        return f'{self.usuario} segue {self.proposicao}'
