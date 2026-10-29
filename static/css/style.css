@@ -885,6 +885,118 @@ body {
   box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
 }
 
+/* Cadastro de proposição (/proposicoes/cadastrar/) e fila de aprovação
+   (/proposicoes/pendentes/) -- mesmo cartão branco com sombra do .auth-card,
+   em largura de formulário/lista em vez de coluna estreita de login. */
+.form-section {
+  width: min(560px, 100%);
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 25px 55px rgba(15, 23, 42, 0.1);
+}
+
+.form-cadastro-proposicao .form-row {
+  margin-bottom: 1.25rem;
+}
+
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.alert-erro {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.alert-sucesso {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.pendentes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pendente-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
+}
+
+.pendente-info h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.pendente-ementa {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary, #475569);
+}
+
+.pendente-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.pendente-acoes {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.pendente-rejeitar-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pendente-rejeitar-form input {
+  min-width: 12rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.fbtn-danger {
+  background: #dc2626;
+}
+
+[data-theme="dark"] .form-section,
+[data-theme="dark"] .pendente-item {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .alert-erro {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+[data-theme="dark"] .alert-sucesso {
+  background: rgba(22, 163, 74, 0.15);
+  color: #86efac;
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
 .pagination {
   display: flex;
   align-items: center;

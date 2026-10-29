@@ -27,11 +27,13 @@
           <div class="pendente-acoes">
             <form method="post" action="{% url 'legislativo:aprovar_proposicao' p.pk %}">
               {% csrf_token %}
-              <button type="submit" class="btn btn-primary">Aprovar</button>
+              <button type="submit" class="fbtn">Aprovar</button>
             </form>
-            <form method="post" action="{% url 'legislativo:rejeitar_proposicao' p.pk %}">
+            <form method="post" action="{% url 'legislativo:rejeitar_proposicao' p.pk %}" class="pendente-rejeitar-form">
               {% csrf_token %}
-              <button type="submit" class="btn btn-danger">Rejeitar</button>
+              <label class="sr-only" for="motivo-{{ p.pk }}">Motivo da rejeição (opcional)</label>
+              <input type="text" id="motivo-{{ p.pk }}" name="motivo" placeholder="Motivo da rejeição (opcional)" maxlength="255" />
+              <button type="submit" class="fbtn fbtn-danger">Rejeitar</button>
             </form>
           </div>
         </article>

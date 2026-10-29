@@ -33,6 +33,13 @@ def get_favoritos_ids(request):
     return set(request.session.get(FAVORITOS_SESSION_KEY, []))
 
 
+def get_seguidas_ids(request):
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        return set()
+    return set(ProposicaoSeguida.objects.filter(usuario=user).values_list('proposicao_id', flat=True))
+
+
 def get_recentes_ids(request):
     return request.session.get(RECENTES_SESSION_KEY, [])
 
@@ -237,6 +244,7 @@ class HomeView(View):
                 'query': query,
                 'stats': stats,
                 'favoritos_ids': get_favoritos_ids(request),
+                'seguidas_ids': get_seguidas_ids(request),
             },
         )
 
@@ -291,11 +299,12 @@ def api_proposicoes_cards(request):
     page_number = request.GET.get('page', 1)
     sections = get_home_sections(query, tema_slug, page_number, filtro)
     favoritos_ids = get_favoritos_ids(request)
+    seguidas_ids = get_seguidas_ids(request)
 
     def render_cards(proposicoes):
         return render_to_string(
             'legislativo/_cards_grid.html',
-            {'proposicoes': proposicoes, 'favoritos_ids': favoritos_ids},
+            {'proposicoes': proposicoes, 'favoritos_ids': favoritos_ids, 'seguidas_ids': seguidas_ids},
             request=request,
         )
 
@@ -514,6 +523,7 @@ class FavoritosListView(View):
             {
                 'proposicoes': proposicoes,
                 'favoritos_ids': favoritos_ids,
+                'seguidas_ids': get_seguidas_ids(request),
                 'page_title': 'Favoritos',
                 'mostrar_sidebar': True,
             },
@@ -603,6 +613,7 @@ class ProposicaoDetailView(View):
                 'anexo_form': AnexoProposicaoForm(),
                 'anexos': self._anexos_context(proposicao, request.user),
                 'favoritos_ids': get_favoritos_ids(request),
+                'seguidas_ids': get_seguidas_ids(request),
                 **self._breadcrumb(),
                 **self._forum_context(proposicao, request.user),
             },
@@ -643,6 +654,7 @@ class ProposicaoDetailView(View):
                 'anexo_form': AnexoProposicaoForm(),
                 'anexos': self._anexos_context(proposicao, request.user),
                 'favoritos_ids': get_favoritos_ids(request),
+                'seguidas_ids': get_seguidas_ids(request),
                 'success_message': success_message,
                 **self._breadcrumb(),
                 **self._forum_context(proposicao, request.user),
@@ -676,6 +688,7 @@ class ParticipacaoListView(View):
             {
                 'proposicoes': proposicoes,
                 'favoritos_ids': get_favoritos_ids(request),
+                'seguidas_ids': get_seguidas_ids(request),
                 'page_title': 'Participações',
                 'mostrar_sidebar': True,
             },
@@ -698,6 +711,7 @@ def usuario_publico(request, pk):
             'usuario_perfil': usuario,
             'proposicoes': proposicoes,
             'favoritos_ids': get_favoritos_ids(request),
+            'seguidas_ids': get_seguidas_ids(request),
             'page_title': usuario.get_display_name(),
         },
     )
