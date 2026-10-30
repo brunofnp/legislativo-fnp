@@ -202,6 +202,12 @@ class HomeView(View):
 
         base = Proposicao.objects.publicadas().select_related('macrotema').prefetch_related('temas')
 
+        # Prioridades da FNP: bloco de destaque curado pela coordenação (até 10),
+        # mostrado no topo da home quando não há filtro/busca ativo.
+        prioridades_fnp = (
+            Proposicao.objects.destaques().select_related('macrotema').prefetch_related('temas')[:10]
+        )
+
         recentes_ids = get_recentes_ids(request)
         recentes_map = {p.pk: p for p in base.filter(pk__in=recentes_ids)}
         recentes = [recentes_map[pk] for pk in recentes_ids if pk in recentes_map]
@@ -231,6 +237,7 @@ class HomeView(View):
             {
                 'proposicoes': page_obj.object_list,
                 'page_obj': page_obj,
+                'prioridades_fnp': prioridades_fnp,
                 'urgentes': urgentes,
                 'em_alta': em_alta,
                 'recentes': recentes,
@@ -417,6 +424,37 @@ def toggle_seguir(request, pk):
     seguida, criada = ProposicaoSeguida.objects.get_or_create(usuario=request.user, proposicao=proposicao)
     if not criada:
         seguida.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def curar_proposicao(request, pk):
+    """Curadoria da coordenação (só aprovador): define o posicionamento
+    institucional da FNP (tag no card) e se a proposição entra no bloco
+    "Prioridades da FNP" da home, com a ordem. Feito no próprio painel, na
+    página da proposição."""
+    if not eh_aprovador(request.user):
+        raise PermissionDenied
+
+    proposicao = get_object_or_404(Proposicao, pk=pk)
+
+    posicao = request.POST.get('posicao_fnp', '').strip()
+    posicoes_validas = {chave for chave, _ in Proposicao.POSICAO_FNP_CHOICES}
+    proposicao.posicao_fnp = posicao if posicao in posicoes_validas else ''
+
+    proposicao.destaque_home = bool(request.POST.get('destaque_home'))
+    try:
+        ordem = int(request.POST.get('ordem_destaque', 0) or 0)
+    except (TypeError, ValueError):
+        ordem = 0
+    proposicao.ordem_destaque = max(0, min(ordem, 99))
+
+    proposicao.save(update_fields=['posicao_fnp', 'destaque_home', 'ordem_destaque'])
 
     next_url = request.POST.get('next', '')
     if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):

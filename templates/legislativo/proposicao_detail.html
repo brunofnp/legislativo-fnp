@@ -37,6 +37,7 @@
           {% include 'legislativo/_print_share_actions.html' %}
         </div>
         <div class="card-badges">
+          {% include 'legislativo/_posicao_fnp_tag.html' %}
           <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
           {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
           {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
@@ -157,6 +158,36 @@
             </div>
           </div>
         </div>
+
+        {% if eh_aprovador_legislativo %}
+        <div class="panel-block curadoria-panel">
+          <h2>Curadoria da FNP</h2>
+          <p class="curadoria-ajuda">Só a coordenação vê este bloco. Define a tag de posicionamento (com a logo da FNP) no card e se a proposição entra nas “Prioridades da FNP” da home.</p>
+          <form method="post" action="{% url 'legislativo:curar_proposicao' proposicao.pk %}" class="curadoria-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+
+            <label class="field-label" for="curadoria-posicao">Posicionamento institucional</label>
+            <select name="posicao_fnp" id="curadoria-posicao" class="curadoria-select">
+              <option value="" {% if not proposicao.posicao_fnp %}selected{% endif %}>Sem posicionamento (sem tag)</option>
+              <option value="favoravel" {% if proposicao.posicao_fnp == 'favoravel' %}selected{% endif %}>Favorável</option>
+              <option value="favoravel_ressalvas" {% if proposicao.posicao_fnp == 'favoravel_ressalvas' %}selected{% endif %}>Favorável com ressalvas</option>
+              <option value="contrario" {% if proposicao.posicao_fnp == 'contrario' %}selected{% endif %}>Contrário</option>
+              <option value="contrario_negociar" {% if proposicao.posicao_fnp == 'contrario_negociar' %}selected{% endif %}>Contrário, em negociação</option>
+            </select>
+
+            <label class="curadoria-check">
+              <input type="checkbox" name="destaque_home" value="1" {% if proposicao.destaque_home %}checked{% endif %} />
+              <span>Destacar nas “Prioridades da FNP” da home (até 10 proposições)</span>
+            </label>
+
+            <label class="field-label" for="curadoria-ordem">Ordem no bloco (menor aparece primeiro)</label>
+            <input type="number" name="ordem_destaque" id="curadoria-ordem" class="curadoria-ordem" min="0" max="99" value="{{ proposicao.ordem_destaque }}" />
+
+            <button type="submit" class="fbtn">Salvar curadoria</button>
+          </form>
+        </div>
+        {% endif %}
 
         <div class="panel-block anexos-panel">
           <h2>Documentos e anexos</h2>
