@@ -56,6 +56,11 @@ class ProposicaoQuerySet(models.QuerySet):
     def pendentes(self):
         return self.filter(status_publicacao=Proposicao.PENDENTE)
 
+    def destaques(self):
+        """Prioridades da FNP para o bloco da home, na ordem definida pela
+        coordenação (menor ordem_destaque primeiro; empate pelo mais recente)."""
+        return self.publicadas().filter(destaque_home=True).order_by('ordem_destaque', '-criado_em')
+
 
 class Proposicao(models.Model):
     CASA_CHOICES = [
@@ -67,6 +72,19 @@ class Proposicao(models.Model):
         ('media', 'Média'),
         ('baixa', 'Baixa'),
         ('normal', 'Normal'),
+    ]
+    # Posicionamento institucional da FNP (tag pública com a logo no card) --
+    # resumo em uma palavra do posicionamento_fnp (texto de mérito). Vazio = sem
+    # posicionamento definido, o card não mostra a tag.
+    POSICAO_FAVORAVEL = 'favoravel'
+    POSICAO_FAVORAVEL_RESSALVAS = 'favoravel_ressalvas'
+    POSICAO_CONTRARIO = 'contrario'
+    POSICAO_CONTRARIO_NEGOCIAR = 'contrario_negociar'
+    POSICAO_FNP_CHOICES = [
+        (POSICAO_FAVORAVEL, 'Favorável'),
+        (POSICAO_FAVORAVEL_RESSALVAS, 'Favorável com ressalvas'),
+        (POSICAO_CONTRARIO, 'Contrário'),
+        (POSICAO_CONTRARIO_NEGOCIAR, 'Contrário, em negociação'),
     ]
     # Campos de mérito: toda edição gera uma linha em EdicaoMeritoHistorico, nunca sobrescreve silenciosamente.
     CAMPOS_MERITO = ('posicionamento_fnp', 'acoes_incidencia', 'riscos_oportunidades')
@@ -94,6 +112,17 @@ class Proposicao(models.Model):
     aprovada = models.BooleanField(default=False)
     parada = models.BooleanField(default=False)
     prioridade_fnp = models.CharField(max_length=16, choices=PRIORIDADE_CHOICES, default='normal')
+    posicao_fnp = models.CharField(
+        max_length=24,
+        choices=POSICAO_FNP_CHOICES,
+        blank=True,
+        default='',
+        help_text='Posicionamento institucional da FNP exibido como tag (com a logo) no card.',
+    )
+    # Bloco "Prioridades da FNP" na home: a coordenação marca até 10 proposições
+    # como destaque; ordem_destaque controla a posição no bloco (menor primeiro).
+    destaque_home = models.BooleanField(default=False)
+    ordem_destaque = models.PositiveSmallIntegerField(default=0)
     temas = models.ManyToManyField(
         Tema,
         blank=True,

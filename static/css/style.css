@@ -866,6 +866,93 @@ body {
 .tag-normal { background: linear-gradient(135deg, #f8fafc, #f1f5f9); color: #475569; border: 1px solid #cbd5e1; }
 .tag-urgente{ background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; font-weight: 700; letter-spacing: .05em; animation: pulse 2s infinite; }
 .tag-aprovada{ background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; letter-spacing: .05em; }
+
+/* Tag de posicionamento institucional da FNP (com a logo) no card/detalhe --
+   logo sempre num chip branco pra ficar legível sobre a cor do posicionamento. */
+.tag-posicao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+}
+.tag-posicao-logo {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 999px;
+  padding: 2px;
+}
+.tag-posicao-favoravel           { background: linear-gradient(135deg, #16a34a, #15803d); }
+.tag-posicao-favoravel_ressalvas { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.tag-posicao-contrario           { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+.tag-posicao-contrario_negociar  { background: linear-gradient(135deg, #ea580c, #c2410c); }
+
+/* Bloco "Prioridades da FNP" no topo da home -- cartão com a marca FNP
+   (azul #1A4B8F / amarelo #FFC72C). */
+.prioridades-fnp {
+  background: linear-gradient(135deg, rgba(26, 75, 143, 0.06), rgba(255, 199, 44, 0.08));
+  border: 1px solid rgba(26, 75, 143, 0.15);
+  border-radius: 1.25rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+.prioridades-fnp-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.prioridades-fnp-logo { height: 28px; width: auto; }
+.prioridades-fnp-sub {
+  margin: 0.25rem 0 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+/* Painel de curadoria (só aprovador) na página da proposição. */
+.curadoria-panel { border: 1px dashed rgba(26, 75, 143, 0.4); }
+.curadoria-ajuda { color: #64748b; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.curadoria-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 460px;
+}
+.curadoria-select,
+.curadoria-ordem {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.6rem;
+  font: inherit;
+  background: #fff;
+  color: inherit;
+}
+.curadoria-ordem { width: 7rem; }
+.curadoria-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+}
+.curadoria-form .fbtn { align-self: flex-start; margin-top: 0.5rem; }
+
+[data-theme="dark"] .prioridades-fnp {
+  background: linear-gradient(135deg, rgba(26, 75, 143, 0.18), rgba(255, 199, 44, 0.1));
+  border-color: rgba(148, 163, 184, 0.25);
+}
+[data-theme="dark"] .prioridades-fnp-sub { color: #94a3b8; }
+[data-theme="dark"] .curadoria-ajuda { color: #94a3b8; }
+[data-theme="dark"] .curadoria-select,
+[data-theme="dark"] .curadoria-ordem {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
 /* badge-pauta tinha uma cor fixa (vermelha) pra "PAUTA" e "SEM PAUTA" --
    "sem pauta" (situação neutra, maioria dos casos) ficava com a mesma cor
    de alerta de "pauta" (situação que pede ação). -on/-off distinguem as
