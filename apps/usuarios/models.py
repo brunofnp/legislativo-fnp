@@ -84,6 +84,26 @@ class Usuario(AbstractUser):
         return perfil.foto_google_url or None
 
 
+class AreaFNP(models.Model):
+    """Área/unidade da FNP (coordenações e gerências do organograma). Base do
+    monitoramento interno por área: cada pessoa escolhe sua área no perfil e o
+    monitoramento interno é organizado por área."""
+
+    nome = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True)
+    ordem = models.PositiveSmallIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Área da FNP'
+        verbose_name_plural = 'Áreas da FNP'
+        ordering = ['ordem', 'nome']
+        db_table = 'legislativo_area_fnp'
+
+    def __str__(self):
+        return self.nome
+
+
 class Perfil(models.Model):
     """Dados complementares de Usuario (1-para-1), separados do model de autenticação nativo."""
 
@@ -107,6 +127,17 @@ class Perfil(models.Model):
         (PARLAMENTAR, 'Parlamentar'),
     ]
 
+    # Papel da pessoa dentro da área (para o monitoramento interno). O papel é
+    # definido pela coordenação no Django Admin; colaborador é o padrão.
+    PAPEL_COLABORADOR = 'colaborador'
+    PAPEL_COORDENADOR = 'coordenador'
+    PAPEL_GERENTE = 'gerente'
+    PAPEL_AREA_CHOICES = [
+        (PAPEL_COLABORADOR, 'Colaborador(a)'),
+        (PAPEL_COORDENADOR, 'Coordenador(a)'),
+        (PAPEL_GERENTE, 'Gerente'),
+    ]
+
     usuario = models.OneToOneField(
         Usuario,
         on_delete=models.CASCADE,
@@ -123,6 +154,20 @@ class Perfil(models.Model):
     telefone = models.CharField(max_length=32, blank=True)
     cargo = models.CharField(max_length=255, blank=True)
     setor_responsavel = models.CharField(max_length=255, blank=True)
+    area = models.ForeignKey(
+        AreaFNP,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='membros',
+        help_text='Área da FNP a que a pessoa pertence (monitoramento interno).',
+    )
+    papel_area = models.CharField(
+        max_length=16,
+        choices=PAPEL_AREA_CHOICES,
+        default=PAPEL_COLABORADOR,
+        help_text='Papel na área — definido pela coordenação.',
+    )
     status_aprovacao = models.CharField(
         max_length=16,
         choices=STATUS_APROVACAO_CHOICES,

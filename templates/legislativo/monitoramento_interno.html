@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitoramento interno | Painel Legislativo FNP{% endblock %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Interno · time da FNP</span>
+      <h1>Monitoramento interno por área</h1>
+      <p>O que cada área acompanha internamente. Não aparece no painel público. Todo o time do Legislativo vê todas as áreas; você edita a da sua área.</p>
+      {% if not minha_area %}
+        <p class="hero-note">Você ainda não escolheu sua área · <a href="{% url 'legislativo:perfil' %}">definir no perfil</a> para poder adicionar proposições.</p>
+      {% else %}
+        <p class="hero-note">Sua área: <strong>{{ minha_area.nome }}</strong> · <a href="{% url 'legislativo:perfil' %}">trocar no perfil</a></p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if areas %}
+    {% for grupo in areas %}
+      <section class="home-section monitoramento-area {% if grupo.eh_minha %}monitoramento-minha-area{% endif %}">
+        <h2 class="section-heading">
+          {{ grupo.area.nome }}
+          {% if grupo.eh_minha %}<span class="badge-minha-area">Minha área</span>{% endif %}
+        </h2>
+        {% if grupo.eh_minha %}
+          <p class="monitoramento-hint">Para adicionar: abra uma proposição no painel e clique no ícone de monitoramento (olho). Aqui você acompanha e pode remover.</p>
+        {% endif %}
+        {% if grupo.proposicoes %}
+          <div class="cards-grid">
+            {% for proposicao in grupo.proposicoes %}
+              <div class="monitoramento-item">
+                {% if grupo.eh_minha %}
+                  <form method="post" action="{% url 'legislativo:toggle_monitoramento_area' proposicao.pk %}" class="monitoramento-remover-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                    <button type="submit" class="monitoramento-remover-btn" title="Remover do monitoramento da área">Remover ×</button>
+                  </form>
+                {% endif %}
+                {% include 'legislativo/_proposicao_card.html' %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <p>Nenhuma proposição no monitoramento desta área ainda.</p>
+          </div>
+        {% endif %}
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <p>Ainda não há monitoramento interno em nenhuma área. Abra uma proposição e clique no ícone de monitoramento (olho) para começar o da sua área.</p>
+    </div>
+  {% endif %}
+{% endblock %}
