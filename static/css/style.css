@@ -973,6 +973,43 @@ body {
   border-color: #475569;
   color: #e2e8f0;
 }
+
+/* Perfil: dica abaixo de um campo (ex.: papel na área). */
+.field-hint { font-size: 0.85rem; color: #64748b; margin: 0.35rem 0 0.75rem; }
+
+/* Monitoramento interno por área. */
+.badge-minha-area {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: #1A4B8F;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+.monitoramento-hint { color: #64748b; font-size: 0.9rem; margin: -0.25rem 0 1rem; }
+.monitoramento-item { display: flex; flex-direction: column; }
+.monitoramento-remover-form { display: flex; justify-content: flex-end; margin-bottom: 0.4rem; }
+.monitoramento-remover-btn {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #b91c1c;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.monitoramento-remover-btn:hover { background: #fef2f2; border-color: #fecaca; }
+
+[data-theme="dark"] .field-hint,
+[data-theme="dark"] .monitoramento-hint { color: #94a3b8; }
+[data-theme="dark"] .monitoramento-remover-btn { border-color: #475569; color: #fca5a5; }
+[data-theme="dark"] .monitoramento-remover-btn:hover { background: rgba(239, 68, 68, 0.12); border-color: #7f1d1d; }
 /* badge-pauta tinha uma cor fixa (vermelha) pra "PAUTA" e "SEM PAUTA" --
    "sem pauta" (situação neutra, maioria dos casos) ficava com a mesma cor
    de alerta de "pauta" (situação que pede ação). -on/-off distinguem as

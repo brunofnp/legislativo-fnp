@@ -34,6 +34,20 @@
             </button>
           </form>
           {% endif %}
+          {% if eh_equipe_fnp and minha_area_fnp %}
+          <form method="post" action="{% url 'legislativo:toggle_monitoramento_area' proposicao.pk %}" class="monitorar-area-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+            <button
+              type="submit"
+              class="favorito-btn monitorar-area-btn {% if proposicao.pk in monitoradas_area_ids %}active{% endif %}"
+              aria-label="{% if proposicao.pk in monitoradas_area_ids %}Remover do monitoramento da área{% else %}Adicionar ao monitoramento da minha área{% endif %}"
+              title="{% if proposicao.pk in monitoradas_area_ids %}No monitoramento de {{ minha_area_fnp.nome }}{% else %}Monitorar na área ({{ minha_area_fnp.nome }}){% endif %}"
+            >
+              <svg viewBox="0 0 24 24" fill="{% if proposicao.pk in monitoradas_area_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </form>
+          {% endif %}
           {% include 'legislativo/_print_share_actions.html' %}
         </div>
         <div class="card-badges">

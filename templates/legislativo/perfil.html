@@ -89,6 +89,15 @@
       <label class="field-label">Telefone</label>
       {{ dados_form.telefone }}
 
+      {% if eh_equipe_fnp %}
+        <label class="field-label">Área da FNP</label>
+        {{ dados_form.area }}
+        <p class="field-hint">Define de qual área você participa no monitoramento interno.
+          Papel na área: <strong>{{ request.user.perfil.get_papel_area_display }}</strong>
+          <span>(definido pela coordenação)</span>
+        </p>
+      {% endif %}
+
       <label class="field-label-checkbox">
         {{ dados_form.receber_email_atualizacoes }}
         <span>Receber atualizações por e-mail das proposições que eu sigo</span>

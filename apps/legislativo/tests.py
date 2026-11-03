@@ -2155,3 +2155,97 @@ class CuradoriaEPrioridadesTest(TestCase):
             {'proposicao': self.prop, 'favoritos_ids': set(), 'seguidas_ids': set()},
         )
         self.assertNotIn('tag-posicao', html)
+
+
+# --- Monitoramento interno por área ------------------------------------------
+
+from apps.proposicoes.models import MonitoramentoInterno as _MonitoramentoInterno  # noqa: E402
+from apps.usuarios.models import AreaFNP as _AreaFNP  # noqa: E402
+
+
+def _equipe(username, email, area=None):
+    user = Usuario.objects.create_user(username=username, email=email, password='x')
+    user.perfil.classe_usuario = Perfil.EQUIPE_FNP
+    user.perfil.area = area
+    user.perfil.save()
+    return user
+
+
+class MonitoramentoInternoTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.area_a = _AreaFNP.objects.create(nome='Área A', slug='area-a', ordem=1)
+        self.area_b = _AreaFNP.objects.create(nome='Área B', slug='area-b', ordem=2)
+        self.membro_a = _equipe('ma', 'ma@fnp.org.br', self.area_a)
+        self.membro_b = _equipe('mb', 'mb@fnp.org.br', self.area_b)
+        self.sem_area = _equipe('sa', 'sa@fnp.org.br', None)
+        self.publico = Usuario.objects.create_user(username='pub', email='pub@cidade.gov.br', password='x')
+        self.publico.perfil.classe_usuario = Perfil.PREFEITO
+        self.publico.perfil.save()
+        self.prop = Proposicao.objects.create(
+            titulo='PL 900/2025', casa='camara', status_publicacao=Proposicao.PUBLICADA
+        )
+
+    def _toggle(self, user, pk):
+        from .views import toggle_monitoramento_area
+        req = _post_request_with_session('/proposicao/%d/monitorar-area/' % pk)
+        req.user = user
+        return toggle_monitoramento_area(req, pk)
+
+    def test_toggle_adiciona_e_remove_na_area(self):
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertTrue(_MonitoramentoInterno.objects.filter(area=self.area_a, proposicao=self.prop).exists())
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertFalse(_MonitoramentoInterno.objects.filter(area=self.area_a, proposicao=self.prop).exists())
+
+    def test_toggle_edita_so_propria_area(self):
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertTrue(_MonitoramentoInterno.objects.filter(area=self.area_a).exists())
+        self.assertFalse(_MonitoramentoInterno.objects.filter(area=self.area_b).exists())
+
+    def test_toggle_sem_area_nao_cria(self):
+        self._toggle(self.sem_area, self.prop.pk)
+        self.assertEqual(_MonitoramentoInterno.objects.count(), 0)
+
+    def test_toggle_exige_equipe(self):
+        from django.core.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            self._toggle(self.publico, self.prop.pk)
+        self.assertEqual(_MonitoramentoInterno.objects.count(), 0)
+
+    def test_toggle_so_proposicao_publicada(self):
+        from django.http import Http404
+        pend = Proposicao.objects.create(
+            titulo='PL pendente', casa='camara', status_publicacao=Proposicao.PENDENTE
+        )
+        with self.assertRaises(Http404):
+            self._toggle(self.membro_a, pend.pk)
+
+    def test_pagina_visivel_para_equipe_e_mostra_todas_as_areas(self):
+        from .views import MonitoramentoInternoView
+        self._toggle(self.membro_a, self.prop.pk)  # area A
+        req = _request_with_session('/monitoramento-interno/')
+        req.user = self.membro_b  # de outra área
+        resp = MonitoramentoInternoView.as_view()(req)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Área A', resp.content.decode())
+        self.assertIn('PL 900/2025', resp.content.decode())
+
+    def test_pagina_bloqueada_para_publico(self):
+        from django.core.exceptions import PermissionDenied
+        from .views import MonitoramentoInternoView
+        req = _request_with_session('/monitoramento-interno/')
+        req.user = self.publico
+        with self.assertRaises(PermissionDenied):
+            MonitoramentoInternoView.as_view()(req)
+
+    def test_perfil_salva_area(self):
+        from .forms import PerfilDadosForm
+        form = PerfilDadosForm(
+            {'telefone': '', 'cargo': '', 'setor_responsavel': '', 'area': self.area_b.pk},
+            instance=self.membro_a.perfil,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.membro_a.perfil.refresh_from_db()
+        self.assertEqual(self.membro_a.perfil.area_id, self.area_b.pk)

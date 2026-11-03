@@ -18,8 +18,15 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.comentarios.models import Comentario, ComentarioLike, DenunciaComentario, Notificacao
 from apps.comentarios.moderacao import classificar_comentario
 from apps.proposicoes.fontes import buscar_proposicao
-from apps.proposicoes.models import AnexoProposicao, Macrotema, Proposicao, ProposicaoSeguida, Tema
-from apps.usuarios.models import Perfil, Usuario
+from apps.proposicoes.models import (
+    AnexoProposicao,
+    Macrotema,
+    MonitoramentoInterno,
+    Proposicao,
+    ProposicaoSeguida,
+    Tema,
+)
+from apps.usuarios.models import AreaFNP, Perfil, Usuario
 
 from .forms import AnexoProposicaoForm, CadastroProposicaoForm, ComentarioForm, PerfilDadosForm, PerfilForm
 from .throttling import rate_limited
@@ -44,16 +51,28 @@ def get_recentes_ids(request):
     return request.session.get(RECENTES_SESSION_KEY, [])
 
 
-def pode_cadastrar(user):
-    """Quem pode cadastrar proposição pelo painel: Equipe FNP ou aprovador
-    (Root/Administrador FNP, via is_staff — cobre o consultor externo que
-    esteja no grupo Administrador FNP)."""
+def eh_equipe_fnp(user):
+    """Time da FNP (Legislativo): Equipe FNP ou aprovador (Root/Administrador
+    FNP, via is_staff). Exclui os usuários públicos externos (prefeitos,
+    indicados, parlamentares) -- é quem pode ver o monitoramento interno."""
     if not user.is_authenticated:
         return False
     if user.is_staff:
         return True
     perfil = getattr(user, 'perfil', None)
     return bool(perfil and perfil.classe_usuario == Perfil.EQUIPE_FNP)
+
+
+def pode_cadastrar(user):
+    """Quem pode cadastrar proposição pelo painel: o time da FNP (cobre o
+    consultor externo que esteja no grupo Administrador FNP, via is_staff)."""
+    return eh_equipe_fnp(user)
+
+
+def get_area_do_usuario(user):
+    """Área da FNP a que a pessoa pertence (None se não definiu no perfil)."""
+    perfil = getattr(user, 'perfil', None)
+    return getattr(perfil, 'area', None) if perfil else None
 
 
 def eh_aprovador(user):
@@ -464,6 +483,33 @@ def curar_proposicao(request, pk):
 
 @login_required
 @require_POST
+def toggle_monitoramento_area(request, pk):
+    """Adiciona/remove a proposição do monitoramento interno da ÁREA da pessoa.
+    Só o time da FNP com área definida; edita apenas a própria área (qualquer
+    pessoa da área pode, sem aprovação)."""
+    if not eh_equipe_fnp(request.user):
+        raise PermissionDenied
+
+    area = get_area_do_usuario(request.user)
+    proposicao = get_object_or_404(Proposicao.objects.publicadas(), pk=pk)
+
+    if area is not None:
+        item, criado = MonitoramentoInterno.objects.get_or_create(
+            area=area,
+            proposicao=proposicao,
+            defaults={'adicionado_por': request.user},
+        )
+        if not criado:
+            item.delete()
+
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('legislativo:proposicao_detail', pk=pk)
+
+
+@login_required
+@require_POST
 def denunciar_comentario(request, pk):
     comentario = get_object_or_404(Comentario, pk=pk)
     if not rate_limited('denuncia', request, limit=10, window_seconds=600):
@@ -596,6 +642,59 @@ class SeguindoListView(View):
                 'seguidas_ids': get_seguidas_ids(request),
                 'recebe_email': getattr(getattr(request.user, 'perfil', None), 'receber_email_atualizacoes', False),
                 'page_title': 'Seguindo',
+                'mostrar_sidebar': True,
+            },
+        )
+
+
+class MonitoramentoInternoView(View):
+    """Monitoramento interno por área (não público): visível a todo o time da
+    FNP. Cada área tem sua lista; a pessoa edita só a da própria área."""
+
+    template_name = 'legislativo/monitoramento_interno.html'
+
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        if not eh_equipe_fnp(request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        minha_area = get_area_do_usuario(request.user)
+        minha_area_id = minha_area.id if minha_area else None
+        itens = (
+            MonitoramentoInterno.objects
+            .select_related('area', 'proposicao', 'proposicao__macrotema')
+            .prefetch_related('proposicao__temas')
+            .filter(proposicao__status_publicacao=Proposicao.PUBLICADA)
+            .order_by('area__ordem', 'area__nome', '-criado_em')
+        )
+        # Agrupa por área preservando a ordem (menor ordem_destaque primeiro).
+        areas = []
+        por_area = {}
+        for item in itens:
+            grupo = por_area.get(item.area_id)
+            if grupo is None:
+                grupo = {
+                    'area': item.area,
+                    'proposicoes': [],
+                    'eh_minha': item.area_id == minha_area_id,
+                }
+                por_area[item.area_id] = grupo
+                areas.append(grupo)
+            grupo['proposicoes'].append(item.proposicao)
+        # Garante que a própria área apareça (vazia) mesmo sem itens ainda.
+        if minha_area and minha_area_id not in por_area:
+            areas.insert(0, {'area': minha_area, 'proposicoes': [], 'eh_minha': True})
+        return render(
+            request,
+            self.template_name,
+            {
+                'areas': areas,
+                'minha_area': minha_area,
+                'favoritos_ids': get_favoritos_ids(request),
+                'seguidas_ids': get_seguidas_ids(request),
+                'page_title': 'Monitoramento interno',
                 'mostrar_sidebar': True,
             },
         )

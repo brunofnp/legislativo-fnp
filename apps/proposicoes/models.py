@@ -316,3 +316,41 @@ class ProposicaoSeguida(models.Model):
 
     def __str__(self):
         return f'{self.usuario} segue {self.proposicao}'
+
+
+class MonitoramentoInterno(models.Model):
+    """Monitoramento interno por área: proposições que uma área da FNP acompanha
+    como grupo. Não aparece no painel público -- é visível a todo o time da FNP
+    (Legislativo). Qualquer pessoa da área adiciona/remove da sua própria área."""
+
+    area = models.ForeignKey(
+        'usuarios.AreaFNP',
+        on_delete=models.CASCADE,
+        related_name='monitoramentos',
+    )
+    proposicao = models.ForeignKey(
+        Proposicao,
+        on_delete=models.CASCADE,
+        related_name='monitoramentos_internos',
+    )
+    adicionado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='monitoramentos_adicionados',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Monitoramento interno'
+        verbose_name_plural = 'Monitoramentos internos'
+        ordering = ['-criado_em']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['area', 'proposicao'], name='monitoramento_unico_area_proposicao'
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.area} monitora {self.proposicao}'
