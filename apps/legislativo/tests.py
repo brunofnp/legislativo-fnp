@@ -180,6 +180,30 @@ class SetupRolesCommandTest(TestCase):
         self.assertTrue(usuario.groups.filter(name='Root').exists())
 
 
+class ExcluirProposicaoPermissaoTest(TestCase):
+    """Root e Administrador FNP podem excluir proposição pelo Admin; usuário
+    comum não -- exclusão é ação restrita, pedido explícito do usuário."""
+
+    def test_administrador_fnp_ganha_permissao_de_excluir_proposicao(self):
+        call_command('setup_roles')
+        usuario = Usuario.objects.create(username='adm', email='adm@fnp.org.br')
+        usuario.groups.add(Group.objects.get(name='Administrador FNP'))
+
+        self.assertTrue(usuario.has_perm('proposicoes.delete_proposicao'))
+
+    def test_usuario_comum_nao_pode_excluir_proposicao(self):
+        call_command('setup_roles')
+        usuario = Usuario.objects.create(username='comum', email='comumy@fnp.org.br')
+
+        self.assertFalse(usuario.has_perm('proposicoes.delete_proposicao'))
+
+    def test_root_pode_excluir_proposicao(self):
+        usuario = Usuario.objects.create(
+            username='root3', email='root3@fnp.org.br', is_superuser=True, is_staff=True,
+        )
+        self.assertTrue(usuario.has_perm('proposicoes.delete_proposicao'))
+
+
 class EdicaoMeritoHistoricoIngestTest(TestCase):
     def test_reingestao_com_campo_de_merito_alterado_grava_historico(self):
         registro = [{'Proposição': 'PL 999/2025', 'Casa': 'Camara', 'Posicionamento da FNP': 'Posição inicial'}]
@@ -1985,6 +2009,246 @@ class AlertaIndividualTest(TestCase):
         self.assertIsNotNone(n)
         self.assertEqual(n.tipo, _Notificacao.TIPO_COMENTARIO)
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_seguindo_list_mostra_so_seguidas(self):
+        from .views import SeguindoListView
+        Proposicao.objects.create(titulo='PL 600/2025', casa='camara', status_publicacao=Proposicao.PUBLICADA)
+        self._seguir()  # segue self.prop (PL 500/2025), nao a PL 600/2025
+        req = _request_with_session('/seguindo/')
+        req.user = self.seguidor
+        resp = SeguindoListView.as_view()(req)
+        conteudo = resp.content.decode()
+        self.assertIn('PL 500/2025', conteudo)
+        self.assertNotIn('PL 600/2025', conteudo)
+
+    def test_seguindo_list_exige_login(self):
+        from django.contrib.auth.models import AnonymousUser
+        from .views import SeguindoListView
+        req = _request_with_session('/seguindo/')
+        req.user = AnonymousUser()
+        resp = SeguindoListView.as_view()(req)
+        self.assertEqual(resp.status_code, 302)
+
+
+# --- Curadoria FNP: prioridades da home + tag de posicionamento ---------------
+
+class CuradoriaEPrioridadesTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.aprovador = Usuario.objects.create_user(
+            username='apr', email='apr@fnp.org.br', password='x', is_staff=True
+        )
+        self.comum = Usuario.objects.create_user(
+            username='com', email='com@cidade.gov.br', password='x'
+        )
+        self.prop = Proposicao.objects.create(
+            titulo='PL 700/2025', casa='camara', status_publicacao=Proposicao.PUBLICADA
+        )
+
+    # --- prioridades / destaque ---
+    def test_destaques_ordena_por_ordem_destaque(self):
+        a = Proposicao.objects.create(titulo='PL A', casa='camara', destaque_home=True, ordem_destaque=2)
+        b = Proposicao.objects.create(titulo='PL B', casa='camara', destaque_home=True, ordem_destaque=0)
+        c = Proposicao.objects.create(titulo='PL C', casa='camara', destaque_home=True, ordem_destaque=1)
+        self.assertEqual(list(Proposicao.objects.destaques()), [b, c, a])
+
+    def test_destaques_so_publicadas(self):
+        Proposicao.objects.create(
+            titulo='PL pendente', casa='camara', destaque_home=True,
+            status_publicacao=Proposicao.PENDENTE,
+        )
+        self.assertEqual(Proposicao.objects.destaques().count(), 0)
+
+    def test_home_limita_destaques_a_10(self):
+        for i in range(12):
+            Proposicao.objects.create(
+                titulo=f'PL {800 + i}/2025', casa='camara', destaque_home=True, ordem_destaque=i
+            )
+        self.assertEqual(len(list(Proposicao.objects.destaques()[:10])), 10)
+
+    def test_home_mostra_bloco_quando_ha_destaque(self):
+        from django.contrib.auth.models import AnonymousUser
+        from .views import HomeView
+        self.prop.destaque_home = True
+        self.prop.save(update_fields=['destaque_home'])
+        req = _request_with_session('/')
+        req.user = AnonymousUser()
+        resp = HomeView.as_view()(req)
+        self.assertIn('Prioridades da FNP', resp.content.decode())
+
+    def test_home_oculta_bloco_sem_destaque(self):
+        from django.contrib.auth.models import AnonymousUser
+        from .views import HomeView
+        req = _request_with_session('/')
+        req.user = AnonymousUser()
+        resp = HomeView.as_view()(req)
+        self.assertNotIn('Prioridades da FNP', resp.content.decode())
+
+    # --- curadoria (posicionamento + destaque) ---
+    def test_curar_define_posicao_e_destaque(self):
+        from .views import curar_proposicao
+        req = _post_request_with_session(
+            '/proposicao/%d/curar/' % self.prop.pk,
+            {'posicao_fnp': 'favoravel', 'destaque_home': '1', 'ordem_destaque': '3'},
+        )
+        req.user = self.aprovador
+        curar_proposicao(req, self.prop.pk)
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.posicao_fnp, 'favoravel')
+        self.assertTrue(self.prop.destaque_home)
+        self.assertEqual(self.prop.ordem_destaque, 3)
+
+    def test_curar_posicao_invalida_vira_vazio(self):
+        from .views import curar_proposicao
+        req = _post_request_with_session(
+            '/proposicao/%d/curar/' % self.prop.pk, {'posicao_fnp': 'xpto'}
+        )
+        req.user = self.aprovador
+        curar_proposicao(req, self.prop.pk)
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.posicao_fnp, '')
+        self.assertFalse(self.prop.destaque_home)
+
+    def test_curar_so_aprovador(self):
+        from django.core.exceptions import PermissionDenied
+        from .views import curar_proposicao
+        req = _post_request_with_session(
+            '/proposicao/%d/curar/' % self.prop.pk, {'posicao_fnp': 'contrario'}
+        )
+        req.user = self.comum
+        with self.assertRaises(PermissionDenied):
+            curar_proposicao(req, self.prop.pk)
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.posicao_fnp, '')
+
+    def test_curar_nao_notifica_seguidores(self):
+        from apps.comentarios.models import Notificacao
+        from apps.proposicoes.models import ProposicaoSeguida
+        from .views import curar_proposicao
+        ProposicaoSeguida.objects.create(usuario=self.comum, proposicao=self.prop)
+        req = _post_request_with_session(
+            '/proposicao/%d/curar/' % self.prop.pk,
+            {'posicao_fnp': 'contrario', 'destaque_home': '1'},
+        )
+        req.user = self.aprovador
+        curar_proposicao(req, self.prop.pk)
+        self.assertEqual(
+            Notificacao.objects.filter(tipo=Notificacao.TIPO_MOVIMENTACAO).count(), 0
+        )
+
+    # --- tag de posicionamento no card ---
+    def test_tag_posicao_aparece_no_card_quando_definida(self):
+        from django.template.loader import render_to_string
+        self.prop.posicao_fnp = 'contrario'
+        self.prop.save(update_fields=['posicao_fnp'])
+        html = render_to_string(
+            'legislativo/_proposicao_card.html',
+            {'proposicao': self.prop, 'favoritos_ids': set(), 'seguidas_ids': set()},
+        )
+        self.assertIn('Contrário', html)
+        self.assertIn('tag-posicao', html)
+
+    def test_tag_posicao_ausente_quando_vazia(self):
+        from django.template.loader import render_to_string
+        html = render_to_string(
+            'legislativo/_proposicao_card.html',
+            {'proposicao': self.prop, 'favoritos_ids': set(), 'seguidas_ids': set()},
+        )
+        self.assertNotIn('tag-posicao', html)
+
+
+# --- Monitoramento interno por área ------------------------------------------
+
+from apps.proposicoes.models import MonitoramentoInterno as _MonitoramentoInterno  # noqa: E402
+from apps.usuarios.models import AreaFNP as _AreaFNP  # noqa: E402
+
+
+def _equipe(username, email, area=None):
+    user = Usuario.objects.create_user(username=username, email=email, password='x')
+    user.perfil.classe_usuario = Perfil.EQUIPE_FNP
+    user.perfil.area = area
+    user.perfil.save()
+    return user
+
+
+class MonitoramentoInternoTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.area_a = _AreaFNP.objects.create(nome='Área A', slug='area-a', ordem=1)
+        self.area_b = _AreaFNP.objects.create(nome='Área B', slug='area-b', ordem=2)
+        self.membro_a = _equipe('ma', 'ma@fnp.org.br', self.area_a)
+        self.membro_b = _equipe('mb', 'mb@fnp.org.br', self.area_b)
+        self.sem_area = _equipe('sa', 'sa@fnp.org.br', None)
+        self.publico = Usuario.objects.create_user(username='pub', email='pub@cidade.gov.br', password='x')
+        self.publico.perfil.classe_usuario = Perfil.PREFEITO
+        self.publico.perfil.save()
+        self.prop = Proposicao.objects.create(
+            titulo='PL 900/2025', casa='camara', status_publicacao=Proposicao.PUBLICADA
+        )
+
+    def _toggle(self, user, pk):
+        from .views import toggle_monitoramento_area
+        req = _post_request_with_session('/proposicao/%d/monitorar-area/' % pk)
+        req.user = user
+        return toggle_monitoramento_area(req, pk)
+
+    def test_toggle_adiciona_e_remove_na_area(self):
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertTrue(_MonitoramentoInterno.objects.filter(area=self.area_a, proposicao=self.prop).exists())
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertFalse(_MonitoramentoInterno.objects.filter(area=self.area_a, proposicao=self.prop).exists())
+
+    def test_toggle_edita_so_propria_area(self):
+        self._toggle(self.membro_a, self.prop.pk)
+        self.assertTrue(_MonitoramentoInterno.objects.filter(area=self.area_a).exists())
+        self.assertFalse(_MonitoramentoInterno.objects.filter(area=self.area_b).exists())
+
+    def test_toggle_sem_area_nao_cria(self):
+        self._toggle(self.sem_area, self.prop.pk)
+        self.assertEqual(_MonitoramentoInterno.objects.count(), 0)
+
+    def test_toggle_exige_equipe(self):
+        from django.core.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            self._toggle(self.publico, self.prop.pk)
+        self.assertEqual(_MonitoramentoInterno.objects.count(), 0)
+
+    def test_toggle_so_proposicao_publicada(self):
+        from django.http import Http404
+        pend = Proposicao.objects.create(
+            titulo='PL pendente', casa='camara', status_publicacao=Proposicao.PENDENTE
+        )
+        with self.assertRaises(Http404):
+            self._toggle(self.membro_a, pend.pk)
+
+    def test_pagina_visivel_para_equipe_e_mostra_todas_as_areas(self):
+        from .views import MonitoramentoInternoView
+        self._toggle(self.membro_a, self.prop.pk)  # area A
+        req = _request_with_session('/monitoramento-interno/')
+        req.user = self.membro_b  # de outra área
+        resp = MonitoramentoInternoView.as_view()(req)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Área A', resp.content.decode())
+        self.assertIn('PL 900/2025', resp.content.decode())
+
+    def test_pagina_bloqueada_para_publico(self):
+        from django.core.exceptions import PermissionDenied
+        from .views import MonitoramentoInternoView
+        req = _request_with_session('/monitoramento-interno/')
+        req.user = self.publico
+        with self.assertRaises(PermissionDenied):
+            MonitoramentoInternoView.as_view()(req)
+
+    def test_perfil_salva_area(self):
+        from .forms import PerfilDadosForm
+        form = PerfilDadosForm(
+            {'telefone': '', 'cargo': '', 'setor_responsavel': '', 'area': self.area_b.pk},
+            instance=self.membro_a.perfil,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.membro_a.perfil.refresh_from_db()
+        self.assertEqual(self.membro_a.perfil.area_id, self.area_b.pk)
 
 
 # --- normalizar_titulos: corrige titulos descritivos e remove duplicatas ------

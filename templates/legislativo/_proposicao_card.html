@@ -31,6 +31,7 @@
     </div>
 
     <div class="card-badges">
+      {% include 'legislativo/_posicao_fnp_tag.html' %}
       <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
       {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
       {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}

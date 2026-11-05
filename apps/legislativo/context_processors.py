@@ -18,14 +18,24 @@ def acoes_legislativo(request):
     if not user or not user.is_authenticated:
         return {}
 
-    from apps.proposicoes.models import Proposicao
+    from apps.proposicoes.models import MonitoramentoInterno, Proposicao
 
-    from .views import eh_aprovador, pode_cadastrar
+    from .views import eh_aprovador, eh_equipe_fnp, get_area_do_usuario, pode_cadastrar
 
     aprovador = eh_aprovador(user)
+    equipe = eh_equipe_fnp(user)
+    minha_area = get_area_do_usuario(user) if equipe else None
+    monitoradas_area_ids = (
+        set(MonitoramentoInterno.objects.filter(area=minha_area).values_list('proposicao_id', flat=True))
+        if minha_area
+        else set()
+    )
     return {
         'pode_cadastrar_proposicao': pode_cadastrar(user),
         'eh_aprovador_legislativo': aprovador,
+        'eh_equipe_fnp': equipe,
+        'minha_area_fnp': minha_area,
+        'monitoradas_area_ids': monitoradas_area_ids,
         'proposicoes_pendentes_count': Proposicao.objects.pendentes().count() if aprovador else 0,
         'seguidas_ids': set(user.proposicoes_seguidas.values_list('proposicao_id', flat=True)),
     }

@@ -6,7 +6,7 @@ from apps.comentarios.models import Comentario
 from apps.proposicoes.fontes import TIPOS
 from apps.proposicoes.models import AnexoProposicao
 from apps.usuarios.classificacao import classificar_por_cargo
-from apps.usuarios.models import Municipio, Perfil, Usuario
+from apps.usuarios.models import AreaFNP, Municipio, Perfil, Usuario
 
 
 def salvar_municipio_perfil(perfil, nome, uf):
@@ -149,18 +149,22 @@ class PerfilDadosForm(forms.ModelForm):
         # apps.usuarios.classificacao.classificar_por_cargo) e só editável
         # depois pelo Root/Administrador FNP via Django Admin, nunca pelo
         # próprio usuário nesta tela de autoedição.
-        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel', 'receber_email_atualizacoes']
+        # papel_area (coordenador/gerente) de propósito fora daqui -- definido
+        # pela coordenação no Django Admin, nunca pela própria pessoa.
+        fields = ['foto', 'telefone', 'cargo', 'setor_responsavel', 'area', 'receber_email_atualizacoes']
         labels = {
             'foto': 'Foto de perfil',
             'telefone': 'Telefone',
             'cargo': 'Cargo',
             'setor_responsavel': 'Setor responsável',
+            'area': 'Área da FNP',
             'receber_email_atualizacoes': 'Receber atualizações por e-mail',
         }
         widgets = {
             'telefone': forms.TextInput(attrs={'class': 'input-wide', 'type': 'tel'}),
             'cargo': forms.TextInput(attrs={'class': 'input-wide'}),
             'setor_responsavel': forms.TextInput(attrs={'class': 'input-wide'}),
+            'area': forms.Select(attrs={'class': 'input-wide'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -168,6 +172,9 @@ class PerfilDadosForm(forms.ModelForm):
         if self.instance and self.instance.municipio_id:
             self.fields['municipio_nome'].initial = self.instance.municipio.nome
             self.fields['municipio_uf'].initial = self.instance.municipio.uf
+        self.fields['area'].queryset = AreaFNP.objects.filter(ativo=True)
+        self.fields['area'].required = False
+        self.fields['area'].empty_label = '— Selecione sua área —'
 
     def save(self, commit=True):
         perfil = super().save(commit=False)

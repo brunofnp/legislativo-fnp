@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Proposições | Painel Legislativo FNP{% endblock %}
 
@@ -69,6 +70,19 @@
   </div>
 
   {% if not filtro_ativo %}
+    {% if prioridades_fnp %}
+      <section class="home-section prioridades-fnp">
+        <h2 class="section-heading prioridades-fnp-heading">
+          <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="prioridades-fnp-logo" />
+          Prioridades da FNP
+        </h2>
+        <p class="prioridades-fnp-sub">Proposições que a coordenação da FNP acompanha como prioritárias.</p>
+        <div class="cards-grid" id="cards-prioridades">
+          {% include 'legislativo/_cards_grid.html' with proposicoes=prioridades_fnp %}
+        </div>
+      </section>
+    {% endif %}
+
     {% if urgentes %}
       <section class="home-section">
         <h2 class="section-heading">Urgentes</h2>

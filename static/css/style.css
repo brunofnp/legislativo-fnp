@@ -866,6 +866,150 @@ body {
 .tag-normal { background: linear-gradient(135deg, #f8fafc, #f1f5f9); color: #475569; border: 1px solid #cbd5e1; }
 .tag-urgente{ background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; font-weight: 700; letter-spacing: .05em; animation: pulse 2s infinite; }
 .tag-aprovada{ background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; letter-spacing: .05em; }
+
+/* Tag de posicionamento institucional da FNP (com a logo) no card/detalhe --
+   logo sempre num chip branco pra ficar legível sobre a cor do posicionamento. */
+.tag-posicao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+}
+.tag-posicao-logo {
+  /* Logo é um retângulo (187x69, ~2.7:1) -- escala pela altura e deixa a
+     largura livre em vez de forçar quadrado/círculo, senão distorce ou
+     sobra espaço em branco em volta (achado de revisão visual, 2026-10-30). */
+  height: 14px;
+  width: auto;
+  flex: none;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 0.3rem;
+  padding: 2px 4px;
+}
+.tag-posicao-favoravel           { background: linear-gradient(135deg, #16a34a, #15803d); }
+.tag-posicao-favoravel_ressalvas { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.tag-posicao-contrario           { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+.tag-posicao-contrario_negociar  { background: linear-gradient(135deg, #ea580c, #c2410c); }
+
+/* Bloco "Prioridades da FNP" no topo da home -- cartão com a marca FNP
+   (azul #1A4B8F / amarelo #FFC72C). */
+.prioridades-fnp {
+  background: linear-gradient(135deg, rgba(26, 75, 143, 0.06), rgba(255, 199, 44, 0.08));
+  border: 1px solid rgba(26, 75, 143, 0.15);
+  border-radius: 1.25rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+.prioridades-fnp-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.prioridades-fnp-logo { height: 28px; width: auto; }
+.prioridades-fnp-sub {
+  margin: 0.25rem 0 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+/* Painel de curadoria (só aprovador) na página da proposição. */
+.curadoria-panel { border: 1px dashed rgba(26, 75, 143, 0.4); }
+.curadoria-ajuda { color: #64748b; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.curadoria-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 460px;
+}
+.curadoria-select,
+.curadoria-ordem {
+  /* Mesmo padrão dos outros forms do site (.participation-form input):
+     borda 1rem, não o 0.6rem "quadradão" que destoava do resto (achado de
+     revisão visual, 2026-10-30). */
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 1rem;
+  font: inherit;
+  font-size: 1rem;
+  background: #fff;
+  color: inherit;
+  outline: none;
+}
+.curadoria-select:focus,
+.curadoria-ordem:focus {
+  border-color: #1a4b8f;
+  box-shadow: 0 0 0 4px rgba(26, 75, 143, 0.08);
+}
+.curadoria-ordem { width: 7rem; }
+.curadoria-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  margin: 0.25rem 0;
+}
+.curadoria-check input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #1a4b8f;
+  cursor: pointer;
+}
+.curadoria-form .fbtn { align-self: flex-start; margin-top: 0.5rem; }
+
+[data-theme="dark"] .prioridades-fnp {
+  background: linear-gradient(135deg, rgba(26, 75, 143, 0.18), rgba(255, 199, 44, 0.1));
+  border-color: rgba(148, 163, 184, 0.25);
+}
+[data-theme="dark"] .prioridades-fnp-sub { color: #94a3b8; }
+[data-theme="dark"] .curadoria-ajuda { color: #94a3b8; }
+[data-theme="dark"] .curadoria-select,
+[data-theme="dark"] .curadoria-ordem {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+/* Perfil: dica abaixo de um campo (ex.: papel na área). */
+.field-hint { font-size: 0.85rem; color: #64748b; margin: 0.35rem 0 0.75rem; }
+
+/* Monitoramento interno por área. */
+.badge-minha-area {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: #1A4B8F;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+.monitoramento-hint { color: #64748b; font-size: 0.9rem; margin: -0.25rem 0 1rem; }
+.monitoramento-item { display: flex; flex-direction: column; }
+.monitoramento-remover-form { display: flex; justify-content: flex-end; margin-bottom: 0.4rem; }
+.monitoramento-remover-btn {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #b91c1c;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.monitoramento-remover-btn:hover { background: #fef2f2; border-color: #fecaca; }
+
+[data-theme="dark"] .field-hint,
+[data-theme="dark"] .monitoramento-hint { color: #94a3b8; }
+[data-theme="dark"] .monitoramento-remover-btn { border-color: #475569; color: #fca5a5; }
+[data-theme="dark"] .monitoramento-remover-btn:hover { background: rgba(239, 68, 68, 0.12); border-color: #7f1d1d; }
 /* badge-pauta tinha uma cor fixa (vermelha) pra "PAUTA" e "SEM PAUTA" --
    "sem pauta" (situação neutra, maioria dos casos) ficava com a mesma cor
    de alerta de "pauta" (situação que pede ação). -on/-off distinguem as

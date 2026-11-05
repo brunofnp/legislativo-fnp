@@ -1,0 +1,7 @@
+{% load static %}
+{% if proposicao.posicao_fnp %}
+  <span class="tag-posicao tag-posicao-{{ proposicao.posicao_fnp }}" title="Posicionamento da FNP: {{ proposicao.get_posicao_fnp_display }}">
+    <img src="{% static 'img/logo-FNP.png' %}" alt="FNP" class="tag-posicao-logo" />
+    <span class="tag-posicao-texto">{{ proposicao.get_posicao_fnp_display }}</span>
+  </span>
+{% endif %}

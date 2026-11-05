@@ -9,7 +9,15 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join
 
-from .models import Municipio, Perfil, TentativaLogin, Usuario
+from .models import AreaFNP, Municipio, Perfil, TentativaLogin, Usuario
+
+
+@admin.register(AreaFNP)
+class AreaFNPAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'ordem', 'ativo')
+    list_editable = ('ordem', 'ativo')
+    search_fields = ('nome',)
+    prepopulated_fields = {'slug': ('nome',)}
 
 
 class PerfilInline(admin.StackedInline):
