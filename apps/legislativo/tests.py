@@ -2249,3 +2249,51 @@ class MonitoramentoInternoTest(TestCase):
         form.save()
         self.membro_a.perfil.refresh_from_db()
         self.assertEqual(self.membro_a.perfil.area_id, self.area_b.pk)
+
+
+# --- normalizar_titulos: corrige titulos descritivos e remove duplicatas ------
+
+class NormalizarTitulosTest(TestCase):
+    def _criar(self, titulo, **kw):
+        return Proposicao.objects.create(titulo=titulo, casa=kw.pop('casa', 'camara'), **kw)
+
+    def test_renomeia_unicos_e_preenche_link(self):
+        p1 = self._criar('Altera o art. 159 da Constituição Federal para disciplinar a distribuição de recursos pela União ao FPM.')
+        p2 = self._criar('Desobriga os Municípios com até 65.000 (sessenta e cinco mil) habitantes de comprovar regularidade.')
+        p3 = self._criar('Institui o Programa Nacional de Municípios Inteligentes e Sustentáveis, cria o FIMU.')
+        call_command('normalizar_titulos')
+        p1.refresh_from_db(); p2.refresh_from_db(); p3.refresh_from_db()
+        self.assertEqual(p1.titulo, 'PEC 29/2017')
+        self.assertEqual(p1.casa, 'senado')
+        self.assertTrue(p1.link)
+        self.assertEqual(p2.titulo, 'PLP 74/2026')
+        self.assertEqual(p3.titulo, 'PL 3645/2026')
+
+    def test_remove_duplicata_movendo_comentarios(self):
+        twin = self._criar('PEC 18/2025', casa='senado')
+        dup = self._criar('PEC da Segurança', casa='senado')
+        autor = Usuario.objects.create_user(username='a1', email='a1@x.org', password='x')
+        Comentario.objects.create(proposicao=dup, autor=autor, texto='oi', status_moderacao='aprovado')
+        call_command('normalizar_titulos')
+        self.assertFalse(Proposicao.objects.filter(pk=dup.pk).exists())
+        self.assertTrue(Proposicao.objects.filter(pk=twin.pk).exists())
+        # comentário preservado, movido para o registro correto
+        self.assertEqual(twin.comentarios.count(), 1)
+
+    def test_duplicata_sem_twin_vira_renomeacao(self):
+        dup = self._criar('Legitimidade para Entidades de representação municipais apresentarem ADC e ADI (art. 103).', casa='senado')
+        call_command('normalizar_titulos')
+        dup.refresh_from_db()
+        self.assertEqual(dup.titulo, 'PEC 253/2016')
+
+    def test_idempotente(self):
+        self._criar('Institui o Programa Nacional de Municípios Inteligentes e Sustentáveis, cria o FIMU.')
+        call_command('normalizar_titulos')
+        call_command('normalizar_titulos')  # 2ª vez não acha mais nada, não quebra
+        self.assertEqual(Proposicao.objects.filter(titulo='PL 3645/2026').count(), 1)
+
+    def test_dry_run_nao_grava(self):
+        p = self._criar('Institui o Programa Nacional de Municípios Inteligentes e Sustentáveis, cria o FIMU.')
+        call_command('normalizar_titulos', dry_run=True)
+        p.refresh_from_db()
+        self.assertTrue(p.titulo.startswith('Institui'))
