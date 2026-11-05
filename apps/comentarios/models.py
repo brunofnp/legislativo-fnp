@@ -251,9 +251,11 @@ class Notificacao(models.Model):
     # e a migração marca as antigas assim); só 'movimentacao' gera e-mail.
     TIPO_COMENTARIO = 'comentario'
     TIPO_MOVIMENTACAO = 'movimentacao'
+    TIPO_SENTINELA = 'sentinela'
     TIPO_CHOICES = [
         (TIPO_COMENTARIO, 'Comentário'),
         (TIPO_MOVIMENTACAO, 'Movimentação'),
+        (TIPO_SENTINELA, 'Sentinela temática'),
     ]
 
     destinatario = models.ForeignKey(

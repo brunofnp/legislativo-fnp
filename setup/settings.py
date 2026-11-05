@@ -135,6 +135,7 @@ INSTALLED_APPS = [
     'apps.proposicoes',
     'apps.comentarios',
     'apps.legislativo',
+    'apps.sentinela',
 ]
 
 MIDDLEWARE = [
