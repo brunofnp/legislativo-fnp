@@ -1,0 +1,12 @@
+RADAR TRIBUTÁRIO · FNP
+
+Nova proposição sobre {{ termo }} detectada no Congresso:
+
+{{ proposicao.titulo }}
+{% if proposicao.ementa_resumida %}{{ proposicao.ementa_resumida }}{% endif %}
+
+Ver no painel (pendente): {{ detalhe_url }}
+{% if ficha_url %}Ficha de tramitação: {{ ficha_url }}{% endif %}
+
+A proposição entrou na fila de Pendentes para a coordenação revisar e publicar.
+Monitoramento institucional da reforma tributária (CBS/IBS).
