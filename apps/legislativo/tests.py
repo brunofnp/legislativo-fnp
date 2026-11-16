@@ -2390,3 +2390,100 @@ class AtualizarTramitacaoTest(TestCase):
             call_command('atualizar_tramitacao')
         self.prop.refresh_from_db()
         self.assertEqual(self.prop.ultima_movimentacao, 'status antigo')
+
+
+class BuscarSenadoTest(TestCase):
+    """O /processo do Senado traz a situação em `situacaoAtual` (camelCase);
+    o parser antigo procurava `descricaoSituacao` e perdia o texto."""
+
+    def test_extrai_situacao_atual(self):
+        from apps.proposicoes.fontes import buscar_senado
+
+        payload = [{
+            'codigoMateria': '163673',
+            'identificacao': 'PEC 19/2024',
+            'ementa': 'Piso da enfermagem.',
+            'situacaoAtual': 'PRONTO PARA DELIBERAÇÃO DO PLENÁRIO',
+            'dataSituacaoAtual': '2026-04-08',
+        }]
+        resp = mock.Mock()
+        resp.json.return_value = payload
+        resp.raise_for_status.return_value = None
+        with mock.patch('apps.proposicoes.fontes.requests.get', return_value=resp):
+            r = buscar_senado('PEC', 19, 2024)
+        self.assertIsNotNone(r)
+        self.assertEqual(r['status_tramitacao'], 'PRONTO PARA DELIBERAÇÃO DO PLENÁRIO')
+        self.assertIn('163673', r['link'])
+
+
+class AtualizarPautaTest(TestCase):
+    """Deriva o 'na pauta' da agenda oficial da Câmara (Plenário + comissões
+    deliberativas). Câmara vira autoritativo; Senado/sem id fica manual."""
+
+    def setUp(self):
+        Notificacao.objects.all().delete()
+        self.cam = Proposicao.objects.create(
+            titulo='PL 10/2026', casa='camara',
+            link='https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=111',
+            status_publicacao=Proposicao.PUBLICADA, pauta=False,
+        )
+        self.sen = Proposicao.objects.create(
+            titulo='PEC 9/2025', casa='senado',
+            link='https://www25.senado.leg.br/web/atividade/materias/-/materia/999',
+            status_publicacao=Proposicao.PUBLICADA, pauta=True,
+        )
+
+    def _patch(self, retorno):
+        return mock.patch('apps.proposicoes.fontes.pauta_camara', return_value=retorno)
+
+    def test_marca_quem_entrou_na_pauta(self):
+        with self._patch({'111'}):
+            call_command('atualizar_pauta')
+        self.cam.refresh_from_db()
+        self.assertTrue(self.cam.pauta)
+
+    def test_desmarca_quem_saiu_da_pauta(self):
+        self.cam.pauta = True
+        self.cam.save()
+        with self._patch(set()):
+            call_command('atualizar_pauta')
+        self.cam.refresh_from_db()
+        self.assertFalse(self.cam.pauta)
+
+    def test_senado_sem_id_nao_e_tocado(self):
+        with self._patch(set()):
+            call_command('atualizar_pauta')
+        self.sen.refresh_from_db()
+        self.assertTrue(self.sen.pauta)
+
+    def test_falha_na_agenda_nao_altera_nada(self):
+        self.cam.pauta = True
+        self.cam.save()
+        with self._patch(None):
+            call_command('atualizar_pauta')
+        self.cam.refresh_from_db()
+        self.assertTrue(self.cam.pauta)
+
+    def test_alerta_seguidor_ao_entrar_na_pauta(self):
+        seguidor = Usuario.objects.create_user(username='pt', email='pt@fnp.org.br', password='x')
+        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.cam)
+        with self._patch({'111'}):
+            call_command('atualizar_pauta')
+        self.assertTrue(
+            Notificacao.objects.filter(destinatario=seguidor, proposicao=self.cam).exists()
+        )
+
+    def test_quiet_nao_alerta(self):
+        seguidor = Usuario.objects.create_user(username='pt2', email='pt2@fnp.org.br', password='x')
+        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.cam)
+        with self._patch({'111'}):
+            call_command('atualizar_pauta', quiet=True)
+        self.cam.refresh_from_db()
+        self.assertTrue(self.cam.pauta)
+        self.assertFalse(Notificacao.objects.filter(proposicao=self.cam).exists())
+
+    def test_dry_run_nao_grava(self):
+        with self._patch({'111'}):
+            call_command('atualizar_pauta', dry_run=True)
+        self.cam.refresh_from_db()
+        self.assertFalse(self.cam.pauta)

@@ -7,7 +7,7 @@ vira ``None`` (quem chama trata como "não encontrada / tente de novo").
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import requests
 
@@ -105,7 +105,8 @@ def buscar_senado(tipo: str, numero: int, ano: int):
         return None
     ementa = item.get('ementa') or item.get('Ementa') or ''
     situacao = (
-        item.get('descricaoSituacao')
+        item.get('situacaoAtual')
+        or item.get('descricaoSituacao')
         or item.get('situacao')
         or item.get('descricaoObjetivoProcesso')
         or ''
@@ -168,6 +169,58 @@ def buscar_status_camara(prop_id):
         'data': data_fmt,
         'ultima': ultima.strip(),
     }
+
+
+def pauta_camara(dias: int = 7):
+    """Conjunto de ``idProposicao`` (str) que estão na pauta das sessões
+    DELIBERATIVAS da Câmara (Plenário e comissões) de hoje até ``dias`` à
+    frente, lido da agenda oficial (``/eventos`` + ``/eventos/{id}/pauta``).
+
+    Devolve ``None`` se não conseguir ler a lista de eventos — sinal para quem
+    chama NÃO alterar nada (uma falha de rede não pode "esvaziar" a pauta).
+    Um ``set`` (mesmo vazio) significa leitura bem-sucedida."""
+    hoje = date.today()
+    fim = hoje + timedelta(days=max(1, dias))
+    url = f'{CAMARA_API}/eventos'
+    params = {'dataInicio': hoje.isoformat(), 'dataFim': fim.isoformat(), 'itens': 100}
+
+    eventos: list[dict] = []
+    try:
+        while url:
+            resp = requests.get(url, params=params, timeout=TIMEOUT)
+            resp.raise_for_status()
+            body = resp.json()
+            eventos.extend(body.get('dados', []))
+            url = None
+            params = None
+            for link in body.get('links', []):
+                if link.get('rel') == 'next':
+                    url = link.get('href')
+                    break
+            if len(eventos) > 2000:
+                break
+    except (requests.RequestException, ValueError):
+        return None
+
+    ids: set[str] = set()
+    for ev in eventos:
+        if 'eliberativ' not in (ev.get('descricaoTipo') or '').lower():
+            continue
+        ev_id = ev.get('id')
+        if not ev_id:
+            continue
+        try:
+            r = requests.get(f'{CAMARA_API}/eventos/{ev_id}/pauta', timeout=TIMEOUT)
+            r.raise_for_status()
+            itens = r.json().get('dados', [])
+        except (requests.RequestException, ValueError):
+            continue
+        for it in itens:
+            prop = it.get('proposicao_') or {}
+            pid = prop.get('id')
+            if pid:
+                ids.add(str(pid))
+    return ids
 
 
 def buscar_proposicao(tipo: str, numero: int, ano: int):
