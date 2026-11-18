@@ -171,6 +171,40 @@ def buscar_status_camara(prop_id):
     }
 
 
+def buscar_status_senado(cod):
+    """Situação atual de uma matéria do Senado pelo ``codigoMateria``.
+
+    Usado pelo atualizador de pauta para saber se a matéria está na Ordem do
+    Dia. Devolve um dicionário com ``na_pauta`` (True quando a situação indica
+    ordem do dia) ou ``None`` em falha de rede/parse — nenhuma exceção escapa."""
+    try:
+        r = requests.get(
+            f'{SENADO_API}/materia/situacaoatual/{cod}',
+            headers={'Accept': 'application/json'},
+            timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        d = r.json()
+    except (requests.RequestException, ValueError):
+        return None
+    try:
+        m = d['SituacaoAtualMateria']['Materias']['Materia']
+        m = m[0] if isinstance(m, list) else m
+        a = m['SituacaoAtual']['Autuacoes']['Autuacao']
+        a = a[0] if isinstance(a, list) else a
+        si = a['Situacoes']['Situacao']
+        si = si[0] if isinstance(si, list) else si
+        situacao = si.get('DescricaoSituacao') or ''
+        data = si.get('DataSituacao') or ''
+    except (KeyError, IndexError, TypeError):
+        return None
+    return {
+        'situacao': situacao,
+        'data': data,
+        'na_pauta': 'ordem do dia' in situacao.lower(),
+    }
+
+
 def pauta_camara(dias: int = 7):
     """Conjunto de ``idProposicao`` (str) que estão na pauta das sessões
     DELIBERATIVAS da Câmara (Plenário e comissões) de hoje até ``dias`` à
