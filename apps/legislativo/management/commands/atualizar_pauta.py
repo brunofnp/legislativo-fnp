@@ -1,24 +1,28 @@
-"""Deriva o "na pauta" da agenda oficial da Câmara.
+"""Deriva o "na pauta" das fontes oficiais, nas duas Casas.
 
-O campo ``pauta`` das proposições era só manual (``Pauta: Sim`` na planilha),
-então o filtro ``?filtro=pauta`` mostrava o que alguém digitou, não a Ordem do
-Dia real. Este comando lê a agenda oficial (sessões DELIBERATIVAS do Plenário e
-das comissões, de hoje até ``--dias`` à frente) e torna o ``pauta`` das
-proposições da **Câmara** autoritativo: marca quem entrou na pauta, desmarca
-quem saiu. Quando muda, dispara o alerta (sino + e-mail) para quem segue.
+O campo ``pauta`` era só manual (``Pauta: Sim`` na planilha), então o filtro
+``?filtro=pauta`` mostrava o que alguém digitou, não a Ordem do Dia real. Este
+comando torna o ``pauta`` autoritativo a partir das fontes oficiais:
 
-As proposições do **Senado** (e qualquer uma sem ``idProposicao`` no link) não
-são tocadas — continuam com a pauta manual até a v2 (agenda do Senado, quando a
-API de Dados Abertos estabilizar).
+- **Câmara**: lê a agenda oficial (sessões DELIBERATIVAS do Plenário e das
+  comissões, de hoje até ``--dias`` à frente) — ``fontes.pauta_camara``.
+- **Senado**: lê a situação atual de cada matéria (por ``codigoMateria`` do
+  link) e considera na pauta quando a situação indica **ordem do dia** (ex.:
+  "INCLUÍDA EM ORDEM DO DIA") — ``fontes.buscar_status_senado``.
 
-Segurança: se a leitura da agenda falhar (rede/API fora), o comando NÃO altera
-nada — uma falha não pode esvaziar a pauta do painel.
+Marca quem entrou na pauta e desmarca quem saiu; quando muda, dispara o alerta
+(sino + e-mail) para quem segue. Proposições sem id reconhecível no link ficam
+com a pauta manual.
+
+Segurança: se a agenda da Câmara falhar, as proposições da Câmara ficam
+intocadas (uma falha não pode esvaziar a pauta); idem para cada matéria do
+Senado cuja leitura falhar.
 
 Modos:
   (padrão)   marca/desmarca e alerta os seguidores das que mudaram
   --quiet    aplica SEM alertar (use no primeiro baseline)
   --dry-run  só mostra o que mudaria
-  --dias N   janela da agenda em dias (padrão 7)
+  --dias N   janela da agenda da Câmara em dias (padrão 7)
 """
 from __future__ import annotations
 
@@ -30,6 +34,7 @@ from apps.proposicoes import fontes
 from apps.proposicoes.models import Proposicao
 
 ID_CAMARA = re.compile(r'idProposicao=(\d+)')
+ID_SENADO = re.compile(r'/materia/(\d+)')
 
 
 class Command(BaseCommand):
@@ -48,19 +53,31 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         quiet = options['quiet']
 
-        em_pauta = fontes.pauta_camara(dias=dias)
-        if em_pauta is None:
+        em_pauta_camara = fontes.pauta_camara(dias=dias)
+        if em_pauta_camara is None:
             self.stderr.write(self.style.WARNING(
-                'Não consegui ler a agenda oficial da Câmara; nada foi alterado.'
+                'Não consegui ler a agenda da Câmara; as proposições da Câmara ficam intocadas nesta rodada.'
             ))
-            return
 
-        marcadas = desmarcadas = 0
+        marcadas = desmarcadas = sem_leitura_senado = 0
         for prop in Proposicao.objects.publicadas().order_by('pk'):
-            m = ID_CAMARA.search(prop.link or '')
-            if not m:
-                continue  # Senado / sem id: pauta manual, não toca
-            deveria = m.group(1) in em_pauta
+            link = prop.link or ''
+            mcam = ID_CAMARA.search(link)
+            msen = ID_SENADO.search(link)
+
+            if mcam:
+                if em_pauta_camara is None:
+                    continue  # agenda indisponível: não mexe nas da Câmara
+                deveria = mcam.group(1) in em_pauta_camara
+            elif msen:
+                dados = fontes.buscar_status_senado(msen.group(1))
+                if dados is None:
+                    sem_leitura_senado += 1
+                    continue  # leitura falhou: não mexe nesta matéria
+                deveria = dados['na_pauta']
+            else:
+                continue  # sem id reconhecível: pauta manual
+
             if prop.pauta == deveria:
                 continue
 
@@ -78,7 +95,12 @@ class Command(BaseCommand):
                 desmarcadas += 1
 
         modo = 'dry-run' if dry_run else ('quiet' if quiet else 'normal')
+        camara_info = (
+            'agenda da Câmara indisponível'
+            if em_pauta_camara is None
+            else f'{len(em_pauta_camara)} na pauta oficial da Câmara'
+        )
         self.stdout.write(self.style.SUCCESS(
-            f'[{modo}] {len(em_pauta)} proposição(ões) na pauta oficial da Câmara; '
-            f'{marcadas} marcada(s), {desmarcadas} desmarcada(s) no painel.'
+            f'[{modo}] {camara_info}; {marcadas} marcada(s), {desmarcadas} desmarcada(s); '
+            f'{sem_leitura_senado} matéria(s) do Senado sem leitura.'
         ))

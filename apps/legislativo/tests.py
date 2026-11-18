@@ -2416,9 +2416,41 @@ class BuscarSenadoTest(TestCase):
         self.assertIn('163673', r['link'])
 
 
+class BuscarStatusSenadoTest(TestCase):
+    """buscar_status_senado lê a situação atual por codigoMateria e marca
+    na_pauta quando a situação indica ordem do dia."""
+
+    def _resp(self, descricao):
+        payload = {'SituacaoAtualMateria': {'Materias': {'Materia': [{
+            'DescricaoIdentificacaoMateria': 'PLP 299/2026',
+            'SituacaoAtual': {'Autuacoes': {'Autuacao': {
+                'Situacoes': {'Situacao': {'DataSituacao': '2026-11-17', 'DescricaoSituacao': descricao}},
+                'Local': {'NomeLocal': 'Plenário do Senado Federal'},
+            }}},
+        }]}}}
+        resp = mock.Mock()
+        resp.json.return_value = payload
+        resp.raise_for_status.return_value = None
+        return resp
+
+    def test_ordem_do_dia_e_na_pauta(self):
+        from apps.proposicoes.fontes import buscar_status_senado
+        with mock.patch('apps.proposicoes.fontes.requests.get', return_value=self._resp('INCLUÍDA EM ORDEM DO DIA')):
+            r = buscar_status_senado('176328')
+        self.assertIsNotNone(r)
+        self.assertTrue(r['na_pauta'])
+        self.assertEqual(r['situacao'], 'INCLUÍDA EM ORDEM DO DIA')
+
+    def test_pronta_para_deliberacao_nao_e_pauta(self):
+        from apps.proposicoes.fontes import buscar_status_senado
+        with mock.patch('apps.proposicoes.fontes.requests.get', return_value=self._resp('PRONTO PARA DELIBERAÇÃO DO PLENÁRIO')):
+            r = buscar_status_senado('163673')
+        self.assertFalse(r['na_pauta'])
+
+
 class AtualizarPautaTest(TestCase):
-    """Deriva o 'na pauta' da agenda oficial da Câmara (Plenário + comissões
-    deliberativas). Câmara vira autoritativo; Senado/sem id fica manual."""
+    """Deriva o 'na pauta' das fontes oficiais nas duas Casas: Câmara pela
+    agenda (pauta_camara) e Senado pela situação (ordem do dia)."""
 
     def setUp(self):
         Notificacao.objects.all().delete()
@@ -2428,62 +2460,83 @@ class AtualizarPautaTest(TestCase):
             status_publicacao=Proposicao.PUBLICADA, pauta=False,
         )
         self.sen = Proposicao.objects.create(
-            titulo='PEC 9/2025', casa='senado',
-            link='https://www25.senado.leg.br/web/atividade/materias/-/materia/999',
-            status_publicacao=Proposicao.PUBLICADA, pauta=True,
+            titulo='PLP 299/2026', casa='senado',
+            link='https://www25.senado.leg.br/web/atividade/materias/-/materia/176328',
+            status_publicacao=Proposicao.PUBLICADA, pauta=False,
         )
 
-    def _patch(self, retorno):
-        return mock.patch('apps.proposicoes.fontes.pauta_camara', return_value=retorno)
+    def _run(self, *, camara=frozenset(), senado=False, **kwargs):
+        """camara: set de ids na pauta, ou None (falha da agenda).
+        senado: True/False (na pauta ou não) ou None (falha da leitura)."""
+        camara_ret = None if camara is None else set(camara)
+        senado_ret = None if senado is None else {'situacao': 'x', 'data': '', 'na_pauta': bool(senado)}
+        with mock.patch('apps.proposicoes.fontes.pauta_camara', return_value=camara_ret), \
+             mock.patch('apps.proposicoes.fontes.buscar_status_senado', return_value=senado_ret):
+            call_command('atualizar_pauta', **kwargs)
 
-    def test_marca_quem_entrou_na_pauta(self):
-        with self._patch({'111'}):
-            call_command('atualizar_pauta')
+    # --- Câmara (comportamento mantido) ---
+    def test_marca_camara_que_entrou_na_pauta(self):
+        self._run(camara={'111'})
         self.cam.refresh_from_db()
         self.assertTrue(self.cam.pauta)
 
-    def test_desmarca_quem_saiu_da_pauta(self):
+    def test_desmarca_camara_que_saiu(self):
         self.cam.pauta = True
         self.cam.save()
-        with self._patch(set()):
-            call_command('atualizar_pauta')
+        self._run(camara=set())
         self.cam.refresh_from_db()
         self.assertFalse(self.cam.pauta)
 
-    def test_senado_sem_id_nao_e_tocado(self):
-        with self._patch(set()):
-            call_command('atualizar_pauta')
-        self.sen.refresh_from_db()
-        self.assertTrue(self.sen.pauta)
-
-    def test_falha_na_agenda_nao_altera_nada(self):
+    def test_falha_agenda_camara_nao_mexe_camara(self):
         self.cam.pauta = True
         self.cam.save()
-        with self._patch(None):
-            call_command('atualizar_pauta')
+        self._run(camara=None)
         self.cam.refresh_from_db()
         self.assertTrue(self.cam.pauta)
 
+    # --- Senado (v2) ---
+    def test_marca_senado_na_ordem_do_dia(self):
+        self._run(senado=True)
+        self.sen.refresh_from_db()
+        self.assertTrue(self.sen.pauta)
+
+    def test_desmarca_senado_fora_da_pauta(self):
+        self.sen.pauta = True
+        self.sen.save()
+        self._run(senado=False)
+        self.sen.refresh_from_db()
+        self.assertFalse(self.sen.pauta)
+
+    def test_falha_leitura_senado_nao_altera(self):
+        self.sen.pauta = True
+        self.sen.save()
+        self._run(senado=None)
+        self.sen.refresh_from_db()
+        self.assertTrue(self.sen.pauta)
+
+    def test_agenda_camara_falha_ainda_processa_senado(self):
+        self._run(camara=None, senado=True)
+        self.sen.refresh_from_db()
+        self.assertTrue(self.sen.pauta)
+
+    # --- alertas / modos ---
     def test_alerta_seguidor_ao_entrar_na_pauta(self):
         seguidor = Usuario.objects.create_user(username='pt', email='pt@fnp.org.br', password='x')
-        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.cam)
-        with self._patch({'111'}):
-            call_command('atualizar_pauta')
+        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.sen)
+        self._run(senado=True)
         self.assertTrue(
-            Notificacao.objects.filter(destinatario=seguidor, proposicao=self.cam).exists()
+            Notificacao.objects.filter(destinatario=seguidor, proposicao=self.sen).exists()
         )
 
     def test_quiet_nao_alerta(self):
         seguidor = Usuario.objects.create_user(username='pt2', email='pt2@fnp.org.br', password='x')
-        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.cam)
-        with self._patch({'111'}):
-            call_command('atualizar_pauta', quiet=True)
-        self.cam.refresh_from_db()
-        self.assertTrue(self.cam.pauta)
-        self.assertFalse(Notificacao.objects.filter(proposicao=self.cam).exists())
+        ProposicaoSeguida.objects.create(usuario=seguidor, proposicao=self.sen)
+        self._run(senado=True, quiet=True)
+        self.sen.refresh_from_db()
+        self.assertTrue(self.sen.pauta)
+        self.assertFalse(Notificacao.objects.filter(proposicao=self.sen).exists())
 
     def test_dry_run_nao_grava(self):
-        with self._patch({'111'}):
-            call_command('atualizar_pauta', dry_run=True)
+        self._run(camara={'111'}, dry_run=True)
         self.cam.refresh_from_db()
         self.assertFalse(self.cam.pauta)
