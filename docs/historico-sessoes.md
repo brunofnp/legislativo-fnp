@@ -2242,3 +2242,62 @@ inteiro, tudo numa entrega só.
   alternativo, exclusivos do `sistema-fnp` — aguardando o convite de
   colaborador ser aceito.
 
+### Merge do PR #13 (pauta oficial da Câmara + fix Senado) + deploy (2026-11-17)
+
+Colega (`ronancastro-dot`) abriu mais um PR direto no `dadosfnp/legislativo-fnp`
+(mesmo padrão dos #9-#12): `feat/pauta-oficial` (#13). Pedido chegou antes do
+branch existir de fato — `git ls-remote`/API do GitHub não achavam nem o PR
+nem o branch; usuário confirmou com o colega que ainda estava só local, foi
+empurrado durante a conversa e o PR surgiu pouco depois.
+
+- **O que o PR traz**: `fontes.pauta_camara(dias=7)` lê a agenda oficial da
+  Câmara (`/eventos` das sessões deliberativas de Plenário + comissões,
+  hoje até N dias à frente, + `/eventos/{id}/pauta`) e devolve o conjunto de
+  `idProposicao` realmente na pauta — **devolve `None` em falha de rede**
+  (fail-closed: uma falha de API não pode esvaziar a pauta do painel).
+  Comando novo `atualizar_pauta` usa isso pra tornar o campo `pauta` das
+  proposições da Câmara autoritativo (antes era só o `Pauta: Sim` manual da
+  planilha, congelado desde o ingest) — marca/desmarca sozinho e alerta
+  quem segue (reusa `CAMPOS_ALERTA`). Proposições do Senado/sem
+  `idProposicao` continuam com pauta manual (v2 fica pra quando a agenda do
+  Senado estabilizar). De quebra, corrige `buscar_senado`: priorizava
+  `descricaoSituacao`, que a API vinha devolvendo genérico ("Em
+  tramitação") pra tudo — agora tenta `situacaoAtual` primeiro (situação
+  real, ex. "Pronto para deliberação do Plenário").
+- **Verificação antes de mesclar** (colega alegou "sem migração nova" e
+  "215 testes OK" — checado, não só aceito): diff confirmado sem nenhuma
+  migration (só `atualizar_pauta.py` novo, `fontes.py`, testes e um doc de
+  spec); CI do GitHub verde (as únicas 2 anotações eram avisos de
+  infraestrutura do runner — Node 20/Ubuntu 26 — nada do código); merge
+  local fast-forward limpo direto em cima do `main` de produção, sem
+  conflito. Suíte rodada de verdade: baseline (`main` antes do PR) tinha
+  195 testes OK, com o PR mergeado foram **203** (+8 novos, todos OK) — não
+  215 como o colega falou, mas sem nenhuma falha nos dois casos, então a
+  contagem errada não travou nada, só ficou registrado aqui pra não
+  repassar o número errado adiante.
+- **Merge**: sem token de API do GitHub disponível nesta máquina pra usar
+  o endpoint de merge, replicado localmente o mesmo estilo dos PRs
+  anteriores (commit `Merge pull request #13 from
+  dadosfnp/feat/pauta-oficial`, `--no-ff`) e enviado direto pro `main` via
+  `git push prod`; GitHub reconheceu o PR como mesclado sozinho (commit
+  apareceu no histórico do `main`). `next` estava um commit atrás depois
+  disso — trazido de volta com fast-forward e enviado pra `origin`.
+- **Deploy no droplet** (usuário rodou manualmente, sem acesso SSH direto
+  desta máquina): `git pull` + `docker compose build/up` pro serviço
+  `legislativo`; baseline do campo `pauta` (`atualizar_pauta --dry-run` →
+  `--quiet`) — achou 502 itens na agenda oficial da Câmara inteira (não é
+  sobre as proposições acompanhadas, é o universo de Plenário+comissões na
+  janela de 7 dias) e, das proposições do painel, desmarcou 2 que estavam
+  erradas pelo critério manual antigo (PEC 253/2016, PL 3998/2025) sem
+  marcar nenhuma nova — rodado em modo silencioso, sem alertar seguidores.
+- **Cron**: conferido o que já existia no droplet antes de adicionar (texto
+  do colega sugeria 7h/7h30/8h, mas o crontab real tinha `sentinela_tributaria`
+  às 10h e `atualizar_tramitacao` às 10h30 — preservado o que já estava,
+  só adicionado `atualizar_pauta` às 11h, mantendo o espaçamento de 30min
+  entre as três rotinas diárias).
+- **Conferência final**: `curl -I` 200, `docker compose ps` com o container
+  `healthy`, e checagem visual de `?filtro=pauta` em produção mostrando
+  exatamente as 2 proposições que sobraram corretas do baseline (PEC
+  18/2025, PEC 19/2024) — filtro agora reflete a Ordem do Dia real, não
+  mais o campo manual da planilha.
+
