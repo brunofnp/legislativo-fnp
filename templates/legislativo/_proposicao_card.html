@@ -72,7 +72,8 @@
   </div>
 
   <div class="card-footer">
-    <span class="badge-pauta {% if proposicao.pauta %}badge-pauta-on{% else %}badge-pauta-off{% endif %}">{% if proposicao.pauta %}PAUTA{% else %}SEM PAUTA{% endif %}</span>
+    <span class="badge-pauta {% if proposicao.pauta %}badge-pauta-on{% else %}badge-pauta-off{% endif %}"
+          title="{% if proposicao.pauta %}Incluída na Ordem do Dia (plenário ou comissão){% else %}Não está na Ordem do Dia{% endif %}">{% if proposicao.pauta %}NA ORDEM DO DIA{% else %}SEM PAUTA{% endif %}</span>
     <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:8 }}</span>
   </div>
 </article>
