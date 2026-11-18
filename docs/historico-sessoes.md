@@ -2301,3 +2301,76 @@ empurrado durante a conversa e o PR surgiu pouco depois.
   18/2025, PEC 19/2024) — filtro agora reflete a Ordem do Dia real, não
   mais o campo manual da planilha.
 
+### Merge dos PR #14 (dados) + #15 (pauta Senado v2) + #16 (fix Senado) + deploys (2026-11-18)
+
+Mesmo colega (`ronancastro-dot`), três PRs no mesmo dia direto no
+`dadosfnp/legislativo-fnp`, o terceiro corrigindo um bug real visto em
+produção logo depois do segundo subir.
+
+- **PR #14** (`data/revisao-2026-11-17`): só dados —
+  `data/revisao_2026_11_17.json` com 3 correções verificadas (PEC 18/2025
+  promulgação, PEC 221/2019 ementa/promulgada, PL 3278/2021 Marco do
+  Transporte sancionada). **Achado na verificação**: o diff contra o
+  `main` de produção aparentava reverter boa parte do PR #13 (deletando
+  `atualizar_pauta.py`/`fontes.py`/trechos de `tests.py`) — investigado via
+  `git merge-base` e confirmado que a branch do PR #14 foi criada *antes*
+  do PR #13 mesclar; recalculando o diff contra o merge-base real, o PR é
+  puramente aditivo (só o JSON novo, 56 linhas). Falso positivo de base
+  desatualizada, não uma tentativa de reverter nada.
+- **PR #15** (`feat/pauta-senado`): "na pauta" v2 — estende a lógica do PR
+  #13 pro Senado. `fontes.buscar_status_senado(cod)` lê a situação atual
+  da matéria (`/materia/situacaoatual/{cod}`, por `codigoMateria` no
+  link) e considera na pauta quando a situação indica "ordem do dia";
+  fail-closed igual ao padrão da Câmara. `atualizar_pauta` deixou de
+  abortar tudo quando só a Câmara falhava (`if em_pauta is None: return`
+  virou fail-closed por Casa, cada uma com seu próprio contorno de
+  falha).
+- **Verificação dos dois antes de mesclar**: CI verde, nenhuma migração,
+  merge local limpo (arquivos disjuntos entre os dois PRs, sem conflito),
+  suíte completa rodada de verdade: 208/208 testes OK com os dois
+  mesclados.
+- **Merge e deploy #14+#15**: mesmo método do PR #13 (merge `--no-ff`
+  local + `git push prod ...:main`, GitHub reconheceu e fechou os PRs
+  sozinho). Droplet: `git pull` + build/up, `ingest_legislativo` (dry-run
+  + real) pros dados novos, `atualizar_pauta` (dry-run + `--quiet`) pra
+  re-derivar a pauta com a cobertura nova do Senado — 3 marcadas, 1
+  desmarcada. **Discrepância notada e não bloqueante**: o `--dry-run`
+  acusou 4 matérias do Senado "sem leitura" e o `--quiet` logo em seguida
+  só 1 — interpretado como instabilidade pontual da API do Senado entre
+  as duas chamadas (o desenho fail-closed só pula o que não lê, não
+  corrompe nada), confirmado inofensivo pela conferência final idêntica
+  nas duas rodadas (3 marcadas/1 desmarcada nas duas). Confirmado ao vivo
+  via `curl`+grep: `?filtro=pauta` mostrando exatamente "Na pauta (3)" —
+  PL 5473/2025, PL 4146/2020, PLP 299/2026 — e sem mais a PEC 19/2024.
+- **PR #16** (`fix/pauta-aguardando-inclusao`), ainda no mesmo dia: bug
+  visto em produção direto pelo colega depois do deploy acima — `PL
+  4146/2020` e `PL 5473/2025` apareciam como "na pauta" mas a situação
+  real era **"AGUARDANDO INCLUSÃO ORDEM DO DIA DE REQUERIMENTO"**
+  (esperando ser pautada, não pautada ainda); a checagem do PR #15 só
+  olhava a substring `"ordem do dia"`, que também casa com "aguardando
+  inclusão...". Fix de uma linha: `na_pauta = 'ordem do dia' in situacao
+  and 'aguardando' not in situacao`. Card: selo "PAUTA"/"SEM PAUTA" virou
+  **"NA ORDEM DO DIA"/"SEM PAUTA"** (com tooltip explicando o que
+  significa) tanto no card quanto no detalhe da proposição, pra não dar
+  a entender que "pauta" era só intenção de pautar.
+- **Verificação do PR #16**: mesmo artefato de base desatualizada do PR
+  #14 (branch criada antes do #14/#15 mesclarem) — diff bruto mostrava
+  apagar `data/revisao_2026_11_17.json`; recalculado contra o merge-base
+  real, confirmado só os 5 arquivos esperados (+29/-8: `fontes.py`, teste
+  novo RED→GREEN com a string real, 2 templates, 1 doc de spec). CI
+  verde, sem migração, 221 testes OK via `pytest` (bate exatamente com o
+  que o colega reportou no PR — conferido, não só aceito).
+- **Merge e deploy #16**: mesmo método (`--no-ff` local + push direto pro
+  `main` de produção). Ao atualizar `next` por cima do `main` novo,
+  achada a assimetria deixada pendente da sessão anterior: o commit
+  `a30baf8` (correções de documentação do "por hoje é só" do PR #13)
+  só existia em `next`, nunca tinha ido pro `main` — branches haviam
+  divergido (`next` com o commit de docs, `main` com o merge do PR #16).
+  Resolvido com um merge simples (arquivos disjuntos, sem conflito),
+  deixando as duas branches de novo equivalentes + o commit de docs.
+  Droplet: `git pull` fast-forward + build/up, `atualizar_pauta`
+  (dry-run + `--quiet`) — `PL 4146/2020` e `PL 5473/2025` saíram da
+  pauta (`True → False`), `PLP 299/2026` não precisou mudar. Confirmado
+  ao vivo: `?filtro=pauta` mostrando exatamente "Na pauta (1)" — só
+  `PLP 299/2026` — com o selo novo "NA ORDEM DO DIA".
+

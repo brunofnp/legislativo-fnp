@@ -62,14 +62,14 @@ apps/
     throttling.py             # rate_limited() — throttle simples via cache (sessão+IP), sem dependência externa
     templatetags/
       admin_icons.py           # ícones SVG por app/model do Django Admin (barra lateral)
-    tests.py                  # ~203 testes — RequestFactory/middleware direto, não self.client (ver Observação Python 3.14)
+    tests.py                  # ~209 testes — RequestFactory/middleware direto, não self.client (ver Observação Python 3.14)
     management/
       commands/
         ingest_legislativo.py
         sync_legado_firestore.py  # importa as 104 proposições reais do Firestore legado (legislativo-fnp.web.app)
         sync_camara.py             # sync ao vivo via API Dados Abertos da Câmara, com --watch
         atualizar_tramitacao.py    # cron diário: status/última movimentação via Dados Abertos da Câmara, alerta seguidores
-        atualizar_pauta.py         # cron diário: deriva "pauta" (Proposicao) da Ordem do Dia oficial da Câmara (Plenário + comissões deliberativas); fail-closed em falha de rede
+        atualizar_pauta.py         # cron diário: deriva "pauta" (Proposicao) das fontes oficiais das duas Casas — Câmara (Ordem do Dia, Plenário + comissões deliberativas) e Senado (situação atual da matéria, só "incluída" conta); fail-closed por Casa em falha de rede
         setup_roles.py              # cria grupos Root/Administrador FNP/Usuário, promove um e-mail a Root
 static/
   css/
@@ -178,7 +178,7 @@ A barra lateral (`templates/admin/nav_sidebar.html`) **não reaproveita** `admin
 - **Denúncia de comentário** (`DenunciaComentario`, botão "Denunciar" no fórum, `denunciar_comentario` em views.py): complemento à lista de palavras proibidas para pegar assédio/sarcasmo sem palavrão. Usuário logado denuncia (não pode denunciar 2x o mesmo comentário — `UniqueConstraint`); ao atingir `Comentario.DENUNCIAS_PARA_OCULTAR` (3) denúncias distintas, o comentário volta sozinho para `'pendente'` até revisão manual. Visível no Admin (`total_denuncias` na listagem de Comentario).
 - **Rate limiting** nos formulários públicos (`apps/legislativo/throttling.py`): máx. 5 comentários/5min e 3 participações/10min por sessão+IP, via cache padrão do Django (sem dependência nova — trocar para Redis se o app crescer para múltiplos workers).
 - **Paginação** na home: "Todas as proposições" pagina de 24 em 24 (`PROPOSICOES_POR_PAGINA` em views.py) via `Paginator`; "Urgentes"/"Em alta" continuam como destaques fixos (6/4 itens), não paginam.
-- **"Na pauta" automático** (desde 2026-11-17, cron diário `atualizar_pauta`): `Proposicao.pauta` (filtro `?filtro=pauta`) deixou de ser só o `Pauta: Sim` manual da planilha de ingestão — pra proposições da Câmara (identificadas pelo `idProposicao` no `link`), o campo é derivado da Ordem do Dia oficial (`fontes.pauta_camara()`, sessões deliberativas de Plenário + comissões via API Dados Abertos), marcando/desmarcando sozinho e alertando seguidores quando muda. Fail-closed: falha de rede não altera nada. Proposições do Senado/sem `idProposicao` continuam com pauta manual (pendente uma v2 quando a agenda do Senado estabilizar).
+- **"Na pauta" automático** (desde 2026-11-17, cron diário `atualizar_pauta`; cobertura do Senado desde 2026-11-18): `Proposicao.pauta` (filtro `?filtro=pauta`) deixou de ser só o `Pauta: Sim` manual da planilha de ingestão — agora é derivado das fontes oficiais das duas Casas. Câmara (identificada pelo `idProposicao` no `link`): Ordem do Dia oficial (`fontes.pauta_camara()`, sessões deliberativas de Plenário + comissões via API Dados Abertos). Senado (identificado pelo `/materia/<cod>` no `link`): situação atual da matéria (`fontes.buscar_status_senado()`) — só conta como "na pauta" quando a situação indica que a matéria **foi incluída** na Ordem do Dia (`'ordem do dia' in situacao and 'aguardando' not in situacao`); "aguardando inclusão" não conta, mesmo contendo a substring "ordem do dia" (bug real visto em produção com PL 4146/2020 e PL 5473/2025, corrigido no mesmo dia). Marca/desmarca sozinho e alerta seguidores quando muda. Fail-closed por Casa: falha de rede/parse numa Casa não mexe nas proposições dessa Casa, nem aborta a outra. Proposições sem `idProposicao`/`/materia/<cod>` reconhecível no link continuam com pauta manual. Selo do card mudou de "PAUTA"/"SEM PAUTA" pra "NA ORDEM DO DIA"/"SEM PAUTA" (mais explícito sobre o que o selo significa; mesma mudança no detalhe da proposição).
 - **Cabeçalhos de segurança de produção**: `SECURE_SSL_REDIRECT`, HSTS, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` — só ativam com `DEBUG=False`, assumindo que o Nginx do droplet repassa `X-Forwarded-Proto` (confirmar antes de habilitar em produção pela primeira vez, ver comentário em `settings.py`).
 - Endpoint SSE/polling para atualização de dados em tempo real; cards de Urgentes/Em alta/Todas se atualizam sozinhos (sem F5) via `api_proposicoes_cards`, que renderiza o HTML pronto (mesmos templates) em vez de duplicar lógica em JS
 - Acessibilidade WCAG 2.1-aligned (skip links, foco visível, redução de movimento)
@@ -439,7 +439,7 @@ de auditoria. Nunca colar comando com senha visível sem necessidade.
 ## Pegadinhas para agentes
 
 - **Leia `CONSTRAINTS.md` antes de escrever código.** Não enfraqueça esse arquivo para fazer uma mudança passar.
-- **Testes**: todos em `apps/legislativo/tests.py` (~203 testes), com `RequestFactory` + middleware manual — não trocar por `self.client`. Rodar com `pytest` (config em `pytest.ini`) ou `python manage.py test apps.legislativo`.
+- **Testes**: todos em `apps/legislativo/tests.py` (~209 testes), com `RequestFactory` + middleware manual — não trocar por `self.client`. Rodar com `pytest` (config em `pytest.ini`) ou `python manage.py test apps.legislativo`.
 - **Dependências**: fonte da verdade é `requirements.txt` / `requirements.lock` (Django 5.2). O bloco `dependencies` do `pyproject.toml` está defasado (`Django<5.0`) — não usar como referência; `pyproject.toml` vale só pela config de black/isort/ruff.
 - **CI** (`.github/workflows/ci.yml`): Python 3.11, `DEBUG=True`, `pytest` + `pip-audit -r requirements.lock`; não roda em `next` — validar localmente antes.
 - `.env` e `db.sqlite3` existem localmente com dados reais — nunca imprimir o conteúdo do `.env`.
