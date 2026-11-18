@@ -15,9 +15,13 @@ Estender a derivação para as duas Casas, cada uma pelo melhor sinal oficial:
   `codigoMateria` (do link `/materia/NNNN`) e marca `na_pauta=True` quando a
   situação contém **"ordem do dia"**.
 
-Critério **estrito**: "incluída em ordem do dia" conta; "pronta para
-pauta/deliberação" (pronta, mas não pautada) **não** conta — evita inflar o
-filtro.
+Critério **estrito**: "ordem do dia" presente **e** "aguardando" ausente —
+conta só quem FOI incluída na Ordem do Dia (ex.: "INCLUÍDA EM ORDEM DO DIA").
+Não contam: "pronta para pauta/deliberação" (pronta, mas não pautada) e
+"AGUARDANDO INCLUSÃO ORDEM DO DIA…" (esperando ser pautada). Sem a exclusão de
+"aguardando", a substring "ordem do dia" dava falso positivo (casos reais
+18/11/2026: PL 4146/2020 e PL 5473/2025). O card passou a exibir **"NA ORDEM DO
+DIA"** no lugar de "PAUTA", deixando o critério explícito.
 
 ## Segurança
 - Agenda da Câmara indisponível (`pauta_camara` → None): as proposições da

@@ -2447,6 +2447,16 @@ class BuscarStatusSenadoTest(TestCase):
             r = buscar_status_senado('163673')
         self.assertFalse(r['na_pauta'])
 
+    def test_aguardando_inclusao_nao_e_pauta(self):
+        # "AGUARDANDO INCLUSÃO ORDEM DO DIA..." contém "ordem do dia", mas é a
+        # matéria ESPERANDO ser pautada — não está na Ordem do Dia ainda.
+        # (strings reais: PL 4146/2020 e PL 5473/2025, 18/11/2026)
+        from apps.proposicoes.fontes import buscar_status_senado
+        with mock.patch('apps.proposicoes.fontes.requests.get',
+                        return_value=self._resp('AGUARDANDO INCLUSÃO ORDEM DO DIA DE REQUERIMENTO')):
+            r = buscar_status_senado('173143')
+        self.assertFalse(r['na_pauta'])
+
 
 class AtualizarPautaTest(TestCase):
     """Deriva o 'na pauta' das fontes oficiais nas duas Casas: Câmara pela

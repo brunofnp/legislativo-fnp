@@ -175,8 +175,9 @@ def buscar_status_senado(cod):
     """Situação atual de uma matéria do Senado pelo ``codigoMateria``.
 
     Usado pelo atualizador de pauta para saber se a matéria está na Ordem do
-    Dia. Devolve um dicionário com ``na_pauta`` (True quando a situação indica
-    ordem do dia) ou ``None`` em falha de rede/parse — nenhuma exceção escapa."""
+    Dia. Devolve um dicionário com ``na_pauta`` (True só quando a matéria FOI
+    INCLUÍDA na Ordem do Dia; "aguardando inclusão" não conta) ou ``None`` em
+    falha de rede/parse — nenhuma exceção escapa."""
     try:
         r = requests.get(
             f'{SENADO_API}/materia/situacaoatual/{cod}',
@@ -198,10 +199,15 @@ def buscar_status_senado(cod):
         data = si.get('DataSituacao') or ''
     except (KeyError, IndexError, TypeError):
         return None
+    s = situacao.lower()
+    # Só conta quem FOI INCLUÍDA na Ordem do Dia. "AGUARDANDO INCLUSÃO ORDEM DO
+    # DIA..." contém "ordem do dia", mas é a matéria esperando ser pautada —
+    # ainda não está na Ordem do Dia (não deve aparecer no filtro "Na pauta").
+    na_pauta = 'ordem do dia' in s and 'aguardando' not in s
     return {
         'situacao': situacao,
         'data': data,
-        'na_pauta': 'ordem do dia' in situacao.lower(),
+        'na_pauta': na_pauta,
     }
 
 
