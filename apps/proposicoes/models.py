@@ -144,6 +144,14 @@ class Proposicao(models.Model):
     posicionamento_fnp = models.TextField(blank=True)
     acoes_incidencia = models.TextField(blank=True)
     riscos_oportunidades = models.TextField(blank=True)
+    # Última vez que o sistema conferiu esta proposição numa fonte oficial
+    # (ficha de tramitação da Câmara ou situação/pauta do Senado), via os
+    # comandos atualizar_tramitacao / atualizar_pauta. Diferente de
+    # atualizado_em (auto_now, muda a cada save, inclusive edição editorial):
+    # sincronizado_em só é tocado quando houve consulta à fonte. Alimenta o
+    # "Fonte consultada em DD/MM" exibido no card/detalhe. Nulo = nunca
+    # sincronizado automaticamente (ex.: cadastro manual ainda não varrido).
+    sincronizado_em = models.DateTimeField(null=True, blank=True)
     visualizacoes = models.PositiveIntegerField(default=0)
     status_publicacao = models.CharField(
         max_length=16,

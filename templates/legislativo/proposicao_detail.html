@@ -107,6 +107,10 @@
             <p>{% if proposicao.pauta %}Na Ordem do Dia{% else %}Não{% endif %}</p>
           </div>
           <div>
+            <h3>Última consulta à fonte oficial</h3>
+            <p>{% if proposicao.sincronizado_em %}{{ proposicao.sincronizado_em|date:"d/m/Y \à\s H\hi" }}{% else %}Conferência automática pendente{% endif %}</p>
+          </div>
+          <div>
             <h3>Tema</h3>
             <p>
               {% if proposicao.temas.all %}

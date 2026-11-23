@@ -1112,6 +1112,10 @@ body {
 .badge-pauta-off { background: var(--cor-superficie-3); color: var(--cor-texto-suave); border: 1px solid var(--cor-borda); }
 .badge-parada { background: #fef8e8; color: #7a540f; border: 1px solid #f9df8f; font-size: 10px; }
 
+/* "Fonte conferida em DD/MM" no rodapé do card: transparência sobre quando o
+   dado foi conferido na fonte oficial. Discreto (não compete com o conteúdo). */
+.card-sync { margin: 0.35rem 0 0; font-size: 0.68rem; color: var(--cor-texto-suave); letter-spacing: 0.01em; }
+
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
 
 .empty-state {

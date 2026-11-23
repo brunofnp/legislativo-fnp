@@ -2391,6 +2391,28 @@ class AtualizarTramitacaoTest(TestCase):
         self.prop.refresh_from_db()
         self.assertEqual(self.prop.ultima_movimentacao, 'status antigo')
 
+    def test_marca_sincronizado_em_ao_consultar_a_fonte(self):
+        self.assertIsNone(self.prop.sincronizado_em)
+        with self._patch('03/11/2026: movimentação nova'):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNotNone(self.prop.sincronizado_em)
+
+    def test_marca_sincronizado_em_mesmo_sem_mudanca(self):
+        # Consultou a fonte e nada mudou: ainda assim registra a data da consulta.
+        self.prop.ultima_movimentacao = 'texto identico'
+        self.prop.save()
+        with self._patch('texto identico'):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNotNone(self.prop.sincronizado_em)
+
+    def test_sem_dados_na_fonte_nao_marca_sincronizado(self):
+        with mock.patch('apps.proposicoes.fontes.buscar_status_camara', return_value=None):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNone(self.prop.sincronizado_em)
+
 
 class BuscarSenadoTest(TestCase):
     """O /processo do Senado traz a situação em `situacaoAtual` (camelCase);
@@ -2550,3 +2572,15 @@ class AtualizarPautaTest(TestCase):
         self._run(camara={'111'}, dry_run=True)
         self.cam.refresh_from_db()
         self.assertFalse(self.cam.pauta)
+
+    def test_marca_sincronizado_em_mesmo_sem_mudar_pauta(self):
+        # Consultou a fonte (Senado) e a pauta não mudou: registra a data.
+        self.assertIsNone(self.sen.sincronizado_em)
+        self._run(senado=False)
+        self.sen.refresh_from_db()
+        self.assertIsNotNone(self.sen.sincronizado_em)
+
+    def test_dry_run_nao_marca_sincronizado(self):
+        self._run(camara={'111'}, dry_run=True)
+        self.cam.refresh_from_db()
+        self.assertIsNone(self.cam.sincronizado_em)
