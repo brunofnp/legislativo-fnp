@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from apps.proposicoes import fontes
 from apps.proposicoes.models import Proposicao
@@ -73,23 +74,35 @@ class Command(BaseCommand):
                 sem_dados += 1
                 continue
 
+            # A fonte foi consultada com sucesso: registra a data da consulta,
+            # mesmo que nada tenha mudado (é o que dá ao usuário a garantia de
+            # que o dado foi conferido). sincronizado_em não está em
+            # CAMPOS_ALERTA, então tocá-lo nunca dispara alerta.
+            agora = timezone.now()
             novo = dados['ultima']
-            if novo == (prop.ultima_movimentacao or ''):
-                continue
+            mudou = novo != (prop.ultima_movimentacao or '')
 
             if dry_run:
-                self.stdout.write(f'[dry-run] {prop.titulo}: {prop.ultima_movimentacao!r} -> {novo!r}')
-                atualizadas += 1
+                if mudou:
+                    self.stdout.write(f'[dry-run] {prop.titulo}: {prop.ultima_movimentacao!r} -> {novo!r}')
+                    atualizadas += 1
                 continue
 
-            if quiet:
-                # .update() não dispara o signal de alerta (silencioso).
-                Proposicao.objects.filter(pk=prop.pk).update(ultima_movimentacao=novo)
+            if mudou:
+                if quiet:
+                    # .update() não dispara o signal de alerta (silencioso).
+                    Proposicao.objects.filter(pk=prop.pk).update(
+                        ultima_movimentacao=novo, sincronizado_em=agora)
+                else:
+                    prop.ultima_movimentacao = novo
+                    prop.sincronizado_em = agora
+                    prop.save()  # dispara o alerta aos seguidores (CAMPOS_ALERTA)
+                atualizadas += 1
+                self.stdout.write(f'Atualizada: {prop.titulo} -> {novo}')
             else:
-                prop.ultima_movimentacao = novo
-                prop.save()  # dispara o alerta aos seguidores (CAMPOS_ALERTA)
-            atualizadas += 1
-            self.stdout.write(f'Atualizada: {prop.titulo} -> {novo}')
+                # Nada mudou, mas consultamos a fonte: grava só a data da
+                # consulta, de forma silenciosa (sem save → sem alerta).
+                Proposicao.objects.filter(pk=prop.pk).update(sincronizado_em=agora)
 
         modo = 'dry-run' if dry_run else ('quiet' if quiet else 'normal')
         self.stdout.write(self.style.SUCCESS(
