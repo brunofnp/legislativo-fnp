@@ -46,13 +46,15 @@ class AnexoProposicaoInline(admin.TabularInline):
 class ProposicaoAdmin(admin.ModelAdmin):
     list_display = (
         'titulo', 'casa', 'status_tramitacao', 'macrotema',
-        'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada',
+        'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada', 'apensada_a',
     )
     # Edição direta na listagem (sem abrir cada proposição) — "titulo" fica de
     # fora por ser a coluna usada como link para a página de edição completa.
-    list_editable = ('macrotema', 'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada')
+    # apensada_a é editável aqui: a coordenação pode corrigir/definir a principal
+    # (o atualizar_apensacao preenche automaticamente só em detecção positiva).
+    list_editable = ('macrotema', 'prioridade_fnp', 'pauta', 'urgente', 'aprovada', 'parada', 'apensada_a')
     list_filter = ('macrotema', 'prioridade_fnp', 'urgente', 'pauta', 'casa')
-    search_fields = ('titulo', 'ementa_resumida')
+    search_fields = ('titulo', 'ementa_resumida', 'apensada_a')
     date_hierarchy = 'atualizado_em'
     autocomplete_fields = ['macrotema', 'temas']
     inlines = [EdicaoMeritoHistoricoInline, NoticiaInline, AnexoProposicaoInline]

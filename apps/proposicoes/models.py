@@ -58,8 +58,19 @@ class ProposicaoQuerySet(models.QuerySet):
 
     def destaques(self):
         """Prioridades da FNP para o bloco da home, na ordem definida pela
-        coordenação (menor ordem_destaque primeiro; empate pelo mais recente)."""
-        return self.publicadas().filter(destaque_home=True).order_by('ordem_destaque', '-criado_em')
+        coordenação (menor ordem_destaque primeiro; empate pelo mais recente).
+
+        Exclui as proposições ``parada=True`` (sem movimentação há ~4 anos ou
+        mais): destaque com dado muito antigo (ex.: PL 3776/2008 parado desde
+        2021) passa a impressão de que o painel está desatualizado. Se a matéria
+        voltar a andar, o próximo ingest/atualização limpa o ``parada`` e ela
+        volta ao bloco."""
+        return (
+            self.publicadas()
+            .filter(destaque_home=True)
+            .exclude(parada=True)
+            .order_by('ordem_destaque', '-criado_em')
+        )
 
 
 class Proposicao(models.Model):
@@ -107,6 +118,11 @@ class Proposicao(models.Model):
     casa = models.CharField(max_length=32, choices=CASA_CHOICES)
     status_tramitacao = models.CharField(max_length=255, blank=True)
     local = models.CharField(max_length=128, blank=True)
+    # Quando a matéria tramita apensada a outra, o título da principal (ex.:
+    # "PEC 231/2019"). Vazio = tramita de forma autônoma. Preenchido pela
+    # coordenação (admin) e/ou pelo atualizar_apensacao (lê o último despacho
+    # de apense/desapense da Câmara). Card/detalhe mostram "Apensada à ...".
+    apensada_a = models.CharField(max_length=64, blank=True)
     pauta = models.BooleanField(default=False)
     urgente = models.BooleanField(default=False)
     aprovada = models.BooleanField(default=False)
@@ -144,6 +160,14 @@ class Proposicao(models.Model):
     posicionamento_fnp = models.TextField(blank=True)
     acoes_incidencia = models.TextField(blank=True)
     riscos_oportunidades = models.TextField(blank=True)
+    # Última vez que o sistema conferiu esta proposição numa fonte oficial
+    # (ficha de tramitação da Câmara ou situação/pauta do Senado), via os
+    # comandos atualizar_tramitacao / atualizar_pauta. Diferente de
+    # atualizado_em (auto_now, muda a cada save, inclusive edição editorial):
+    # sincronizado_em só é tocado quando houve consulta à fonte. Alimenta o
+    # "Fonte consultada em DD/MM" exibido no card/detalhe. Nulo = nunca
+    # sincronizado automaticamente (ex.: cadastro manual ainda não varrido).
+    sincronizado_em = models.DateTimeField(null=True, blank=True)
     visualizacoes = models.PositiveIntegerField(default=0)
     status_publicacao = models.CharField(
         max_length=16,

@@ -2067,6 +2067,12 @@ class CuradoriaEPrioridadesTest(TestCase):
         )
         self.assertEqual(Proposicao.objects.destaques().count(), 0)
 
+    def test_destaques_exclui_parada(self):
+        # Destaque com dado muito antigo (parada) não aparece no bloco.
+        viva = Proposicao.objects.create(titulo='PL viva', casa='camara', destaque_home=True, parada=False)
+        Proposicao.objects.create(titulo='PL 3776/2008', casa='camara', destaque_home=True, parada=True)
+        self.assertEqual(list(Proposicao.objects.destaques()), [viva])
+
     def test_home_limita_destaques_a_10(self):
         for i in range(12):
             Proposicao.objects.create(
@@ -2391,6 +2397,89 @@ class AtualizarTramitacaoTest(TestCase):
         self.prop.refresh_from_db()
         self.assertEqual(self.prop.ultima_movimentacao, 'status antigo')
 
+    def test_marca_sincronizado_em_ao_consultar_a_fonte(self):
+        self.assertIsNone(self.prop.sincronizado_em)
+        with self._patch('03/11/2026: movimentação nova'):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNotNone(self.prop.sincronizado_em)
+
+    def test_marca_sincronizado_em_mesmo_sem_mudanca(self):
+        # Consultou a fonte e nada mudou: ainda assim registra a data da consulta.
+        self.prop.ultima_movimentacao = 'texto identico'
+        self.prop.save()
+        with self._patch('texto identico'):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNotNone(self.prop.sincronizado_em)
+
+    def test_sem_dados_na_fonte_nao_marca_sincronizado(self):
+        with mock.patch('apps.proposicoes.fontes.buscar_status_camara', return_value=None):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertIsNone(self.prop.sincronizado_em)
+
+    def test_virou_lei_marca_aprovada(self):
+        # Matéria que virou lei deve passar a ostentar o selo APROVADA mesmo que
+        # antes constasse "em acompanhamento".
+        self.prop.aprovada = False
+        self.prop.save()
+        dados = {'ultima': '21/10/2026: Transformado na Lei Complementar 238/2026',
+                 'situacao': 'Transformado em Norma Jurídica', 'orgao': ''}
+        with mock.patch('apps.proposicoes.fontes.buscar_status_camara', return_value=dados):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertTrue(self.prop.aprovada)
+
+    def test_nao_desmarca_aprovada_ja_curada(self):
+        # Flag curada (ex.: PEC promulgada) não pode regredir por um retorno de
+        # fonte que não bate o heurístico. Só flipa False->True, nunca o inverso.
+        self.prop.aprovada = True
+        self.prop.save()
+        dados = {'ultima': '01/02/2026: Designação de Relator', 'situacao': 'Aguardando Parecer', 'orgao': 'CCJ'}
+        with mock.patch('apps.proposicoes.fontes.buscar_status_camara', return_value=dados):
+            call_command('atualizar_tramitacao')
+        self.prop.refresh_from_db()
+        self.assertTrue(self.prop.aprovada)
+
+
+class IsAprovadaTest(TestCase):
+    """is_aprovada reconhece matérias que viraram lei/norma (sinais terminais),
+    além da aprovação em plenário. 'Aguardando' e aprovação só em comissão não
+    contam."""
+
+    def _ap(self, status='', local='', ultima=''):
+        from apps.legislativo.data_utils import is_aprovada
+        return is_aprovada({'Status da Tramitação': status, 'Local': local, 'Última Movimentação': ultima})
+
+    def test_transformado_em_norma_juridica(self):
+        self.assertTrue(self._ap(status='Transformado em Norma Jurídica'))
+
+    def test_transformado_na_lei(self):
+        self.assertTrue(self._ap(ultima='21/10/2026: Transformado na Lei Complementar 238/2026'))
+
+    def test_sancionada(self):
+        self.assertTrue(self._ap(status='Sancionado'))
+
+    def test_convertida_em_lei_mpv(self):
+        self.assertTrue(self._ap(status='Convertida na Lei nº 15.270/2025'))
+
+    def test_promulgada_continua_aprovada(self):
+        self.assertTrue(self._ap(status='Promulgada'))
+
+    def test_aprovada_no_plenario(self):
+        self.assertTrue(self._ap(status='Aprovada', local='Plenário'))
+
+    def test_virou_norma_vale_mesmo_citando_comissao(self):
+        # O sinal terminal "virou lei" vale mesmo que o texto ainda cite comissão.
+        self.assertTrue(self._ap(status='Transformado em Norma Jurídica', local='Comissão de Finanças'))
+
+    def test_aprovada_so_em_comissao_nao_conta(self):
+        self.assertFalse(self._ap(status='Aprovada', local='Comissão de Viação e Transportes'))
+
+    def test_aguardando_parecer_nao_conta(self):
+        self.assertFalse(self._ap(status='Aguardando Parecer', local='CCJ'))
+
 
 class BuscarSenadoTest(TestCase):
     """O /processo do Senado traz a situação em `situacaoAtual` (camelCase);
@@ -2550,3 +2639,120 @@ class AtualizarPautaTest(TestCase):
         self._run(camara={'111'}, dry_run=True)
         self.cam.refresh_from_db()
         self.assertFalse(self.cam.pauta)
+
+    def test_marca_sincronizado_em_mesmo_sem_mudar_pauta(self):
+        # Consultou a fonte (Senado) e a pauta não mudou: registra a data.
+        self.assertIsNone(self.sen.sincronizado_em)
+        self._run(senado=False)
+        self.sen.refresh_from_db()
+        self.assertIsNotNone(self.sen.sincronizado_em)
+
+    def test_dry_run_nao_marca_sincronizado(self):
+        self._run(camara={'111'}, dry_run=True)
+        self.cam.refresh_from_db()
+        self.assertIsNone(self.cam.sincronizado_em)
+
+
+class ApensacaoParserTest(TestCase):
+    """apensacao_de_tramitacoes lê o último despacho de apense/desapense e
+    devolve a principal ('X'), desapensação ('') ou indeterminado (None)."""
+
+    def _p(self, tramitacoes, self_titulo='PEC 27/2023'):
+        from apps.proposicoes.fontes import apensacao_de_tramitacoes
+        return apensacao_de_tramitacoes(tramitacoes, self_titulo)
+
+    def test_apense_forma_curta(self):
+        tr = [{'dataHora': '2023-11-08T16:56', 'despacho': 'Apense-se (ao) PEC-231/2019. Regime Especial.'}]
+        self.assertEqual(self._p(tr), 'PEC 231/2019')
+
+    def test_apense_forma_longa_exclui_self(self):
+        tr = [{'dataHora': '2025-11-05T21:16',
+               'despacho': 'Apense-se a Proposta de Emenda à Constituição n. 27/2023 '
+                           'à Proposta de Emenda à Constituição n. 231/2019. Publique-se.'}]
+        self.assertEqual(self._p(tr), 'PEC 231/2019')
+
+    def test_desapense_retorna_vazio(self):
+        tr = [{'dataHora': '2025-11-04T00:00',
+               'despacho': 'Desapense-se a Proposta de Emenda à Constituição n. 27/2023 '
+                           'da Proposta de Emenda à Constituição n. 231/2019.'}]
+        self.assertEqual(self._p(tr), '')
+
+    def test_pega_o_ultimo_evento(self):
+        tr = [
+            {'dataHora': '2023-11-08T16:56', 'despacho': 'Apense-se (ao) PEC-231/2019.'},
+            {'dataHora': '2025-11-04T00:00', 'despacho': 'Desapense-se da PEC 231/2019.'},
+            {'dataHora': '2025-11-05T21:16', 'despacho': 'Apense-se a PEC 27/2023 à PEC 231/2019.'},
+        ]
+        self.assertEqual(self._p(tr), 'PEC 231/2019')
+
+    def test_sem_despacho_de_apense_retorna_none(self):
+        tr = [{'dataHora': '2026-01-01T00:00', 'despacho': 'Designado Relator, Dep. Fulano.'}]
+        self.assertIsNone(self._p(tr))
+
+    def test_apense_so_com_self_retorna_none(self):
+        tr = [{'dataHora': '2025-11-05T21:16', 'despacho': 'Apense-se a PEC 27/2023 a esta Casa.'}]
+        self.assertIsNone(self._p(tr))
+
+    def test_self_e_a_principal_retorna_none(self):
+        # Mesmo despacho na ficha da principal: PEC 231/2019 NÃO está apensada a
+        # 27/2023 (é a principal). A última referência (à/ao Y) é a principal.
+        tr = [{'dataHora': '2025-11-05T21:16', 'despacho': 'Apense-se a PEC 27/2023 à PEC 231/2019.'}]
+        self.assertIsNone(self._p(tr, self_titulo='PEC 231/2019'))
+
+    def test_nao_confunde_pl_dentro_de_plp(self):
+        tr = [{'dataHora': '2026-01-01T00:00', 'despacho': 'Apense-se ao PLP 155/2026.'}]
+        self.assertEqual(self._p(tr, self_titulo='PLP 999/2026'), 'PLP 155/2026')
+
+
+class AtualizarApensacaoTest(TestCase):
+    """O comando grava apensada_a só em detecção positiva; indeterminado (None)
+    não toca no campo (preserva curadoria)."""
+
+    def setUp(self):
+        self.prop = Proposicao.objects.create(
+            titulo='PEC 27/2023', casa='camara',
+            link='https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2363434',
+            status_publicacao=Proposicao.PUBLICADA,
+        )
+
+    def test_grava_principal(self):
+        with mock.patch('apps.proposicoes.fontes.buscar_apensacao_camara', return_value='PEC 231/2019'):
+            call_command('atualizar_apensacao')
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.apensada_a, 'PEC 231/2019')
+
+    def test_indeterminado_nao_toca_curadoria(self):
+        self.prop.apensada_a = 'PEC 231/2019'
+        self.prop.save()
+        with mock.patch('apps.proposicoes.fontes.buscar_apensacao_camara', return_value=None):
+            call_command('atualizar_apensacao')
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.apensada_a, 'PEC 231/2019')
+
+    def test_desapense_limpa(self):
+        self.prop.apensada_a = 'PEC 231/2019'
+        self.prop.save()
+        with mock.patch('apps.proposicoes.fontes.buscar_apensacao_camara', return_value=''):
+            call_command('atualizar_apensacao')
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.apensada_a, '')
+
+    def test_dry_run_nao_grava(self):
+        with mock.patch('apps.proposicoes.fontes.buscar_apensacao_camara', return_value='PEC 231/2019'):
+            call_command('atualizar_apensacao', dry_run=True)
+        self.prop.refresh_from_db()
+        self.assertEqual(self.prop.apensada_a, '')
+
+    def test_pula_senado(self):
+        senado = Proposicao.objects.create(
+            titulo='PL 2121/2024', casa='senado',
+            link='https://www25.senado.leg.br/web/atividade/materias/-/materia/163897',
+            status_publicacao=Proposicao.PUBLICADA,
+        )
+        with mock.patch('apps.proposicoes.fontes.buscar_apensacao_camara', return_value=None) as m:
+            call_command('atualizar_apensacao')
+            # só a prop da Câmara (PEC 27/2023) é consultada; a do Senado é pulada
+            chamou_senado = any('163897' in str(call) for call in m.call_args_list)
+            self.assertFalse(chamou_senado)
+        senado.refresh_from_db()
+        self.assertEqual(senado.apensada_a, '')

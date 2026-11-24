@@ -29,6 +29,7 @@ from __future__ import annotations
 import re
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from apps.proposicoes import fontes
 from apps.proposicoes.models import Proposicao
@@ -59,6 +60,7 @@ class Command(BaseCommand):
                 'Não consegui ler a agenda da Câmara; as proposições da Câmara ficam intocadas nesta rodada.'
             ))
 
+        agora = timezone.now()
         marcadas = desmarcadas = sem_leitura_senado = 0
         for prop in Proposicao.objects.publicadas().order_by('pk'):
             link = prop.link or ''
@@ -78,15 +80,21 @@ class Command(BaseCommand):
             else:
                 continue  # sem id reconhecível: pauta manual
 
+            # Chegou aqui = a fonte oficial foi consultada com sucesso para esta
+            # proposição. Registra a data da consulta (sincronizado_em não está
+            # em CAMPOS_ALERTA, então nunca dispara alerta).
             if prop.pauta == deveria:
+                if not dry_run:
+                    Proposicao.objects.filter(pk=prop.pk).update(sincronizado_em=agora)
                 continue
 
             if dry_run:
                 self.stdout.write(f'[dry-run] {prop.titulo}: pauta {prop.pauta} -> {deveria}')
             elif quiet:
-                Proposicao.objects.filter(pk=prop.pk).update(pauta=deveria)
+                Proposicao.objects.filter(pk=prop.pk).update(pauta=deveria, sincronizado_em=agora)
             else:
                 prop.pauta = deveria
+                prop.sincronizado_em = agora
                 prop.save()  # dispara o alerta aos seguidores (pauta está em CAMPOS_ALERTA)
 
             if deveria:

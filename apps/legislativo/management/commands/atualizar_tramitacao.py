@@ -27,7 +27,9 @@ from __future__ import annotations
 import re
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
+from apps.legislativo.data_utils import is_aprovada
 from apps.proposicoes import fontes
 from apps.proposicoes.models import Proposicao
 
@@ -73,23 +75,53 @@ class Command(BaseCommand):
                 sem_dados += 1
                 continue
 
+            # A fonte foi consultada com sucesso: registra a data da consulta,
+            # mesmo que nada tenha mudado (é o que dá ao usuário a garantia de
+            # que o dado foi conferido). sincronizado_em não está em
+            # CAMPOS_ALERTA, então tocá-lo nunca dispara alerta.
+            agora = timezone.now()
             novo = dados['ultima']
-            if novo == (prop.ultima_movimentacao or ''):
-                continue
+            mudou = novo != (prop.ultima_movimentacao or '')
+
+            # "Virou lei": reconhece, pela situação fresca da Câmara, a matéria
+            # que foi transformada em norma/sancionada e ainda constava "em
+            # acompanhamento". Flipamos aprovada só de False->True: nunca
+            # regredimos uma aprovação já curada que a fonte do momento não
+            # reflita (ex.: PEC promulgada cujo retorno não bate o heurístico).
+            registro = {
+                'Status da Tramitação': dados.get('situacao') or '',
+                'Local': dados.get('orgao') or '',
+                'Última Movimentação': novo,
+            }
+            virou_lei = is_aprovada(registro) and not prop.aprovada
 
             if dry_run:
-                self.stdout.write(f'[dry-run] {prop.titulo}: {prop.ultima_movimentacao!r} -> {novo!r}')
-                atualizadas += 1
+                if mudou or virou_lei:
+                    extra = ' [vira APROVADA]' if virou_lei else ''
+                    self.stdout.write(f'[dry-run] {prop.titulo}: {prop.ultima_movimentacao!r} -> {novo!r}{extra}')
+                    atualizadas += 1
                 continue
 
-            if quiet:
-                # .update() não dispara o signal de alerta (silencioso).
-                Proposicao.objects.filter(pk=prop.pk).update(ultima_movimentacao=novo)
+            if mudou or virou_lei:
+                if quiet:
+                    # .update() não dispara o signal de alerta (silencioso).
+                    campos = {'ultima_movimentacao': novo, 'sincronizado_em': agora}
+                    if virou_lei:
+                        campos['aprovada'] = True
+                    Proposicao.objects.filter(pk=prop.pk).update(**campos)
+                else:
+                    prop.ultima_movimentacao = novo
+                    prop.sincronizado_em = agora
+                    if virou_lei:
+                        prop.aprovada = True
+                    prop.save()  # dispara o alerta aos seguidores (CAMPOS_ALERTA)
+                atualizadas += 1
+                marca = ' [APROVADA]' if virou_lei else ''
+                self.stdout.write(f'Atualizada: {prop.titulo} -> {novo}{marca}')
             else:
-                prop.ultima_movimentacao = novo
-                prop.save()  # dispara o alerta aos seguidores (CAMPOS_ALERTA)
-            atualizadas += 1
-            self.stdout.write(f'Atualizada: {prop.titulo} -> {novo}')
+                # Nada mudou, mas consultamos a fonte: grava só a data da
+                # consulta, de forma silenciosa (sem save → sem alerta).
+                Proposicao.objects.filter(pk=prop.pk).update(sincronizado_em=agora)
 
         modo = 'dry-run' if dry_run else ('quiet' if quiet else 'normal')
         self.stdout.write(self.style.SUCCESS(

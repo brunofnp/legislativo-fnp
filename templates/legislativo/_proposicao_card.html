@@ -35,10 +35,15 @@
       <span class="tag-{{ proposicao.prioridade_fnp }}">{{ proposicao.get_prioridade_fnp_display }}</span>
       {% if proposicao.urgente %}<span class="tag-urgente">URGENTE</span>{% endif %}
       {% if proposicao.aprovada %}<span class="tag-aprovada">APROVADA</span>{% endif %}
+      {% if proposicao.apensada_a %}<span class="tag-apensada" title="Tramita apensada à {{ proposicao.apensada_a }}">APENSADA</span>{% endif %}
     </div>
   </div>
 
   <h2 class="line-clamp-2"><a href="{% url 'legislativo:proposicao_detail' proposicao.pk %}">{{ proposicao.titulo }}</a></h2>
+
+  {% if proposicao.apensada_a %}
+    <p class="card-apensada">Tramita apensada à <strong>{{ proposicao.apensada_a }}</strong></p>
+  {% endif %}
 
   {% if proposicao.macrotema or proposicao.temas.all %}
     <div class="card-tags-row">
@@ -76,4 +81,7 @@
           title="{% if proposicao.pauta %}Incluída na Ordem do Dia (plenário ou comissão){% else %}Não está na Ordem do Dia{% endif %}">{% if proposicao.pauta %}NA ORDEM DO DIA{% else %}SEM PAUTA{% endif %}</span>
     <span class="footer-movimentacao">{{ proposicao.ultima_movimentacao|default:'Sem movimentação recente'|truncatewords:8 }}</span>
   </div>
+  <p class="card-sync" title="Última vez que o sistema conferiu esta proposição na fonte oficial (Câmara/Senado)">
+    {% if proposicao.sincronizado_em %}Fonte conferida em {{ proposicao.sincronizado_em|date:"d/m/Y" }}{% else %}Conferência automática pendente{% endif %}
+  </p>
 </article>
