@@ -2374,3 +2374,66 @@ produção logo depois do segundo subir.
   ao vivo: `?filtro=pauta` mostrando exatamente "Na pauta (1)" — só
   `PLP 299/2026` — com o selo novo "NA ORDEM DO DIA".
 
+### Merge dos PRs #17-#21 (dados + plano de confiança no dado: sincronizado_em,
+  virou lei, destaque sem parada, apensação) + deploy (2026-11-24)
+
+Lote de 5 PRs do colega, 4 deles empilhados (#18→#19→#20→#21) e #17
+independente (base `main`). Revisão: diff de cada PR, merge de teste numa
+branch descartável na ordem pedida (sem conflito nos 5), `manage.py check`
++ `makemigrations --check --dry-run` + migração aplicada local +
+`ingest_legislativo`/`atualizar_apensacao --dry-run` rodados contra o
+dev local antes de mexer em produção — 251 testes OK.
+
+- **PR #17**: inclui 10 proposições (9 de mobilidade/tributário/FPM + a
+  `PLS 573/2015`, que a descrição do PR dizia estar "fora desta
+  inclusão" mas o JSON já trazia como registro histórico, prioridade
+  baixa — conferido como intencional, não divergência).
+- **PR #18 (A1)**: `Proposicao.sincronizado_em`, gravado pelos crons
+  `atualizar_tramitacao`/`atualizar_pauta` a cada consulta bem-sucedida
+  (inclusive sem mudança); card mostra "Fonte conferida em DD/MM".
+- **PR #19 (A2)**: `is_aprovada` reconhece "virou lei" (sancionada,
+  transformada em lei/norma, convertida em lei) além de
+  promulgada/plenário; `atualizar_tramitacao` só promove False→True
+  (nunca desfaz uma aprovação já curada).
+- **PR #20 (A3)**: `destaques()` exclui `parada=True` — matéria sem
+  movimentação há ~4 anos não aparece mais nos blocos de destaque.
+- **PR #21 (B)**: `Proposicao.apensada_a` (editável no Admin) +
+  `atualizar_apensacao` (só Câmara, lê o último despacho de
+  apense/desapense respeitando a direção — "Apense-se ... à X" → X é a
+  principal). Selo `APENSADA` no card.
+
+**Pegadinha do merge empilhado**: os PRs #19/#20/#21 tinham `base`
+apontando pro branch do PR anterior (não `main`) — mesclar com
+`--delete-branch=false` (prática já estabelecida aqui pra preservar o
+branch até confirmar no CI) **desativa o auto-retarget do GitHub pro
+`main`** quando o PR anterior entra (esse retarget só acontece se o
+branch-base for apagado). Resultado: os 3 PRs mesclaram certinho, mas
+dentro do branch empilhado (`feat/destaque-sem-parada`, que acumulou
+#18+#19+#20+#21), não direto no `main`. Corrigido com um merge manual
+de `production/feat/destaque-sem-parada` em cima do `main` local (sem
+conflito — mesmos commits, só grafo diferente), testado de novo (251
+testes OK) e enviado pros dois remotos (`origin`+`production`) — depois
+sincronizado em `next` do mesmo jeito. CI verde no commit final.
+
+**Deploy no droplet**: `git pull` + rebuild + `up -d` (saudável,
+`curl` 200), migração automática via entrypoint (`0011`/`0012`, "no
+migrations to apply" ao rodar manual depois — já tinha aplicado
+sozinha). `ingest_legislativo` dry-run + real: as 10 proposições do PR
+#17 vieram como "Atualizada" (não "Criada") — já existiam em produção,
+provavelmente criadas automaticamente como pendentes pelo Sentinela
+Tributária antes da curadoria chegar; nenhuma duplicata, comportamento
+esperado do `update_or_create`. `atualizar_apensacao` dry-run + real: 14
+alteradas, 31 indeterminadas (não tocadas), 107 fora da Câmara.
+**Achado não bloqueante**: `PL 3413/2024` e `PL 5170/2025` apareceram
+apontando uma pra outra (cada uma com o despacho mais recente
+referenciando a outra como principal) — o comando calcula cada uma
+pelo próprio último despacho, então isso é um retrato real (mas
+momentâneo/contraditório) da tramitação oficial, não bug de código;
+fica como item pra curadoria manual conferir no Admin se quiser
+resolver manualmente (`apensada_a` aceita edição direta).
+
+**Cron novo**: `atualizar_apensacao` 1x/dia, `45 10 * * *` (10:45 UTC =
+7:45 BRT), entre os crons já existentes de `atualizar_tramitacao`
+(10:30 UTC) e `atualizar_pauta` (11:00 UTC) — mesmo padrão de log em
+`/var/log/legislativo-apensacao.log`.
+
