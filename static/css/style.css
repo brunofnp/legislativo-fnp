@@ -901,6 +901,7 @@ body {
 .tag-normal,
 .tag-urgente,
 .tag-aprovada,
+.tag-apensada,
 .badge-pauta,
 .badge-parada {
   display: inline-flex;
@@ -923,6 +924,10 @@ body {
 .tag-normal { background: var(--cor-superficie-3); color: var(--cor-texto-2); border: 1px solid var(--cor-borda); }
 .tag-urgente{ background: var(--cor-perigo-solido); color: #fff; font-weight: 700; letter-spacing: .05em; animation: pulse 2s infinite; }
 .tag-aprovada{ background: var(--territorio-verde); color: #fff; font-weight: 700; letter-spacing: .05em; }
+/* Apensada: tramita junto de outra proposição (não é autônoma). Tom neutro/
+   informativo -- é contexto de tramitação, não alerta nem vitória. */
+.tag-apensada{ background: var(--cor-superficie-3); color: var(--cor-texto-2); border: 1px solid var(--cor-borda); font-weight: 700; letter-spacing: .05em; }
+.card-apensada{ margin: 0.1rem 0 0; font-size: 0.78rem; color: var(--cor-texto-suave); }
 
 /* Tag de posicionamento institucional da FNP (com a logo) no card/detalhe --
    logo sempre num chip branco pra ficar legível sobre a cor do posicionamento. */

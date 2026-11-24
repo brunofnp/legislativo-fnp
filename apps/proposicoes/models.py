@@ -118,6 +118,11 @@ class Proposicao(models.Model):
     casa = models.CharField(max_length=32, choices=CASA_CHOICES)
     status_tramitacao = models.CharField(max_length=255, blank=True)
     local = models.CharField(max_length=128, blank=True)
+    # Quando a matéria tramita apensada a outra, o título da principal (ex.:
+    # "PEC 231/2019"). Vazio = tramita de forma autônoma. Preenchido pela
+    # coordenação (admin) e/ou pelo atualizar_apensacao (lê o último despacho
+    # de apense/desapense da Câmara). Card/detalhe mostram "Apensada à ...".
+    apensada_a = models.CharField(max_length=64, blank=True)
     pauta = models.BooleanField(default=False)
     urgente = models.BooleanField(default=False)
     aprovada = models.BooleanField(default=False)

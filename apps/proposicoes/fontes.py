@@ -7,6 +7,7 @@ vira ``None`` (quem chama trata como "não encontrada / tente de novo").
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 
 import requests
@@ -169,6 +170,98 @@ def buscar_status_camara(prop_id):
         'data': data_fmt,
         'ultima': ultima.strip(),
     }
+
+
+_APENSE_RE = re.compile(r'(des)?apense-se', re.IGNORECASE)
+_SHORT_RE = re.compile(
+    r'\b(PEC|PLP|PLN|PLV|PDL|PDC|PDS|PRC|MPV|PL)\b[\s\-.ºn]*?(\d{1,5})\s*/\s*(\d{4})',
+    re.IGNORECASE,
+)
+_LONG_RE = re.compile(
+    r'(proposta de emenda à constituição|projeto de lei complementar|projeto de lei|'
+    r'medida provisória|projeto de decreto legislativo|projeto de resolução)'
+    r'\s*n?[ºo.\s]*\s*(\d{1,5})\s*/\s*(\d{4})',
+    re.IGNORECASE,
+)
+_LONG_MAP = {
+    'proposta de emenda à constituição': 'PEC',
+    'projeto de lei complementar': 'PLP',
+    'projeto de lei': 'PL',
+    'medida provisória': 'MPV',
+    'projeto de decreto legislativo': 'PDL',
+    'projeto de resolução': 'PRC',
+}
+
+
+def _refs_proposicoes(texto: str):
+    """Lista canônica ("TIPO N/ANO") das proposições citadas no despacho, na
+    ordem em que aparecem (forma curta "PEC-231/2019" e extensa "Proposta de
+    Emenda à Constituição n. 231/2019")."""
+    achados = []
+    for m in _SHORT_RE.finditer(texto):
+        achados.append((m.start(), f'{m.group(1).upper()} {int(m.group(2))}/{m.group(3)}'))
+    for m in _LONG_RE.finditer(texto):
+        tipo = _LONG_MAP[m.group(1).lower()]
+        achados.append((m.start(), f'{tipo} {int(m.group(2))}/{m.group(3)}'))
+    achados.sort()
+    vistos, ordenados = set(), []
+    for _, ref in achados:
+        if ref not in vistos:
+            vistos.add(ref)
+            ordenados.append(ref)
+    return ordenados
+
+
+def _norm_titulo(titulo: str):
+    m = _SHORT_RE.search(titulo or '')
+    return f'{m.group(1).upper()} {int(m.group(2))}/{m.group(3)}' if m else ''
+
+
+def apensacao_de_tramitacoes(tramitacoes, titulo_self: str):
+    """Decide a apensação atual a partir das tramitações da Câmara.
+
+    Olha o ÚLTIMO despacho de apense/desapense (por dataHora):
+    - "Desapense-se ..."   -> ``''`` (positivamente desapensada).
+    - "Apense-se ... à X"   -> ``'X'`` (a principal, excluído o próprio título).
+    - Nenhum despacho de apense/desapense, ou "apense" sem principal
+      identificável -> ``None`` (indeterminado: quem chama NÃO altera o campo,
+      pra não sobrescrever curadoria com um palpite)."""
+    eventos = []
+    for t in tramitacoes or []:
+        desp = t.get('despacho') or ''
+        if _APENSE_RE.search(desp):
+            eventos.append((t.get('dataHora') or '', desp))
+    if not eventos:
+        return None
+    eventos.sort(key=lambda e: e[0])
+    _, ultimo = eventos[-1]
+    if re.search(r'desapense-se', ultimo, re.IGNORECASE):
+        return ''
+    # "Apense-se [a X] à/ao Y": a PRINCIPAL é a última referência (Y). Quem está
+    # apensada é X (ou o próprio título, implícito). Se o próprio título for a
+    # principal (Y), ele NÃO está apensado -- o mesmo despacho aparece na ficha
+    # das duas, então sem esta direção a principal se marcaria como apensada da
+    # sua apensada.
+    refs = _refs_proposicoes(ultimo)
+    if not refs:
+        return None
+    principal = refs[-1]
+    if principal == _norm_titulo(titulo_self):
+        return None
+    return principal
+
+
+def buscar_apensacao_camara(prop_id, titulo_self: str):
+    """Apensação atual de uma proposição da Câmara (pelo ``idProposicao``),
+    lida das tramitações. Ver ``apensacao_de_tramitacoes`` para a semântica do
+    retorno (``'X'`` / ``''`` / ``None``). ``None`` também em falha de rede."""
+    try:
+        r = requests.get(f'{CAMARA_API}/proposicoes/{prop_id}/tramitacoes', timeout=TIMEOUT)
+        r.raise_for_status()
+        tramitacoes = r.json().get('dados', [])
+    except (requests.RequestException, ValueError):
+        return None
+    return apensacao_de_tramitacoes(tramitacoes, titulo_self)
 
 
 def buscar_status_senado(cod):
